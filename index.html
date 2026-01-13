@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="column-container left-column">
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+        <!-- Second copy for seamless looping -->
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+        <!-- Third copy for stable middle-set infinite scroll -->
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+    </div>
+    <div class="column-container right-column">
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+        <!-- Second copy for seamless looping -->
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+        <!-- Third copy for stable middle-set infinite scroll -->
+        <div class="color-item" data-color="#EF4538"></div>
+        <div class="color-item" data-color="#891951"></div>
+        <div class="color-item" data-color="#FAB01B"></div>
+        <div class="color-item" data-color="#007A6F"></div>
+        <div class="color-item" data-color="#EB4781"></div>
+        <div class="color-item" data-color="#293990"></div>
+    </div>
+    <div class="intro-layer">
+        <div class="gradient-intro-container" id="gradient-intro-container"></div>
+    </div>
+    <div class="main-gradient-header" id="main-gradient-header"></div>
+    <div class="ui-layer">
+        <div class="black-corner-rectangle">
+            <div class="color-key-text">
+                <span class="letter-s">S</span>
+                <span class="letter-i">I</span>
+                <span class="letter-g">G</span>
+                <span class="letter-n">N</span>
+                <span class="letter-a">A</span>
+                <span class="letter-l">L</span>
+            </div>
+        </div>
+        <div class="black-bottom-rectangle">
+            <div class="word-text" id="word-text">
+                <span class="word-letter">W</span>
+                <span class="word-letter">O</span>
+                <span class="word-letter">R</span>
+                <span class="word-letter">D</span>
+            </div>
+        </div>
+        <div class="black-middle-rectangle">
+            <div class="about-text">
+                <span class="about-letter-a">A</span>
+                <span class="about-letter-b">B</span>
+                <span class="about-letter-o">O</span>
+                <span class="about-letter-u">U</span>
+                <span class="about-letter-t">T</span>
+                <span class="parameter-info-marker">[i]</span>
+            </div>
+        </div>
+        <div class="black-rectangle">
+            <div class="syn-text"><span class="syn-word">SYN</span><span class="ethesia-text">[ethesia]</span></div>
+        </div>
+    </div>
+    <div class="split-region split-region-white" id="white-region">
+        <div class="text-box" id="text-box">
+            <p>Synesthesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another.</p>
+            <p>A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured.</p>
+            <p>These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.</p>
+            <p>Synesthesia is not a disorder, but a different way of perceiving reality—one in which the boundaries between the senses gently blur.</p>
+        </div>
+    </div>
+    <!-- Canvas cover: hides canvas content during intro phase -->
+    <div class="canvas-cover" id="canvas-cover"></div>
+    <!-- UI mask: white background layer that masks UI elements during transition state -->
+    <div class="ui-mask" id="ui-mask"></div>
+    <!-- Canvas container: main white interaction area below gradient header and between scrollbars -->
+    <!-- This defines the exact bounds of the canvas area for positioning all interaction content -->
+    <div class="canvas-container" id="canvas-container">
+        <div id="p5-container"></div>
+        <div class="canvas-text-box" id="canvas-text-box"></div>
+        <div class="canvas-text-box-about-backing" id="canvas-text-box-about-backing"></div>
+        <div class="canvas-text-box-about-overlay" id="canvas-text-box-about-overlay">
+            <p>Synesthesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another.</p>
+            <p>A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured.</p>
+            <p>These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.</p>
+            <p>Synesthesia is not a disorder, but a different way of perceiving reality—one in which the boundaries between the senses gently blur.</p>
+        </div>
+        <div class="canvas-text-box-letter-sound" id="canvas-text-box-letter-sound">
+            <p>Written language is experienced as form rather than symbol. For some synesthetes, letters are not abstract signs but spatial entities with weight, direction, and geometry. Language becomes something shaped and seen before it is understood.</p>
+        </div>
+        <div class="canvas-instruction-text" id="canvas-instruction-text">
+            [choose a shape and drag to create a sound]
+        </div>
+    </div>
+    <div class="line line-outer-left"></div>
+    <div class="line line-inner-left"></div>
+    <div class="line line-inner-right"></div>
+    <div class="line line-outer-right"></div>
+    <div class="line line-horizontal"></div>
+    <div class="container">
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

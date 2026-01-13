@@ -1,0 +1,1267 @@
+@font-face {
+    font-family: 'JetBrains Mono NL';
+    src: url('JetBrainsMono-2.304/fonts/ttf/JetBrainsMonoNL-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    background-color: #F7F7F7;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden; /* Prevent page scrolling */
+}
+
+.column-container {
+    position: absolute;
+    width: 85px; /* Wider to accommodate expansion (50px default + 35px expansion) */
+    height: 100vh;
+    z-index: 10; /* Higher z-index to ensure items are above other elements */
+    overflow-y: scroll;
+    overflow-x: hidden; /* Hide horizontal scrollbar */
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+    cursor: grab;
+    scroll-snap-type: y mandatory;
+    pointer-events: auto; /* Ensure container can receive pointer events */
+}
+
+/* Create scrollable height for absolutely positioned children */
+.column-container::after {
+    content: '';
+    display: block;
+    height: calc(100vh / 6 * 18); /* Total height for 18 items (3 copies × 6 colors) */
+    width: 1px;
+}
+
+.column-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for Chrome, Safari, Opera */
+}
+
+
+.color-item {
+    position: absolute;
+    width: 50px;
+    height: calc(100vh / 6);
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    transition: width 0.2s ease, z-index 0.2s ease;
+    pointer-events: auto; /* Ensure items can receive hover events */
+    z-index: 11; /* Higher z-index to ensure items are above container */
+    box-sizing: border-box; /* Ensure width includes padding/border */
+    will-change: width; /* Optimize for width transitions */
+}
+
+/* Position items vertically using nth-child */
+.color-item:nth-child(1) { top: 0; }
+.color-item:nth-child(2) { top: calc(100vh / 6 * 1); }
+.color-item:nth-child(3) { top: calc(100vh / 6 * 2); }
+.color-item:nth-child(4) { top: calc(100vh / 6 * 3); }
+.color-item:nth-child(5) { top: calc(100vh / 6 * 4); }
+.color-item:nth-child(6) { top: calc(100vh / 6 * 5); }
+.color-item:nth-child(7) { top: calc(100vh / 6 * 6); }
+.color-item:nth-child(8) { top: calc(100vh / 6 * 7); }
+.color-item:nth-child(9) { top: calc(100vh / 6 * 8); }
+.color-item:nth-child(10) { top: calc(100vh / 6 * 9); }
+.color-item:nth-child(11) { top: calc(100vh / 6 * 10); }
+.color-item:nth-child(12) { top: calc(100vh / 6 * 11); }
+.color-item:nth-child(13) { top: calc(100vh / 6 * 12); }
+.color-item:nth-child(14) { top: calc(100vh / 6 * 13); }
+.color-item:nth-child(15) { top: calc(100vh / 6 * 14); }
+.color-item:nth-child(16) { top: calc(100vh / 6 * 15); }
+.color-item:nth-child(17) { top: calc(100vh / 6 * 16); }
+.color-item:nth-child(18) { top: calc(100vh / 6 * 17); }
+
+/* Left column items: anchored to left edge (left: 0), expand right on hover */
+.left-column {
+    left: 0;
+}
+
+.left-column .color-item {
+    left: 0;
+}
+
+/* Right column items: anchored to right edge (right: 0), expand left on hover */
+.right-column {
+    right: 0;
+}
+
+.right-column .color-item {
+    right: 0;
+}
+
+/* Legend expansion: all rectangles expand to normal hover width (85px) */
+/* This creates a bulk-hover effect where all items expand together */
+.color-item.legend-expanded {
+    width: 85px !important; /* Same width as normal hover state */
+    z-index: 13; /* Above canvas-text-box (z-index: 12) to ensure expanded rectangle is visible */
+}
+
+/* Label wrapper: stable anchor positioned exactly 10px from inner edge */
+.color-item .label-wrapper {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    z-index: 12;
+    pointer-events: none;
+}
+
+/* Left column: wrapper positioned 10px from right edge (inner edge) and 10px from top */
+.left-column .color-item .label-wrapper {
+    right: 10px;
+    top: 10px;
+}
+
+/* Right column: wrapper positioned 10px from left edge (inner edge) and 10px from bottom */
+.right-column .color-item .label-wrapper {
+    left: 10px;
+    bottom: 10px;
+}
+
+/* Label styling - hidden by default */
+.color-item .label {
+    position: relative;
+    color: white;
+    font-weight: bold;
+    text-transform: none;
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    letter-spacing: 0.03em;
+    /* Ensure no spacing affects bounding box calculation */
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* Use writing-mode for stable vertical text (no rotation needed) */
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+/* Left column: text aligned to right within wrapper */
+.left-column .color-item .label {
+    text-align: right;
+    transform: rotate(180deg); /* Rotate 180 degrees to read bottom to top */
+}
+
+/* Right column: text aligned to left within wrapper */
+.right-column .color-item .label {
+    text-align: left;
+}
+
+/* Show label when item is expanded (hover state) */
+.color-item:hover .label,
+.color-item.opposite-hovered .label {
+    opacity: 1;
+}
+
+/* Show all labels when legend is expanded (for all items in both columns) */
+.color-item.legend-expanded .label {
+    opacity: 1;
+}
+
+/* Label wrapper positioning remains the same for legend-expanded items */
+/* Left column items use right: 10px, top: 10px (already defined) */
+/* Right column items use left: 10px, bottom: 10px (already defined) */
+
+/* Hide label during scrolling */
+.column-container.scrolling .color-item .label {
+    opacity: 0;
+}
+
+/* Hover expansion: width grows from 50px to 85px inward */
+/* Only allow hover expansion when NOT scrolling */
+.color-item:hover,
+.color-item.opposite-hovered {
+    width: 85px;
+    z-index: 13; /* Above canvas-text-box (z-index: 12) to ensure expanded rectangle is visible */
+}
+
+/* Legend expansion is now handled by .color-item.legend-expanded rule above */
+/* All items (both columns) expand to 85px when legend is active */
+
+/* Disable hover expansion during scrolling */
+/* Higher specificity to override hover state */
+.column-container.scrolling .color-item {
+    width: 50px;
+    z-index: 11; /* Reset to default z-index when scrolling */
+}
+
+.column-container.scrolling .color-item:hover,
+.column-container.scrolling .color-item.opposite-hovered,
+.column-container.scrolling .color-item.legend-expanded {
+    width: 50px;
+    z-index: 11; /* Reset to default z-index when scrolling */
+}
+
+.line {
+    position: absolute;
+    width: 1px;
+    height: 100vh;
+    background-color: #2C2C2C;
+    top: 0;
+    z-index: 1;
+    pointer-events: none; /* Allow clicks to pass through to columns */
+    display: none; /* Hide grid lines */
+}
+
+
+.line-outer-left {
+    left: 100px;
+}
+
+.line-inner-left {
+    left: 150px;
+}
+
+.line-inner-right {
+    right: 150px;
+}
+
+.line-outer-right {
+    right: 100px;
+}
+
+/* Main gradient header - persistent header on main screen (post-intro) */
+.main-gradient-header {
+    position: absolute;
+    top: 0;
+    height: calc(100vh / 6); /* Same height as one color item row */
+    /* left and width are set dynamically via JavaScript to span from scrollbar inner edges */
+    z-index: 1; /* Below UI layer (2) so UI elements render on top, but above background (0) */
+    pointer-events: none; /* Don't block interactions */
+    /* Hidden by default, shown when horizontal expansion starts (while intro gradients collapse) */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Main gradient header visible state */
+.main-gradient-header.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Intro layer wrapper - contains gradient intro container */
+.intro-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 5; /* Above UI layer (2) but below columns (10) */
+    pointer-events: none; /* Let pointer events pass through to child */
+}
+
+/* Gradient intro container - holds all gradient rectangles */
+.gradient-intro-container {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 1; /* Relative to intro-layer */
+    pointer-events: auto; /* Enable wheel events for center scroll trigger */
+    overflow: hidden; /* Clip gradients to viewport - prevents bleed during collapse */
+    outline: none !important; /* Remove any focus outlines */
+    border: none !important; /* Remove any borders */
+    box-shadow: none !important; /* Remove any box shadows */
+}
+
+/* Intro phase classes */
+.gradient-intro-container.intro-entering {
+    /* Entry phase - full-bleed bands animating to centered layout */
+}
+
+.gradient-intro-container.intro-active {
+    /* Default active state */
+}
+
+.gradient-intro-container.intro-closing {
+    /* Closing phase - horizontal expansion in progress */
+}
+
+.gradient-intro-container.intro-collapsed {
+    /* Final collapsed state */
+}
+
+/* Individual gradient rectangle */
+.gradient-intro-rectangle {
+    position: absolute;
+    height: calc(100vh / 6); /* Same height as color items */
+    /* Position and width will be set dynamically via JavaScript */
+    pointer-events: none; /* Ensure no interaction */
+    /* Entry animation: 2000ms with very soft, gradual easing for left/width, fast height transition for smooth scrubbing (50ms) */
+    transition: left 2000ms cubic-bezier(0.2, 0.0, 0.0, 1), width 2000ms cubic-bezier(0.2, 0.0, 0.0, 1), height 50ms ease;
+    outline: none !important; /* Remove any focus outlines */
+    border: none !important; /* Remove any borders */
+    box-shadow: none !important; /* Remove any box shadows */
+}
+
+/* Closing phase: faster transition for horizontal expansion */
+.gradient-intro-container.intro-closing .gradient-intro-rectangle {
+    /* Faster transition for closing phase (400ms) */
+    transition: left 400ms ease, width 400ms ease, height 50ms ease;
+}
+
+/* Vertical collapse phase - bars shrink to 0 height */
+.gradient-intro-container.collapse .gradient-intro-rectangle {
+    height: 0px !important;
+}
+
+/* Hide text when intro is closing or collapsed (but allow fade-in during entering phase) */
+.gradient-intro-container.intro-closing .gradient-intro-text,
+.gradient-intro-container.intro-collapsed .gradient-intro-text {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Hide arrow when intro is entering, closing, or collapsed */
+.gradient-intro-container.intro-entering .gradient-intro-arrow,
+.gradient-intro-container.intro-closing .gradient-intro-arrow,
+.gradient-intro-container.intro-collapsed .gradient-intro-arrow {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Instructional text for gradient intro */
+.gradient-intro-text {
+    position: absolute;
+    color: white;
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    font-weight: normal;
+    text-transform: none; /* Allow lowercase like [ethesia] */
+    letter-spacing: 0.03em; /* 3% letter spacing - same as [ethesia] */
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none; /* Don't block interactions */
+    z-index: 2; /* Above gradient rectangles */
+    line-height: 0.8; /* Match [ethesia] line-height */
+    /* Position will be set dynamically via JavaScript */
+    /* Start hidden by default - will fade in during entry animation */
+    opacity: 0;
+    /* Opacity transition synced with gradient shrink animation (2000ms with same easing) */
+    transition: left 2s cubic-bezier(0.2, 0.0, 0.0, 1), width 2s cubic-bezier(0.2, 0.0, 0.0, 1), opacity 2s cubic-bezier(0.2, 0.0, 0.0, 1);
+}
+
+/* Hide text during entering phase (opacity 0) - will fade in as gradients shrink */
+.gradient-intro-container.intro-entering .gradient-intro-text {
+    opacity: 0 !important;
+}
+
+/* Show text when active phase is reached (opacity 1) - synced with gradient shrink completion */
+.gradient-intro-container.intro-active .gradient-intro-text {
+    opacity: 1 !important;
+}
+
+/* START text is no longer clickable - center scroll trigger is used instead */
+
+/* Downward arrow below START text */
+.gradient-intro-arrow {
+    position: absolute;
+    color: white;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-weight: bold; /* Bold weight to match [start] text thickness */
+    text-align: center;
+    pointer-events: none; /* Don't block interactions */
+    z-index: 2; /* Above gradient rectangles */
+    opacity: 0.7; /* Subtle appearance */
+    /* Position will be set dynamically via JavaScript */
+    transition: left 2s cubic-bezier(0.2, 0.0, 0.0, 1), width 2s cubic-bezier(0.2, 0.0, 0.0, 1), opacity 0.3s ease; /* Deliberate entry animation (2000ms with very soft, gradual easing) */
+    /* Subtle bounce animation */
+    animation: arrowBounce 2s ease-in-out infinite;
+}
+
+/* Closing phase: faster transition for arrow */
+.gradient-intro-container.intro-closing .gradient-intro-arrow {
+    transition: left 0.4s ease, width 0.4s ease, opacity 0.3s ease; /* Faster transition for closing phase (400ms) */
+}
+
+/* Keyframe animation for gentle bounce effect */
+@keyframes arrowBounce {
+    0%, 100% {
+        transform: translateY(0);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translateY(8px);
+        opacity: 0.5;
+    }
+}
+
+
+/* UI layer wrapper - contains all UI elements (logo, about, colorkey) */
+.ui-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 2; /* Below intro layer (5) but above background (0) */
+    pointer-events: none; /* Let pointer events pass through when hidden - children can override */
+    /* Visibility controlled by JavaScript based on intro phase */
+    opacity: 0;
+    transition: opacity 0.3s ease; /* Smooth fade in when becoming visible */
+}
+
+/* UI layer visible state - applied when gradients have fully expanded to scrollbar edges (hasExpandedToScrollbars) or intro is completed */
+.ui-layer.ui-visible {
+    opacity: 1;
+    /* Keep pointer-events: none on parent, but children have pointer-events: auto to enable interactions */
+}
+
+.black-corner-rectangle {
+    position: absolute;
+    right: 50px; /* 50px from right edge - aligns with left edge of right scrollbar */
+    /* top position is set dynamically via JavaScript to align with ESTHESIA center */
+    width: 225px; /* Increased from 205px by 20px to expand leftward */
+    height: 40px; /* Increased from 35px by 5px - top edge only */
+    background-color: #2C2C2C; /* Same black as .black-rectangle */
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: auto; /* Enable hover interactions */
+    box-sizing: border-box; /* Ensure width includes padding/border */
+    margin: 0; /* Remove any default margins */
+    padding: 0; /* Remove any default padding */
+    transition: width 0.2s ease, left 0.2s ease, right 0.2s ease, top 0.1s ease; /* Smooth transitions - all match column expansion timing (0.2s) */
+    cursor: pointer; /* Indicate interactivity */
+    display: flex;
+    align-items: center; /* Vertically centers text within rectangle */
+    justify-content: flex-start; /* Align text to left */
+    overflow: hidden; /* Ensure text stays within bounds */
+}
+
+/* Text styling for COLOR KEY */
+.black-corner-rectangle .color-key-text {
+    color: white; /* Match white canvas color */
+    font-family: Helvetica, sans-serif;
+    font-size: 0; /* Remove spacing between inline-block children */
+    font-weight: bold;
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    white-space: nowrap;
+    text-transform: uppercase;
+    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
+    box-sizing: border-box;
+    position: relative;
+    top: 9px; /* Moved up 3px from 12px */
+    left: -1px; /* Move 1px to the left (moved 2px right from -3px) */
+    display: flex;
+    justify-content: flex-start; /* Align text to left */
+}
+
+/* Default letter-spacing for each letter - -15% spacing */
+.black-corner-rectangle .color-key-text .letter-s,
+.black-corner-rectangle .color-key-text .letter-i,
+.black-corner-rectangle .color-key-text .letter-g,
+.black-corner-rectangle .color-key-text .letter-n,
+.black-corner-rectangle .color-key-text .letter-a,
+.black-corner-rectangle .color-key-text .letter-l {
+    display: inline-block; /* Allow individual letter control */
+    font-size: 34px; /* Reset font-size from parent's 0 */
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
+}
+
+/* Expanded letter-spacing on hover - progressive spacing (same logic as ABOUT) */
+.black-corner-rectangle:hover .color-key-text .letter-s,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-s {
+    letter-spacing: 0.16em; /* 16% - between S and I (same as A→B in ABOUT) */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-i,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-i {
+    letter-spacing: 0.24em; /* 24% - between I and G */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-g,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-g {
+    letter-spacing: 0.32em; /* 32% - between G and N */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-n,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-n {
+    letter-spacing: 0.4em; /* 40% - between N and A */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-a,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-a {
+    letter-spacing: 0.48em; /* 48% - between A and L */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-l,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-l {
+    letter-spacing: 0.56em; /* 56% - after L (last letter) */
+}
+
+/* Rectangle width stays static on hover - only letter-spacing changes */
+/* .black-corner-rectangle:hover,
+.black-corner-rectangle.color-key-expanded {
+    width: 260.5px;
+} */
+
+.black-bottom-rectangle {
+    position: absolute;
+    left: 285px; /* Right edge of .black-rectangle (50px + 235px) */
+    /* top position is set dynamically via JavaScript to align with ESTHESIA center */
+    width: 365px; /* Keep original width - this is the parameter text-box (long rectangle) */
+    height: 40px; /* Increased from 35px by 5px - top edge only */
+    background-color: #2C2C2C; /* Same black as other rectangles */
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: auto; /* Enable hover interactions */
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    transition: top 0.1s ease; /* Smooth transitions - removed width transition */
+    cursor: default; /* Changed from pointer to default - no hover indication */
+    display: flex;
+    align-items: center; /* Vertically centers text within rectangle */
+    justify-content: flex-start; /* Align text to left edge */
+    overflow: hidden; /* Ensure text stays within bounds */
+}
+
+/* Rectangle width stays static on hover - only letter-spacing changes */
+/* .black-bottom-rectangle:hover {
+    width: 331.5px;
+} */
+
+.black-middle-rectangle {
+    position: absolute;
+    right: 50px; /* 50px from right edge - aligns with left edge of right scrollbar */
+    bottom: 0; /* Positioned at bottom of screen */
+    width: 225px; /* Keep original width - this is the about rectangle (short rectangle) */
+    height: 40px; /* Increased from 35px by 5px - top edge only */
+    background-color: #2C2C2C; /* Same black as other rectangles */
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: auto; /* Enable hover interactions */
+    box-sizing: border-box; /* Ensure width includes padding/border */
+    margin: 0; /* Remove any default margins */
+    padding: 0; /* Remove any default padding */
+    transition: width 0.3s ease, left 0.2s ease, right 0.2s ease; /* Smooth transitions */
+    cursor: pointer; /* Indicate interactivity */
+    display: flex;
+    align-items: center; /* Vertically centers text within rectangle */
+    justify-content: flex-start; /* Align text to left edge */
+    overflow: hidden; /* Ensure text stays within bounds */
+}
+
+/* Rectangle width stays static on hover - only letter-spacing changes */
+/* .black-middle-rectangle:hover {
+    width: 240.5px;
+} */
+
+.black-rectangle {
+    position: absolute;
+    left: 50px;
+    top: calc(100vh / 6 - 75px); /* Positioned so bottom edge stays at calc(100vh / 6) */
+    width: 235px;
+    height: 75px; /* Reduced height, bottom edge stays fixed */
+    background-color: #2C2C2C;
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: none;
+    padding-left: 0; /* No left padding - text sits flush with left edge */
+    padding-bottom: 0; /* No bottom padding - text sits on bottom edge */
+    font-family: sans-serif;
+    font-size: 28px;
+    font-weight: bold;
+    color: white; /* Match white canvas color */
+    letter-spacing: 2px;
+    line-height: 114%;
+}
+
+.black-rectangle .syn-text {
+    position: absolute;
+    bottom: -6px; /* Negative offset to make glyphs touch bottom edge */
+    left: 0; /* Flush with left edge of black rectangle */
+    font-family: Helvetica, sans-serif;
+    font-size: 88px;
+    letter-spacing: -0.17em; /* -17% letter spacing */
+    color: white; /* Match white canvas color */
+    text-transform: uppercase;
+    line-height: 0.8; /* Tight line-height to make glyphs touch bottom edge */
+    margin: 0;
+    padding: 0;
+    transform: translateX(-4px); /* Pull text left to eliminate gap from font sidebearings */
+}
+
+.black-rectangle .syn-text .syn-word {
+    display: inline-block;
+    position: relative;
+}
+
+.black-rectangle .syn-text .ethesia-text {
+    position: absolute;
+    left: calc(100% + 13px); /* Position 13px to the right of SYN word */
+    top: 3px; /* Position 3px below SYN's top edge */
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    letter-spacing: 0.03em; /* 3% letter spacing */
+    color: white;
+    white-space: nowrap;
+    text-transform: none; /* Override parent's uppercase transform to keep lowercase */
+    line-height: 0.8; /* Match SYN's line-height */
+    margin: 0;
+    padding: 0;
+}
+
+
+.split-region {
+    position: absolute;
+    top: 50px; /* Start below the gradient area */
+    height: calc(100vh - 50px); /* Fill remaining viewport height */
+    z-index: 0;
+    pointer-events: none; /* Allow clicks to pass through */
+}
+
+.split-region-white {
+    left: 50px;
+    right: 50px;
+    width: auto;
+    background-color: white;
+    overflow: hidden; /* Clip content to region boundaries */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Text styling for ABOUT - same as COLOR KEY */
+.black-middle-rectangle .about-text {
+    color: white; /* Match white canvas color */
+    font-family: Helvetica, sans-serif;
+    font-size: 0; /* Remove spacing between inline-block children */
+    font-weight: bold;
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    white-space: nowrap;
+    text-transform: uppercase;
+    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
+    box-sizing: border-box;
+    position: relative;
+    top: 9px; /* Moved up 3px from 12px */
+}
+
+/* Default letter-spacing for each letter - -15% spacing */
+.black-middle-rectangle .about-text .about-letter-a,
+.black-middle-rectangle .about-text .about-letter-b,
+.black-middle-rectangle .about-text .about-letter-o,
+.black-middle-rectangle .about-text .about-letter-u,
+.black-middle-rectangle .about-text .about-letter-t {
+    display: inline-block; /* Allow individual letter control */
+    font-size: 34px; /* Reset font-size from parent's 0 */
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
+}
+
+/* Expanded letter-spacing on hover - progressive spacing */
+.black-middle-rectangle:hover .about-text .about-letter-a {
+    letter-spacing: 0.16em; /* 16% - between A and B (stays the same) */
+}
+
+.black-middle-rectangle:hover .about-text .about-letter-b {
+    letter-spacing: 0.24em; /* 24% - between B and O */
+}
+
+.black-middle-rectangle:hover .about-text .about-letter-o {
+    letter-spacing: 0.32em; /* 32% - between O and U */
+}
+
+.black-middle-rectangle:hover .about-text .about-letter-u {
+    letter-spacing: 0.4em; /* 40% - between U and T */
+}
+
+.black-middle-rectangle:hover .about-text .about-letter-t {
+    letter-spacing: 0.48em; /* 48% - after T */
+}
+
+/* Text styling for WORD - same as ABOUT */
+.black-bottom-rectangle .word-text {
+    color: white; /* Match white canvas color */
+    font-family: Helvetica, sans-serif;
+    font-size: 0; /* Remove spacing between inline-block children */
+    font-weight: bold;
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    white-space: nowrap;
+    text-transform: uppercase;
+    text-align: left; /* Explicitly align text to left */
+    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
+    margin: 0; /* Remove any default margins */
+    box-sizing: border-box;
+    position: relative;
+    top: 9px; /* Moved up 3px from 12px */
+    left: -2px; /* Moved 2px to the left */
+    display: flex;
+    justify-content: flex-start; /* Align text to left */
+}
+
+/* Default letter-spacing for each letter - -15% spacing */
+.black-bottom-rectangle .word-text .word-letter {
+    display: inline-block; /* Allow individual letter control */
+    font-size: 34px; /* Reset font-size from parent's 0 */
+    letter-spacing: -0.15em; /* -15% letter spacing */
+    /* Removed transition - no hover effects on text */
+}
+
+/* Extra spacing for spaces around "&" symbol - visible despite negative letter-spacing */
+.black-bottom-rectangle .word-text .word-space-around-ampersand {
+    margin-right: 0.25em; /* Add visible spacing despite negative letter-spacing */
+}
+
+/* Info marker [i] next to about text */
+.black-middle-rectangle .about-text .parameter-info-marker {
+    position: absolute;
+    left: 100%; /* Start at end of text content */
+    margin-left: -3px; /* Move 3px to the left (was -5px, moved 2px right) */
+    top: 0; /* Aligned to top edge */
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    color: white; /* Match white canvas color */
+    white-space: nowrap;
+    text-transform: none; /* Override parent's uppercase transform to keep lowercase */
+    pointer-events: none; /* Don't interfere with interactions */
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    padding: 0;
+    display: inline-block; /* Ensure proper positioning */
+    transition: transform 0.3s ease; /* Smooth transition to match letter spacing */
+}
+
+/* On hover, move [i] left to stick to the T letter (T has letter-spacing: 0.48em) */
+.black-middle-rectangle:hover .about-text .parameter-info-marker {
+    /* Move left by T's letter-spacing (0.48em) to stick to T */
+    /* font-size is 34px, so 0.48em = 0.48 * 34px = 16.32px */
+    transform: translateX(calc(-0.48em - 3px)); /* Move left by T's letter-spacing plus original offset */
+}
+
+
+.text-box {
+    width: 100%;
+    padding: 40px;
+    box-sizing: border-box;
+    font-family: sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #2C2C2C;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    flex-shrink: 0;
+    position: relative; /* Enable absolute positioning for line backgrounds */
+}
+
+.text-box p {
+    margin-bottom: 20px;
+    position: relative; /* Enable absolute positioning for line backgrounds */
+}
+
+.text-box p:last-child {
+    margin-bottom: 0;
+}
+
+/* Line background rectangles */
+.text-box .line-bg {
+    position: absolute;
+    background-color: #E0E0E0; /* Light gray background */
+    border-radius: 4px; /* Slight rounded corners for pill effect */
+    z-index: -1; /* Behind the text */
+    pointer-events: none; /* Don't interfere with text selection */
+}
+
+
+#p5-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Ensure container maintains size even when hidden */
+    min-width: 1px;
+    min-height: 1px;
+    /* Fill entire canvas container */
+    /* Ensure canvas is on top */
+    z-index: 10;
+}
+
+#p5-container canvas {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: block !important;
+    z-index: 11 !important;
+}
+
+/* Canvas cover: hides canvas content during intro phase */
+/* Positioned exactly over canvas container to hide content until intro completes */
+.canvas-cover {
+    position: absolute;
+    top: calc(100vh / 6); /* Starts directly below gradient header */
+    left: 50px; /* Inner edge of left scrollbar */
+    right: 50px; /* Inner edge of right scrollbar */
+    height: calc(100vh - 100vh / 6); /* Fills remaining viewport height below gradient */
+    background-color: #F7F7F7; /* Match page background color */
+    z-index: 3; /* Above canvas (1) but below intro layer (5) and columns (10) */
+    pointer-events: none; /* Don't block interactions - just visual cover */
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Visible by default during intro */
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Hide canvas cover when intro is completed */
+.canvas-cover.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* UI mask: white background layer that masks UI elements during transition state */
+/* Covers entire viewport to hide UI elements in gaps between scrollbars and gradients */
+.ui-mask {
+    position: fixed; /* Fixed positioning to cover entire viewport including gaps */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #F7F7F7; /* Match page background color */
+    z-index: 4; /* Above UI layer (2) and canvas cover (3), but below intro layer (5) and canvas (10+) */
+    pointer-events: none; /* Don't block interactions - just visual mask */
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Hidden by default - only visible during transition state */
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Show UI mask during transition state (when scrollbars detach with gap) */
+.ui-mask.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Canvas container: main white interaction area below gradient header and between scrollbars */
+/* This defines the exact bounds where all interaction content (p5 canvas, UI panel) should be positioned */
+.canvas-container {
+    position: absolute;
+    top: calc(100vh / 6); /* Starts directly below gradient header */
+    left: 50px; /* Inner edge of left scrollbar */
+    right: 50px; /* Inner edge of right scrollbar */
+    height: calc(100vh - 100vh / 6); /* Fills remaining viewport height below gradient */
+    z-index: 1; /* Above background but below UI layer */
+    /* Allow pointer events for interaction content inside */
+    pointer-events: auto;
+}
+
+/* Canvas text box: reusable text component with fixed position and style */
+.canvas-text-box {
+    position: fixed; /* Fixed to viewport for consistent positioning across canvases */
+    left: 50px; /* 50px from left edge of outer screen boundary (viewport) */
+    top: calc(100vh / 6 * 5 + 3px); /* Start at the top of the bottommost visible rectangle (6th rectangle, index 5) */
+    width: 1035px;
+    height: calc(100vh / 6); /* Spread across the full height of the rectangle */
+    font-family: Helvetica, sans-serif;
+    font-size: 29px;
+    line-height: 29px;
+    font-weight: bold;
+    color: #2C2C2C; /* Same black as UI rectangles */
+    z-index: 12; /* Above canvas but below UI layer elements */
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    overflow: visible; /* Ensure text is visible */
+}
+
+/* White backing layer: blocks main text box when ABOUT is hovered */
+.canvas-text-box-about-backing {
+    position: fixed; /* Fixed to viewport - matches ABOUT overlay positioning */
+    left: 50px; /* Same as ABOUT overlay */
+    top: calc(100vh / 6 * 5 + 3px); /* Same as ABOUT overlay */
+    width: 1035px; /* Same width as main text box */
+    height: calc(100vh / 6); /* Same height as ABOUT overlay */
+    background-color: white; /* White background to block main text box */
+    z-index: 12; /* Above main text box (12) but below ABOUT text overlay (13) */
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    /* Hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Show backing layer when ABOUT element is hovered (via class toggle) */
+.canvas-text-box-about-backing.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ABOUT hover overlay: appears above main canvas text box on hover */
+.canvas-text-box-about-overlay {
+    position: fixed; /* Fixed to viewport - matches canvas-text-box positioning */
+    left: 50px; /* Same as canvas-text-box */
+    top: calc(100vh / 6 * 5 + 3px); /* Same as canvas-text-box */
+    width: 1035px; /* Same width as main text box */
+    height: calc(100vh / 6); /* Same as canvas-text-box */
+    font-family: Helvetica, sans-serif; /* Same font */
+    font-size: 29px; /* Same font size */
+    line-height: 29px; /* Same line height */
+    font-weight: bold; /* Same font weight */
+    color: #E0E0E0; /* Same gray as used elsewhere on the site */
+    z-index: 13; /* Higher than backing layer (12) and canvas-text-box (12) to appear above both */
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    overflow: visible; /* Ensure text is visible */
+    /* Hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Show overlay when ABOUT element is hovered (via class toggle) */
+.canvas-text-box-about-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Line background blocks for canvas text box */
+.canvas-line-bg {
+    border-radius: 0; /* No rounded corners for stepped shape */
+}
+
+/* Canvas text box for SHAPE & LETTER only */
+.canvas-text-box-letter-sound {
+    position: absolute;
+    /* 85px from the start of the canvas (85px below the bottom edge of gradient header) */
+    top: 85px;
+    /* 85px inward from the inner edge of left scrollbar (which is at 50px) */
+    left: 85px;
+    /* 85px inward from the inner edge of right scrollbar (which is at 50px from right) */
+    right: 85px;
+    /* Width is calculated automatically via left and right */
+    font-family: Helvetica, sans-serif;
+    font-size: 67px;
+    line-height: 71px;
+    font-weight: bold;
+    color: #E0E0E0; /* Same gray as line backgrounds in main text box */
+    z-index: 11; /* Below main canvas text box (z-index: 12) but above canvas */
+    pointer-events: auto; /* Enable hover interactions on letters */
+    overflow: visible; /* Ensure text is visible */
+    text-align: left; /* Left-aligned text */
+    text-transform: uppercase; /* Convert text to uppercase */
+    /* Ensure no padding or margin that would offset text from left edge */
+    padding: 0;
+    margin: 0;
+    /* Hidden by default, shown only for SHAPE & LETTER pages */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+}
+
+/* Show text box when LETTER & SOUND is active */
+.canvas-text-box-letter-sound.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Paragraph styling for letter-sound text box */
+.canvas-text-box-letter-sound p {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left; /* Left-aligned text */
+    /* Normal font size and line height for proper text flow */
+    font-size: 67px; /* Match container font-size */
+    line-height: 71px; /* Match container line-height */
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+    /* Ensure normal white-space for proper text flow (not flex or per-letter layout) */
+    white-space: normal; /* Normal wrapping behavior */
+    /* Typography refinement: balanced spacing for justified text */
+    word-spacing: 0.12em; /* Clear word separation, tighter than default justify gaps */
+    letter-spacing: 0.03em; /* Subtle letter spacing for even distribution */
+    /* No transforms or offsets that would shift lines */
+    transform: none;
+    /* Ensure no left indent */
+    text-indent: 0;
+}
+
+/* Letter slot container - natural size, no clipping in default state */
+.canvas-text-box-letter-sound .letter-slot {
+    display: inline; /* Inline to maintain natural text flow for justification */
+    position: relative; /* Allow absolute positioning of children */
+    width: auto; /* Natural width - matches glyph size */
+    height: auto; /* Natural height - matches glyph size */
+    overflow: visible; /* No clipping - letters render normally */
+    vertical-align: baseline; /* Align with text baseline */
+    cursor: pointer;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+}
+
+/* Static glyph - visible normally for layout, hidden on hover */
+.canvas-text-box-letter-sound .letter-slot .letter-glyph-static {
+    display: inline; /* Inline to maintain natural text flow */
+    position: relative;
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    color: inherit;
+    pointer-events: none;
+    /* Hover-out: delay before reappearing to allow letter to slide up and push shape out */
+    /* No opacity transition - visibility controlled by position/masking only */
+    transition: visibility 0s linear 0.315s; /* 0.315s delay (0.105s pause + 0.3s letter slide up, reduced by 30%), then instant show */
+    visibility: visible;
+}
+
+/* Letter mask - 45×45px clipping area centered on letter */
+/* Contains both the sliding letter glyph and the shape */
+.canvas-text-box-letter-sound .letter-slot .letter-mask {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 45px;
+    height: 45px;
+    transform: translate(-50%, -50%);
+    overflow: hidden; /* Clip both letter and shape as they transition */
+    pointer-events: none; /* Don't interfere with hover */
+    z-index: 1;
+    opacity: 0; /* Hidden by default */
+    /* Hover-out: mask stays visible during animation, then hides instantly (no fade) */
+    /* Delay matches hover-out animation timing (0.105s delay + 0.3s animation = 0.315s, reduced by 30%) */
+    transition: opacity 0s linear 0.315s; /* Instant hide after 0.315s delay - no fade, just timing */
+    /* Ensure mask fully clips content - no overflow visible */
+    clip-path: inset(0);
+}
+
+/* Letter glyph - the sliding version inside mask, hidden by default */
+.canvas-text-box-letter-sound .letter-slot .letter-glyph {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Start at center position */
+    transform: translate(-50%, -50%) translateY(0);
+    /* Hover-out: letter slides UP from below (70px → 0) - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay (reduced by 30%), then 0.3s slide up - translate only */
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    /* Center text both horizontally and vertically */
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    pointer-events: none;
+    white-space: nowrap;
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    z-index: 1; /* Below shape */
+}
+
+/* Hover-out: letter slides up - translate only, no opacity */
+.canvas-text-box-letter-sound .letter-slot.hover-leaving .letter-glyph {
+    /* Letter slides from 70px (down) to 0 (center) - translate only */
+    transform: translate(-50%, -50%) translateY(0);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity (reduced delay by 30%) */
+}
+
+/* SVG shape container - positioned inside mask, slides up from below */
+.canvas-text-box-letter-sound .letter-slot .letter-shape {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 45px;
+    height: 45px;
+    /* Start from below (translateY(70px)) - matches letter slide distance for synchronized motion */
+    transform: translate(-50%, -50%) translateY(70px);
+    /* Hover-out: shape is pushed UP and out by letter sliding up - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay (shape pause, reduced by 30%), then 0.3s ease-in push up - translate only */
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    /* Shape appears above glyph to cover it */
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Hover-out state: shape is pushed up and out by letter sliding up */
+.canvas-text-box-letter-sound .letter-slot.hover-leaving .letter-shape {
+    /* Shape is pushed UP and out by letter sliding up - translate only */
+    transform: translate(-50%, -50%) translateY(-70px);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity (reduced delay by 30%) */
+}
+
+/* Letter slot hover state - letter slides down, shape slides up */
+.canvas-text-box-letter-sound .letter-slot:hover,
+.canvas-text-box-letter-sound .letter-slot.hover-active {
+    /* Increase z-index so hovered letter's shape appears on top of neighbors */
+    z-index: 10;
+}
+
+/* Hide static glyph on hover - instant (no fade) */
+.canvas-text-box-letter-sound .letter-slot:hover .letter-glyph-static,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-glyph-static {
+    visibility: hidden; /* Instant hide - no opacity, visibility only */
+    /* Hover-in: instant hide, no delay */
+    transition: visibility 0s ease; /* Instant hide on hover */
+}
+
+/* Show mask on hover - becomes visible immediately */
+.canvas-text-box-letter-sound .letter-slot:hover .letter-mask,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-mask {
+    opacity: 1; /* Instant show - no transition */
+    /* Hover-in: instant show, no transition */
+    transition: none; /* No transitions - instant visibility */
+}
+
+/* Sliding glyph: visible as it slides down into mask, then gets clipped */
+/* Slide down enough to fully exit the mask (70px ensures tall letters disappear completely) */
+.canvas-text-box-letter-sound .letter-slot:hover .letter-glyph,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-glyph {
+    /* Visible during slide-down animation - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(70px); /* Slide down enough to fully disappear */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+}
+
+/* Shape slides up from below to center position on hover */
+/* This creates the "push" effect - shape takes the letter's place */
+.canvas-text-box-letter-sound .letter-slot:hover .letter-shape,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-shape {
+    /* Visible as it slides up - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(0); /* Slide up to center position */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+    z-index: 2;
+}
+
+/* When hover-active class is present, override any hover-out delays to prevent blank states */
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-glyph-static {
+    /* Force immediate hide when hover-active class is set - visibility only */
+    transition: visibility 0s ease !important;
+}
+
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-mask,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-glyph,
+.canvas-text-box-letter-sound .letter-slot.hover-active .letter-shape {
+    /* Force immediate show when hover-active class is set (cancel any pending hover-out) - translate only */
+    transition: transform 0.2s ease !important; /* Translate only, no opacity */
+}
+
+/* Keep old letter-span styles for spaces (they won't be wrapped in slots) */
+.canvas-text-box-letter-sound .letter-span {
+    display: inline; /* Use inline to maintain natural text flow for justification */
+    position: relative;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    text-align: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    z-index: 1;
+}
+
+/* Space character handling - no transformation */
+.canvas-text-box-letter-sound .letter-span.space {
+    display: inline;
+    width: auto;
+    height: auto;
+    font-size: inherit;
+    line-height: inherit;
+    cursor: default;
+    margin: 0;
+    padding: 0;
+    transform: none;
+}
+
+/* Space character: no shape */
+.canvas-text-box-letter-sound .letter-span.space .letter-shape {
+    display: none;
+}
+
+/* Change shape colors to gray for SHAPE & LETTER canvas */
+.canvas-text-box-letter-sound svg,
+.canvas-text-box-letter-sound .letter-shape svg,
+.canvas-text-box-letter-sound .letter-slot svg {
+    fill: #E0E0E0 !important; /* Same gray as line backgrounds in main text box */
+    stroke: #E0E0E0 !important; /* Same gray as line backgrounds in main text box */
+}
+
+/* Canvas instruction text for SOUND & SHAPE page */
+.canvas-instruction-text {
+    position: absolute;
+    /* Center horizontally and vertically in canvas container */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    color: #2C2C2C; /* Same black as UI rectangles */
+    background-color: white; /* White background to match page background */
+    padding: 8px 16px; /* Add padding around text for better visibility */
+    z-index: 13; /* Above canvas (z-index: 11) to ensure text appears on top of drawings */
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    white-space: nowrap;
+    /* Hidden by default, shown only for SOUND & SHAPE pages */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Show instruction text when SOUND & SHAPE is active */
+.canvas-instruction-text.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+.line-horizontal {
+    width: 100vw;
+    height: 1px;
+    left: 0;
+    top: 50px;
+    z-index: 1;
+    display: none; /* Hide grid lines */
+}
+
+.container {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    pointer-events: none; /* Prevent interaction with center content */
+}
+
+h1 {
+    font-size: 3rem;
+    font-weight: normal;
+}
