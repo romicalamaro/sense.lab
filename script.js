@@ -5,6 +5,9 @@ const colors = ['#EF4538', '#891951', '#FAB01B', '#007A6F', '#EB4781', '#293990'
 // כתום- shape, סגול- sound, צהוב- letter, ירוק- number, ורוד- emotion, כחול- color
 const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
+// Initial instruction text content (shown after demo ends, before user scrolls)
+const INITIAL_INSTRUCTION_TEXT = 'Synesthesia is a perceptual experience where one sense triggers another<br>This site explores synesthesia through combinations of two senses at a time<div style="margin-top: 21px;">[Scroll the left and right bars to combine senses]</div>';
+
 // Color constants for visibility check
 const ORANGE_COLOR = '#EF4538';  // shape (index 0)
 const PURPLE_COLOR = '#891951';  // sound (index 1)
@@ -25,6 +28,8 @@ let uniqueColorsSeen = new Set(); // Track unique colors that have been selected
 let introTextChanged = false; // Prevent multiple changes
 let hasUserInteracted = false; // Track if user has started scrolling (prevents counting initial colors)
 let isProgrammaticScroll = false; // Flag to track programmatic scrolls (should not trigger interaction)
+let isDemoActive = false; // Flag to track demo/programmatic animation (prevents START text change during demo)
+let userInteracted = false; // Flag to track real user interaction (wheel/touch/pointer events)
 let isInitializing = true; // Flag to track initialization phase (prevents initial scroll events from counting)
 let introPhase = 'entering'; // Track intro phase: 'entering' (initial full-bleed), 'active' (default), or 'closing' (after START is clicked)
 let introReady = false; // Gate: true when START text is visible, false otherwise
@@ -33,9 +38,8 @@ let introProgress = 0; // Persistent progress value p in [0..1] for intro closin
 let introCompleted = false; // Lock: true when progress reaches 1, prevents reversing
 let horizontalExpansionStarted = false; // Track if horizontal expansion has started
 let hasExpandedToScrollbars = false; // Track when gradients have fully expanded to scrollbar edges (UI becomes visible only after this)
+let startClickTransitionActive = false; // Track if START click transition is active (disables scroll-based trigger)
 const SCROLL_THRESHOLD = 3000; // Threshold for full collapse (3x slower: requires ~3 scroll gestures to complete collapse)
-let autoScrollDemoRun = false; // Track if the auto-scroll demo has already run (only run once per page load)
-let autoScrollDemoActive = false; // Track if auto-scroll demo is currently running
 
 // Initialize columns
 document.addEventListener('DOMContentLoaded', () => {
@@ -65,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(initialPageId);
+    
+    // Initialize Shape & Color controls
+    initializeShapeColorControls();
+    updateShapeColorControls(initialPageId);
     
     // Initialize p5.js sketch
     initializeP5Sketch();
@@ -97,6 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize center scroll trigger for intro
     initializeCenterScrollTrigger();
+    
+    // Initialize user interaction detection (wheel/touch/pointer events)
+    initializeUserInteractionDetection();
     
     // Initialize UI visibility (hidden by default during entering phase)
     updateUIVisibility();
@@ -373,28 +384,34 @@ function initializeColumn(column, side) {
     
     column.addEventListener('scroll', () => {
         // DEBUG: Log programmatic scrolls and initialization scrolls
-        // CRITICAL: During auto-scroll demo, we still need to update gradients
-        // So we allow updateSelectedIndices() to run even during programmatic scrolls
-        const isAutoScrollDemo = autoScrollDemoActive && isProgrammaticScroll;
-        
-        // CRITICAL: Ignore user interaction tracking during initialization or programmatic adjustments
-        // BUT: During auto-scroll demo, we still update gradients
+        // CRITICAL: Allow gradient updates during programmatic scrolls (for demo)
+        // but skip user interaction tracking during initialization or programmatic adjustments
         if (isProgrammaticScroll || isAdjusting || isInitializing) {
             console.log(`PROGRAMMATIC_SCROLL [${side.toUpperCase()}]`, {
                 isProgrammaticScroll,
                 isAdjusting,
                 isInitializing,
-                isAutoScrollDemo,
                 scrollTop: column.scrollTop,
                 timestamp: new Date().toISOString()
             });
             
-            // During auto-scroll demo, update gradients even though scroll is programmatic
-            if (isAutoScrollDemo) {
+            // Update gradients even during programmatic scrolls (demo will use this)
                 updateSelectedIndices();
-            }
             
             // Skip user interaction tracking
+            return;
+        }
+        
+        // CRITICAL: Ignore demo-driven scrolls for START logic
+        // Log scroll event for debugging
+        console.log(`scroll event [${side.toUpperCase()}] — demoActive:`, isDemoActive, 'userInteracted:', userInteracted, {
+            scrollTop: column.scrollTop,
+            timestamp: new Date().toISOString()
+        });
+        
+        if (isDemoActive) {
+            // Demo is active - update gradients but don't trigger START logic
+            updateSelectedIndices();
             return;
         }
         
@@ -420,21 +437,49 @@ function initializeColumn(column, side) {
             });
         }
         
-        // Track that this column has been scrolled
-        if (side === 'left' && !leftColumnScrolled) {
-            leftColumnScrolled = true;
-            console.log('USER_SCROLL_LEFT', {
+        // CRITICAL: Ensure userInteracted is set if this is a real user scroll
+        // (fallback in case wheel/touch/pointer events didn't fire first)
+        if (!userInteracted && !isDemoActive && !isInitializing) {
+            userInteracted = true;
+            console.log(`USER_INTERACTION_DETECTED_VIA_SCROLL [${side.toUpperCase()}]`, {
+                userInteracted: userInteracted,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // CRITICAL: Trigger START text on first user scroll (after demo ends)
+        // Only allow START to appear when userInteracted === true (real user interaction detected)
+        // and introTextChanged === false (hasn't been changed yet)
+        if (userInteracted && !isDemoActive && !introTextChanged) {
+            // First user scroll detected - immediately switch to START
+            console.log(`FIRST_USER_SCROLL_DETECTED [${side.toUpperCase()}]`, {
                 timestamp: new Date().toISOString(),
                 currentColor: getSnappedTileColor(column)
             });
-            checkAndUpdateIntroText();
-        } else if (side === 'right' && !rightColumnScrolled) {
-            rightColumnScrolled = true;
-            console.log('USER_SCROLL_RIGHT', {
-                timestamp: new Date().toISOString(),
-                currentColor: getSnappedTileColor(column)
+            
+            // Mark that intro text has been changed
+            introTextChanged = true;
+            
+            // Enable center scroll trigger AND make START clickable
+            introReady = true;
+            
+            // Use shared function to set up START button (ensures consistent behavior)
+            setupStartButton();
+            
+            console.log('INTRO_TEXT_CHANGED_TO_START', {
+                reason: 'FIRST_USER_SCROLL',
+                side: side,
+                timestamp: new Date().toISOString()
             });
-            checkAndUpdateIntroText();
+        }
+        
+        // Track that this column has been scrolled (for other tracking purposes)
+        if (userInteracted && !isDemoActive) {
+            if (side === 'left' && !leftColumnScrolled) {
+                leftColumnScrolled = true;
+            } else if (side === 'right' && !rightColumnScrolled) {
+                rightColumnScrolled = true;
+            }
         }
         
         // Track color changes (only after user has started interacting)
@@ -1503,6 +1548,79 @@ function updateSoundShapeInstructionText(pageId) {
     }
 }
 
+// ==================
+// SHAPE & COLOR CANVAS CONTROLS
+// ==================
+// Array to store circles for Shape & Color canvas
+let shapeColorCircles = [];
+
+// Function to update Shape & Color controls visibility
+function updateShapeColorControls(pageId) {
+    const controls = document.getElementById('shape-color-controls');
+    if (!controls) return;
+    
+    // Show controls only for Shape & Color pages (pageId "0-5" or "5-0")
+    // Parameter indices: 0=shape, 5=color
+    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
+    
+    if (isShapeColorPage) {
+        controls.classList.add('visible');
+    } else {
+        controls.classList.remove('visible');
+        // Clear circles when switching away from Shape & Color page
+        resetShapeColorCircles();
+    }
+}
+
+// Function to add a circle to the Shape & Color canvas
+function addShapeColorCircle() {
+    const circlesContainer = document.getElementById('shape-color-circles');
+    if (!circlesContainer) return;
+    
+    // Create a new circle element
+    const circle = document.createElement('div');
+    circle.className = 'shape-color-circle';
+    
+    // Generate random offset: ±5px on both axes
+    const offsetX = (Math.random() * 10) - 5; // Random value between -5 and 5
+    const offsetY = (Math.random() * 10) - 5; // Random value between -5 and 5
+    
+    // Apply the offset using transform: translate from center, then add random offset
+    circle.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    
+    // Add to container
+    circlesContainer.appendChild(circle);
+    
+    // Store reference in array
+    shapeColorCircles.push(circle);
+}
+
+// Function to reset (clear all circles) on Shape & Color canvas
+function resetShapeColorCircles() {
+    const circlesContainer = document.getElementById('shape-color-circles');
+    if (!circlesContainer) return;
+    
+    // Remove all circles from DOM
+    circlesContainer.innerHTML = '';
+    
+    // Clear array
+    shapeColorCircles = [];
+}
+
+// Initialize Shape & Color controls (button handlers)
+function initializeShapeColorControls() {
+    const addCircleBtn = document.getElementById('add-circle-btn');
+    const resetBtn = document.getElementById('reset-circles-btn');
+    
+    if (addCircleBtn) {
+        addCircleBtn.addEventListener('click', addShapeColorCircle);
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetShapeColorCircles);
+    }
+}
+
 // Function to hide SOUND & SHAPE instruction text (called when user starts drawing)
 function hideSoundShapeInstructionText() {
     const instructionText = document.getElementById('canvas-instruction-text');
@@ -1547,6 +1665,9 @@ function updateActivePage(pageId, reason) {
     
     // Update SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(pageId);
+    
+    // Update Shape & Color controls visibility
+    updateShapeColorControls(pageId);
     
     // Update p5 sketch to use the new pageId for state storage
     if (p5Instance) {
@@ -3246,6 +3367,10 @@ function startEntryAnimation() {
     container.classList.remove('intro-entering');
     container.classList.add('intro-active');
     
+    // CRITICAL: Add demo-active class immediately to prevent text from appearing
+    // The text should remain hidden until demo completes
+    container.classList.add('demo-active');
+    
     // Update gradients to active state (will animate via CSS transition)
     updateGradientIntro();
     
@@ -3269,8 +3394,8 @@ function startEntryAnimation() {
         // Verify UI is still hidden after entry animation
         updateUIVisibility();
         
-        // Trigger auto-scroll demo when intro text is visible
-        triggerAutoScrollDemo();
+        // Trigger demo when intro text is visible
+        triggerDemo();
         
         // Note: Header (first rectangle at index 0) visibility is controlled by intro container visibility
     }, 2000);
@@ -3294,10 +3419,10 @@ function initializeGradientIntro() {
         container.appendChild(rect);
     }
     
-    // Create instructional text for the 5th gradient rectangle (index 4)
+    // Create instructional text for the 4th gradient rectangle (index 3) - all three lines
     const introText = document.createElement('div');
     introText.className = 'gradient-intro-text';
-    introText.textContent = '[scroll the right and left bars]';
+    introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
     introText.id = 'gradient-intro-text';
     // Ensure text starts hidden (opacity 0) - will fade in during entry animation
     // CSS will handle the transition, but we set initial state explicitly
@@ -3403,21 +3528,22 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         rect.style.height = `${itemHeight}px`;
     });
     
-    // Position instructional text in the 5th gradient rectangle (index 4)
+    // Position instructional text in the 4th gradient rectangle (index 3) - all three lines
     // Text fades in during entry animation (synced with gradient shrink)
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
-        const fifthRectIndex = 4; // 5th rectangle (0-indexed)
-        const fifthRectTop = fifthRectIndex * itemHeight;
+        const fourthRectIndex = 3; // 4th rectangle (0-indexed)
+        const fourthRectTop = fourthRectIndex * itemHeight;
         
-        // Position text in the 5th rectangle (positioned even during entering phase for fade-in)
+        // Position text in the 4th rectangle (positioned even during entering phase for fade-in)
         introText.style.left = `${leftEdge}px`;
         introText.style.width = `${width}px`;
-        introText.style.top = `${fifthRectTop}px`;
+        introText.style.top = `${fourthRectTop}px`;
         introText.style.height = `${itemHeight}px`;
         introText.style.display = 'flex';
         introText.style.alignItems = 'center';
         introText.style.justifyContent = 'center';
+        introText.style.flexDirection = 'column';
         introText.style.visibility = 'visible';
         // DO NOT set opacity inline - let CSS classes control it for smooth transition
         // Opacity is controlled by CSS classes (intro-entering = 0, intro-active = 1)
@@ -3612,7 +3738,7 @@ function triggerIntroTransition() {
     console.log('INTRO_FULLY_CLOSED_BY_CENTER_SCROLL');
     
     // Heights are already at 0 (progress = 1), so we can set final state immediately
-    // Wait for horizontal expansion to complete (400ms) before setting final state
+    // Wait for horizontal expansion to complete (250ms) before setting final state
     setTimeout(() => {
         // Set final collapsed state
         gradientContainer.classList.add('intro-collapsed');
@@ -3643,7 +3769,7 @@ function triggerIntroTransition() {
         
         // Hide UI mask when intro completes
         updateUIMaskVisibility();
-    }, 400); // Match CSS transition duration for horizontal expansion
+    }, 250); // Match CSS transition duration for horizontal expansion
 }
 
 // Function to start horizontal expansion (called once when scrolling begins)
@@ -3696,7 +3822,7 @@ function startHorizontalExpansion() {
     // This shows the white background layer to mask UI elements
     updateUIMaskVisibility();
     
-    // Wait for horizontal expansion animation to complete (400ms) before showing UI
+    // Wait for horizontal expansion animation to complete (250ms) before showing UI
     // UI becomes visible ONLY AFTER gradients have expanded to reach the scrollbars
     setTimeout(() => {
         hasExpandedToScrollbars = true;
@@ -3705,7 +3831,7 @@ function startHorizontalExpansion() {
         updateCanvasCoverVisibility();
         // Hide UI mask when transition completes
         updateUIMaskVisibility();
-    }, 400); // Match CSS transition duration for horizontal expansion
+    }, 250); // Match CSS transition duration for horizontal expansion
 }
 
 // Function to update gradient bar heights based on progress
@@ -3810,6 +3936,24 @@ function initializeCenterScrollTrigger() {
             return;
         }
         
+        // CRITICAL: Block center scroll during START click transition (programmatic transition active)
+        if (startClickTransitionActive) {
+            console.log('CENTER_SCROLL_BLOCKED', {
+                reason: 'startClickTransitionActive === true',
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        
+        // CRITICAL: Disable scroll-to-close after START appears - only click should trigger transition
+        if (introReady) {
+            console.log('CENTER_SCROLL_BLOCKED', {
+                reason: 'introReady === true (START is visible - click only)',
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        
         // Check gating: if intro is not ready or already triggered, ignore
         if (!introReady || introTriggered) {
             return;
@@ -3886,6 +4030,50 @@ function initializeCenterScrollTrigger() {
     }, { passive: false });
 }
 
+// Function to initialize user interaction detection
+// Detects real user interaction via wheel/touchstart/pointerdown events
+// Sets userInteracted flag to true when genuine user interaction is detected
+function initializeUserInteractionDetection() {
+    // Detect wheel events (mouse wheel scrolling)
+    document.addEventListener('wheel', (e) => {
+        // Only set flag if not during demo and not during initialization
+        if (!isDemoActive && !isInitializing) {
+            userInteracted = true;
+            console.log('USER_INTERACTION_DETECTED', {
+                type: 'wheel',
+                userInteracted: userInteracted,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }, { passive: true });
+    
+    // Detect touch events (mobile/touchscreen)
+    document.addEventListener('touchstart', (e) => {
+        // Only set flag if not during demo and not during initialization
+        if (!isDemoActive && !isInitializing) {
+            userInteracted = true;
+            console.log('USER_INTERACTION_DETECTED', {
+                type: 'touchstart',
+                userInteracted: userInteracted,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }, { passive: true });
+    
+    // Detect pointer events (mouse/touch/pen)
+    document.addEventListener('pointerdown', (e) => {
+        // Only set flag if not during demo and not during initialization
+        if (!isDemoActive && !isInitializing) {
+            userInteracted = true;
+            console.log('USER_INTERACTION_DETECTED', {
+                type: 'pointerdown',
+                userInteracted: userInteracted,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }, { passive: true });
+}
+
 // Function to reverse the intro transition (main → intro)
 // Reuses the existing scroll-driven collapse logic, animating progress from 1 → 0
 function reverseIntroTransition() {
@@ -3898,7 +4086,9 @@ function reverseIntroTransition() {
         return;
     }
     
-    console.log('REVERSE_INTRO_TRANSITION_START', {
+    console.log('LOGO_CLICK → REVERSE_INTRO_TRANSITION_START', {
+        introProgress: introProgress,
+        introPhase: introPhase,
         timestamp: new Date().toISOString()
     });
     
@@ -4039,7 +4229,7 @@ function reverseIntroTransition() {
             gradientContainer.classList.add('intro-active');
             
             // Update to active state (narrowed with gap) - this will contract horizontally
-            // CSS transition (400ms) will animate the horizontal contraction smoothly
+            // CSS transition (250ms) will animate the horizontal contraction smoothly
             updateGradientIntro();
         }
         
@@ -4059,7 +4249,13 @@ function reverseIntroTransition() {
                 updateGradientIntro();
             }
             
-            // Wait for horizontal contraction to complete (400ms), then transition to entering phase
+            console.log('LOGO_CLICK → ANIMATION_COMPLETE', {
+                introProgress: introProgress,
+                introPhase: introPhase,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Wait for horizontal contraction to complete (250ms), then transition to entering phase
             setTimeout(() => {
                 introPhase = 'entering';
                 gradientContainer.classList.remove('intro-active');
@@ -4075,14 +4271,309 @@ function reverseIntroTransition() {
                     introCompleted = wasIntroCompleted;
                     horizontalExpansionStarted = wasHorizontalExpansionStarted;
                     
+                    console.log('LOGO_CLICK → RESTART_INTRO', {
+                        timestamp: new Date().toISOString()
+                    });
+                    
                     // Now restart intro (which will reset everything properly)
                     restartIntro();
                 }, 2000); // Match CSS transition duration for entering phase
-            }, 400); // Match CSS transition duration for closing → active
+            }, 250); // Match CSS transition duration for closing → active
         }
     }
     
     // Start animation
+    requestAnimationFrame(animate);
+}
+
+// Shared function to set up START button click handler
+// This ensures consistent behavior whether START appears in initial intro or after returning via logo click
+function setupStartButton() {
+    const introText = document.getElementById('gradient-intro-text');
+    if (!introText) {
+        console.warn('START button setup: intro text element not found');
+        return;
+    }
+    
+    // Set START text (CSS will handle opacity since we're in intro-active phase)
+    introText.textContent = '[start]';
+    // Remove any inline styles that might override CSS
+    introText.style.display = '';
+    introText.style.visibility = '';
+    introText.style.opacity = '';
+    
+    // Make START text clickable
+    introText.style.cursor = 'pointer';
+    introText.style.pointerEvents = 'auto';
+    
+    // Remove any existing click handlers by cloning and replacing (avoids duplicates)
+    const newIntroText = introText.cloneNode(true);
+    introText.parentNode.replaceChild(newIntroText, introText);
+    
+    // Update reference to the new node
+    const updatedIntroText = document.getElementById('gradient-intro-text');
+    
+    // Add click handler to trigger forward transition
+    updatedIntroText.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('START_CLICKED', {
+            timestamp: new Date().toISOString()
+        });
+        
+        // Trigger forward transition (intro → main)
+        forwardIntroTransition();
+    });
+    
+    // Show arrow (positioning is handled by updateGradientIntro, but visibility needs to be set)
+    const arrowElement = document.getElementById('gradient-intro-arrow');
+    if (arrowElement) {
+        arrowElement.style.display = 'flex';
+        arrowElement.style.visibility = 'visible';
+        arrowElement.style.opacity = '0.7';
+    }
+    
+    // Update gradient intro to position text and arrow correctly
+    // This must be called after setting text content to '[start]' so arrow positioning works
+    updateGradientIntro();
+}
+
+// Function to forward the intro transition (intro → main)
+// Two-step process: 1) Horizontal expansion first, 2) Then collapse transition
+// Uses the same programmatic animation approach - NO scroll-triggered functions
+function forwardIntroTransition() {
+    // Only allow if intro is ready and not completed (we're at START checkpoint)
+    if (!introReady || introCompleted) {
+        console.log('FORWARD_TRANSITION_BLOCKED', {
+            reason: !introReady ? 'introReady === false' : 'introCompleted === true',
+            timestamp: new Date().toISOString()
+        });
+        return;
+    }
+    
+    // Prevent scroll-based trigger during programmatic transition
+    startClickTransitionActive = true;
+    
+    console.log('START_CLICK → FORWARD_INTRO_TRANSITION_START', {
+        introProgress: introProgress,
+        introPhase: introPhase,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Get gradient container
+    const gradientContainer = document.getElementById('gradient-intro-container');
+    if (!gradientContainer) {
+        console.error('Gradient container not found');
+        startClickTransitionActive = false;
+        return;
+    }
+    
+    // Hide text and arrow immediately when transition starts
+    const introText = document.getElementById('gradient-intro-text');
+    if (introText) {
+        introText.style.display = 'none';
+        introText.style.visibility = 'hidden';
+        introText.style.opacity = '0';
+        introText.style.pointerEvents = 'none';
+    }
+    
+    const arrowElement = document.getElementById('gradient-intro-arrow');
+    if (arrowElement) {
+        arrowElement.style.display = 'none';
+        arrowElement.style.visibility = 'hidden';
+        arrowElement.style.opacity = '0';
+        arrowElement.style.pointerEvents = 'none';
+    }
+    
+    // Get or create gradient rectangles
+    let rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
+    const itemHeight = window.innerHeight / 6;
+    
+    // If rectangles don't exist, create them
+    if (rectangles.length === 0) {
+        for (let i = 0; i < 6; i++) {
+            const rect = document.createElement('div');
+            rect.className = 'gradient-intro-rectangle';
+            rect.style.top = `${i * itemHeight}px`;
+            rect.setAttribute('data-bar-index', i);
+            gradientContainer.appendChild(rect);
+        }
+        rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
+    }
+    
+    // CRITICAL: Set up initial state manually (like reverseIntroTransition does)
+    // Start in 'active' phase (narrowed with gap) - this is the START checkpoint state
+    introPhase = 'active';
+    gradientContainer.classList.add('intro-active');
+    gradientContainer.classList.remove('intro-closing');
+    gradientContainer.classList.remove('intro-collapsed');
+    
+    // Set up initial state: rectangles in active phase (narrowed with gap)
+    // This matches the state when progress = 0 (START checkpoint)
+    const SCROLLBAR_COLLAPSED_WIDTH = 50;
+    const SCROLLBAR_EXPANDED_WIDTH = 85;
+    const GRADIENT_GAP = SCROLLBAR_EXPANDED_WIDTH - SCROLLBAR_COLLAPSED_WIDTH; // 35px
+    const leftEdge = SCROLLBAR_COLLAPSED_WIDTH + GRADIENT_GAP; // 85px from left
+    const rightEdge = window.innerWidth - SCROLLBAR_COLLAPSED_WIDTH - GRADIENT_GAP;
+    const activeWidth = rightEdge - leftEdge;
+    
+    const containerRect = gradientContainer.getBoundingClientRect();
+    const containerLocalLeft = leftEdge - containerRect.left;
+    
+    rectangles.forEach((bar) => {
+        bar.style.left = containerLocalLeft + 'px';
+        bar.style.width = activeWidth + 'px';
+    });
+    
+    // Update colors for active phase
+    updateGradientIntro();
+    
+    // Start with progress = 0 (fully expanded state - START checkpoint)
+    introProgress = 0;
+    
+    // Set initial heights to full (expanded state)
+    updateGradientBarHeights(introProgress);
+    
+    // Show main gradient header immediately (it should be visible under the collapsing gradient)
+    showMainGradientHeader();
+    
+    // Update UI mask visibility immediately when transition starts
+    updateUIMaskVisibility();
+    
+    // Mark that gradients have expanded to scrollbars (required for UI visibility)
+    hasExpandedToScrollbars = true;
+    
+    // STEP 1: Horizontal expansion first
+    // Transition from 'active' phase (narrowed with gap) to 'closing' phase (expanded to scrollbar edges)
+    console.log('START_CLICK → STEP_1_HORIZONTAL_EXPANSION_START', {
+        timestamp: new Date().toISOString()
+    });
+    
+    // Transition to closing phase (expanded to scrollbar edges)
+    introPhase = 'closing';
+    gradientContainer.classList.remove('intro-active');
+    gradientContainer.classList.add('intro-closing');
+    
+    // Manually set rectangles to scrollbar edges (full width between scrollbars)
+    const { leftInnerX, rightInnerX } = getClosedScrollbarInnerEdges();
+    const containerRectExpanded = gradientContainer.getBoundingClientRect();
+    const containerLocalLeftExpanded = leftInnerX - containerRectExpanded.left;
+    const targetWidth = rightInnerX - leftInnerX;
+    
+    rectangles.forEach((bar) => {
+        bar.style.left = containerLocalLeftExpanded + 'px';
+        bar.style.width = targetWidth + 'px';
+    });
+    
+    // Update to closing state (expanded to scrollbar edges) - CSS transition (250ms) will animate
+    updateGradientIntro();
+    
+    // STEP 2: Start collapse animation immediately (same frame as expansion) - zero delay for continuous gesture
+    // Expansion and collapse now run simultaneously on the same timeline for uninterrupted motion
+    console.log('START_CLICK → STEP_2_COLLAPSE_START', {
+        timestamp: new Date().toISOString()
+    });
+    
+    // Animation parameters for collapse transition
+    const duration = 2000; // 2 seconds for the collapse animation
+    const startTime = performance.now();
+    const startProgress = 0;
+    const endProgress = 1;
+    
+    // Easing function (easeInOutCubic for smooth animation)
+    function easeInOutCubic(t) {
+        return t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    // Track if UI has been revealed (only once, when animation starts)
+    let uiRevealed = false;
+    
+    // Animation loop for collapse transition
+    function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Reveal UI and canvas when animation starts (first frame)
+        // This happens as the top gradient rectangle starts collapsing
+        if (!uiRevealed && progress > 0) {
+            uiRevealed = true;
+            // Show UI as the top gradient starts collapsing
+            updateUIVisibility();
+            // Hide canvas cover to reveal canvas content
+            updateCanvasCoverVisibility();
+        }
+        
+        // Apply easing
+        const easedProgress = easeInOutCubic(progress);
+        
+        // Interpolate progress from 0 → 1 (heights collapse from full to 0)
+        const currentProgress = startProgress + (endProgress - startProgress) * easedProgress;
+        introProgress = currentProgress;
+        
+        // Log progress for debugging
+        if (Math.floor(progress * 10) % 2 === 0) { // Log every 20% to avoid spam
+            console.log('START_CLICK → COLLAPSE_PROGRESS_UPDATE', {
+                elapsed: elapsed.toFixed(2),
+                progress: progress.toFixed(3),
+                easedProgress: easedProgress.toFixed(3),
+                currentProgress: currentProgress.toFixed(3),
+                introProgress: introProgress.toFixed(3),
+                introPhase: introPhase
+            });
+        }
+        
+        // Update gradient bar heights using existing collapse logic
+        updateGradientBarHeights(introProgress);
+        
+        // Continue animation until progress reaches 1
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            // Animation complete - ensure progress is exactly 1
+            introProgress = 1;
+            updateGradientBarHeights(1);
+            
+            // Mark intro as completed
+            introCompleted = true;
+            
+            // Ensure we're in closing phase (should already be set)
+            if (introPhase !== 'closing') {
+                introPhase = 'closing';
+                gradientContainer.classList.remove('intro-active');
+                gradientContainer.classList.add('intro-closing');
+            }
+            
+            console.log('START_CLICK → COLLAPSE_ANIMATION_COMPLETE', {
+                introProgress: introProgress,
+                introPhase: introPhase,
+                introCompleted: introCompleted,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Trigger final cleanup
+            setTimeout(() => {
+                // Trigger final cleanup (same as scroll-based completion)
+                if (!introTriggered) {
+                    triggerIntroTransition();
+                }
+                
+                // Hide UI mask when transition completes (same as scroll-based flow)
+                updateUIMaskVisibility();
+                
+                // Reset flag
+                startClickTransitionActive = false;
+                
+                console.log('START_CLICK → FINAL_CLEANUP_COMPLETE', {
+                    timestamp: new Date().toISOString()
+                });
+            }, 100); // Small delay for final state updates
+        }
+    }
+    
+    // Start collapse animation immediately (same frame as expansion) - zero delay
     requestAnimationFrame(animate);
 }
 
@@ -4242,21 +4733,11 @@ function goToStartCheckpoint() {
                 introTriggered = false; // Not yet triggered
                 introTextChanged = true; // Text is "[start]"
                 
-                // Set START text (CSS will handle opacity since we're in intro-active phase)
-                introText.textContent = '[start]';
-                // Remove any inline styles that might override CSS
-                introText.style.display = '';
-                introText.style.visibility = '';
-                introText.style.opacity = '';
+                // Reset startClickTransitionActive to ensure clean state
+                startClickTransitionActive = false;
                 
-                // Update gradient intro to position text and arrow correctly
-                // This must be called after setting text content to '[start]' so arrow positioning works
-                updateGradientIntro();
-                
-                // Show arrow (positioning is handled by updateGradientIntro, but visibility needs to be set)
-                arrowElement.style.display = 'flex';
-                arrowElement.style.visibility = 'visible';
-                arrowElement.style.opacity = '0.7';
+                // Use shared function to set up START button (ensures consistent behavior)
+                setupStartButton();
                 
                 // UI stays hidden (we're in START state, not main screen)
                 updateUIVisibility();
@@ -4279,7 +4760,7 @@ function goToStartCheckpoint() {
                     hasExpandedToScrollbars: hasExpandedToScrollbars,
                     timestamp: new Date().toISOString()
                 });
-            }, 400); // Match CSS transition duration for closing → active
+            }, 250); // Match CSS transition duration for closing → active
         }
     }
     
@@ -4302,13 +4783,14 @@ function restartIntro() {
     introCompleted = false;
     horizontalExpansionStarted = false;
     hasExpandedToScrollbars = false;
-    autoScrollDemoRun = false;
-    autoScrollDemoActive = false;
+    startClickTransitionActive = false; // Reset to ensure clean state
     
     // Reset intro text state
     introTextChanged = false;
     leftColumnScrolled = false;
     rightColumnScrolled = false;
+    userInteracted = false; // Reset user interaction flag
+    isDemoActive = false; // Reset demo active flag
     uniqueColorsSeen.clear();
     hasUserInteracted = false;
     
@@ -4408,397 +4890,242 @@ function initializeLogoClickHandler() {
 }
 
 // Function to check if intro text should be updated
+// NOTE: This function is now primarily used for legacy/backup checks
+// The main START trigger is now handled directly in the scroll handler on first user scroll
 function checkAndUpdateIntroText() {
     // Don't change if already changed
     if (introTextChanged) return;
     
-    // Check conditions: either scrollbar scrolled OR 5+ unique colors seen
-    const oneScrolled = leftColumnScrolled || rightColumnScrolled;
-    const fiveColorsSeen = uniqueColorsSeen.size >= 5;
-    
-    // DEBUG: Log every check (even if conditions not met)
-    const introText = document.getElementById('gradient-intro-text');
-    const currentText = introText ? introText.textContent : 'NOT FOUND';
-    
-    console.log('CHECK_INTRO_TEXT', {
-        currentText: currentText,
-        oneScrolled: oneScrolled,
-        fiveColorsSeen: fiveColorsSeen,
-        leftHasScrolled: leftColumnScrolled,
-        rightHasScrolled: rightColumnScrolled,
-        uniqueColorCount: uniqueColorsSeen.size,
-        uniqueColors: [...uniqueColorsSeen],
-        hasUserInteracted: hasUserInteracted,
-        willChange: oneScrolled || fiveColorsSeen,
-        timestamp: new Date().toISOString()
-    });
-    
-    if (oneScrolled || fiveColorsSeen) {
-        if (introText) {
-            const fromText = introText.textContent;
-            introText.textContent = '[start]';
-            introTextChanged = true;
-            
-            // Enable center scroll trigger (START is no longer clickable)
-            introReady = true;
-            
-            // Show arrow when START text appears
-            const arrowElement = document.getElementById('gradient-intro-arrow');
-            if (arrowElement) {
-                arrowElement.style.display = 'flex';
-                arrowElement.style.visibility = 'visible';
-                arrowElement.style.opacity = '0.7';
-            }
-            
-            // Update arrow position after showing it
-            updateGradientIntro();
-            
-            // DEBUG: Log the actual text change
-            console.log('INTRO_TEXT_CHANGED', {
-                from: fromText,
-                to: 'START',
-                reason: oneScrolled ? 'ONE_SCROLLED' : 'FIVE_COLORS_SEEN',
-                leftHasScrolled: leftColumnScrolled,
-                rightHasScrolled: rightColumnScrolled,
-                uniqueColors: [...uniqueColorsSeen],
-                uniqueColorCount: uniqueColorsSeen.size,
-                hasUserInteracted: hasUserInteracted,
-                introReady: introReady,
-                timestamp: new Date().toISOString()
-            });
-        }
-    }
-}
-
-// ==================
-// AUTO-SCROLL DEMO FUNCTION
-// ==================
-
-// Function to trigger auto-scroll demo when intro text becomes visible
-function triggerAutoScrollDemo() {
-    // Only run once per page load
-    if (autoScrollDemoRun) {
+    // CRITICAL: Block START text change during demo or when no real user interaction detected
+    if (isDemoActive) {
+        console.log('CHECK_INTRO_TEXT_BLOCKED', {
+            reason: 'isDemoActive === true (demo scroll in progress)',
+            isDemoActive: isDemoActive,
+            timestamp: new Date().toISOString()
+        });
         return;
     }
     
-    // Check if intro text is visible and says "[scroll the right and left bars]"
+    // Only allow START to appear when userInteracted === true (real user interaction detected)
+    if (!userInteracted) {
+        console.log('CHECK_INTRO_TEXT_BLOCKED', {
+            reason: 'userInteracted === false (no real user interaction detected)',
+            userInteracted: userInteracted,
+            timestamp: new Date().toISOString()
+        });
+        return;
+    }
+    
+    // NOTE: START is now triggered on first user scroll in the scroll handler
+    // This function is kept for backward compatibility but should rarely be called
+    // The scroll handler directly calls setupStartButton() on first user scroll
+    console.log('CHECK_INTRO_TEXT (legacy function - START should be triggered in scroll handler)', {
+        introTextChanged: introTextChanged,
+        userInteracted: userInteracted,
+        isDemoActive: isDemoActive,
+        timestamp: new Date().toISOString()
+    });
+}
+
+// ==================
+// SIMPLE DEMO SCROLL FUNCTION
+// ==================
+
+// Function to programmatically scroll a column
+// Only changes scrollTop - gradients update automatically via scroll handler
+// Uses discrete scroll gestures: scroll → pause → scroll (like real user wheel gestures)
+// scrollDistance: positive = down, negative = up (in number of items)
+function scrollColumnProgrammatically(column, duration, scrollDistance) {
+    const itemHeight = window.innerHeight / 6;
+    const startScrollTop = column.scrollTop;
+    
+    // Set programmatic scroll flag to skip user interaction tracking
+    // but gradients will still update via scroll handler
+    isProgrammaticScroll = true;
+    // Set demo active flag to prevent START text change during demo
+    isDemoActive = true;
+    
+    // Disable scroll-snap during demo for smooth motion
+    // Use setProperty to ensure CSS property is set correctly
+    const originalSnapType = window.getComputedStyle(column).scrollSnapType;
+    column.style.setProperty('scroll-snap-type', 'none', 'important');
+    
+    // Calculate number of steps (one per item)
+    const numSteps = Math.abs(scrollDistance);
+    const direction = scrollDistance > 0 ? 1 : -1; // 1 for down, -1 for up
+    
+    // Timing parameters for discrete gestures
+    const stepDuration = 300; // 300ms per scroll gesture (between 250-400ms)
+    const pauseDuration = 180; // 180ms pause between gestures (between 120-250ms)
+    
+    let currentStep = 0;
+    let currentStartScrollTop = startScrollTop;
+    
+    // Function to perform one discrete scroll gesture
+    function performScrollStep(stepIndex) {
+        if (stepIndex >= numSteps) {
+            // All steps complete - re-enable scroll-snap and ensure final snap
+            column.style.removeProperty('scroll-snap-type');
+            
+            // Final snap to nearest item
+            const currentScroll = column.scrollTop;
+            const tileIndex = Math.round(currentScroll / itemHeight);
+            const snappedPosition = tileIndex * itemHeight;
+            column.scrollTop = snappedPosition;
+            
+            // Reset flags after a small delay
+            setTimeout(() => {
+                isProgrammaticScroll = false;
+                // Note: isDemoActive is reset in scrollBothColumnsProgrammatically after all animations complete
+            }, 50);
+            return;
+        }
+        
+        // Calculate target for this step (one item in the direction)
+        const stepStartScrollTop = currentStartScrollTop;
+        const stepTargetScrollTop = stepStartScrollTop + (itemHeight * direction);
+        const stepStartTime = Date.now();
+        
+        // Animate this single step
+        function animateStep() {
+            const elapsed = Date.now() - stepStartTime;
+            const progress = Math.min(elapsed / stepDuration, 1);
+            
+            // Use ease-out for natural deceleration (feels more like user gesture)
+            const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+            
+            // Update scrollTop only - existing scroll handler will update gradients
+            const newScrollTop = stepStartScrollTop + (stepTargetScrollTop - stepStartScrollTop) * ease;
+            column.scrollTop = newScrollTop;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateStep);
+            } else {
+                // Step complete - snap to exact position
+                column.scrollTop = stepTargetScrollTop;
+                currentStartScrollTop = stepTargetScrollTop;
+                
+                // Check if this is the last step
+                const isLastStep = (stepIndex + 1) >= numSteps;
+                
+                if (isLastStep) {
+                    // Last step - proceed immediately to cleanup
+                    performScrollStep(stepIndex + 1);
+                } else {
+                    // Not last step - pause before next step
+                    setTimeout(() => {
+                        performScrollStep(stepIndex + 1);
+                    }, pauseDuration);
+                }
+            }
+        }
+        
+        requestAnimationFrame(animateStep);
+    }
+    
+    // Start the first step
+    performScrollStep(0);
+}
+    
+// Function to scroll both columns programmatically
+// Split into two sequential phases: right first, then left
+// Uses discrete scroll gestures with calculated timing
+function scrollBothColumnsProgrammatically(duration) {
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    
+    if (!leftColumn || !rightColumn) {
+        return;
+    }
+    
+    // Set demo active flag at the start of demo
+    isDemoActive = true;
+    console.log('DEMO_START', {
+        isDemoActive: isDemoActive,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Note: demo-active class is already added in startEntryAnimation()
+    // to prevent text from appearing before demo starts
+    // This ensures text stays hidden throughout the demo
+    
+    // Timing parameters for discrete gestures (must match scrollColumnProgrammatically)
+    const stepDuration = 300; // 300ms per scroll gesture
+    const pauseDuration = 180; // 180ms pause between gestures
+    
+    // Calculate phase duration based on number of steps
+    // For 4 items: (4 × 300ms) + (3 × 180ms) = 1200ms + 540ms = 1740ms per phase
+    const numSteps = 4; // Both phases scroll 4 items (extended duration, same fast rhythm)
+    const phaseDuration = (numSteps * stepDuration) + ((numSteps - 1) * pauseDuration);
+    
+    // Phase 1: Right column scrolls UP (4 items with discrete gestures)
+    // Left column stays still
+    scrollColumnProgrammatically(rightColumn, phaseDuration, -4); // Up 4 items
+    
+    // Phase 2: After Phase 1 completes, left column scrolls DOWN (4 items with discrete gestures)
+    // Right column stays still
+    setTimeout(() => {
+        scrollColumnProgrammatically(leftColumn, phaseDuration, 4); // Down 4 items
+        
+        // Reset demo active flag after all animations complete (both phases)
+        setTimeout(() => {
+            isDemoActive = false;
+            console.log('DEMO_END', {
+                isDemoActive: isDemoActive,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Remove demo-active class to show instruction text again
+            const gradientContainer = document.getElementById('gradient-intro-container');
+            if (gradientContainer) {
+                gradientContainer.classList.remove('demo-active');
+            }
+            
+            // Show instruction text after demo ends (only if not already changed to START)
+            const introText = document.getElementById('gradient-intro-text');
+            if (introText && !introTextChanged) {
+                // Restore initial instruction text content
+                introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
+                // Remove any inline styles that might override CSS
+                introText.style.cursor = '';
+                introText.style.pointerEvents = '';
+                // Reset transform to trigger smooth animation
+                introText.style.transform = 'translateY(10px)';
+                // Force reflow to ensure transform reset is applied
+                void introText.offsetHeight;
+                // Remove inline transform to let CSS transition handle the animation
+                setTimeout(() => {
+                    introText.style.transform = '';
+                }, 0);
+                // CSS will handle visibility via intro-active class (opacity: 1)
+            }
+        }, phaseDuration + 50); // Wait for phase 2 to complete plus small buffer
+    }, phaseDuration);
+}
+
+// Function to trigger demo when intro is in active phase
+// Note: Text may be hidden by demo-active class, so we don't check text visibility
+function triggerDemo() {
     const introText = document.getElementById('gradient-intro-text');
     if (!introText) {
         return;
     }
-    
-    // Check if text is the instruction text (not "[start]")
-    // The text should be "[scroll the right and left bars]" (case-insensitive check)
-    const currentText = introText.textContent.trim().toLowerCase();
-    if (currentText !== '[scroll the right and left bars]') {
-        // Text has changed to "[start]" or something else - don't trigger demo
-        return;
-    }
-    
-    // Check if text is visible (opacity > 0)
-    const computedStyle = window.getComputedStyle(introText);
-    const opacity = parseFloat(computedStyle.opacity);
-    if (opacity <= 0) {
-        return;
-    }
-    
+        
     // Check if gradients have collapsed (intro-active phase)
     const gradientContainer = document.getElementById('gradient-intro-container');
     if (!gradientContainer || !gradientContainer.classList.contains('intro-active')) {
         return;
     }
     
-    // Mark demo as run and active
-    autoScrollDemoRun = true;
-    autoScrollDemoActive = true;
-    
-    console.log('AUTO_SCROLL_DEMO_STARTING', {
-        timestamp: new Date().toISOString()
-    });
-    
-    // Start the auto-scroll demo
-    startAutoScrollDemo();
-}
-
-// Function to perform auto-scroll demo on both columns
-function startAutoScrollDemo() {
-    const leftColumn = document.querySelector('.left-column');
-    const rightColumn = document.querySelector('.right-column');
-    
-    if (!leftColumn || !rightColumn) {
-        autoScrollDemoActive = false;
+    // Check if text contains instruction text (not "[start]")
+    // This ensures we only trigger demo for initial instruction text, not START
+    const currentText = introText.textContent.trim().toLowerCase();
+    if (!currentText.includes('synesthesia') && !currentText.includes('scroll')) {
         return;
     }
     
-    const itemHeight = window.innerHeight / 6;
-    const singleSetHeight = 6 * itemHeight; // Height of one complete set of 6 colors
-    const demoDuration = 3000; // 3 seconds
-    const startTime = Date.now();
-    
-    // Function to snap scroll position to nearest tile boundary
-    function snapToTile(scrollTop) {
-        const tileIndex = Math.round(scrollTop / itemHeight);
-        return tileIndex * itemHeight;
-    }
-    
-    // Function to get the color index from a scroll position
-    // Used to check if a target position would result in a specific color
-    function getColorIndexFromScrollPosition(scrollPosition) {
-        const tileIndex = Math.round(scrollPosition / itemHeight);
-        // Map to color index (0-5) since colors repeat every 6 items
-        const colorIndex = ((tileIndex % colors.length) + colors.length) % colors.length;
-        return colorIndex;
-    }
-    
-    // Function to get a random scroll position (snapped to item boundaries)
-    // Returns a position that's within the valid scroll range
-    // Optionally avoids a specific color index to prevent matching
-    // GUARANTEES: The returned position is always different from current position (ensures movement)
-    function getRandomScrollPosition(column, avoidColorIndex = null) {
-        const currentScroll = column.scrollTop;
-        const currentIndex = Math.round(currentScroll / itemHeight);
-        
-        let attempts = 0;
-        const maxAttempts = 50; // Prevent infinite loops
-        
-        while (attempts < maxAttempts) {
-            // Choose a direction: -2, -1, 1, or 2 items away (avoid 0 to ensure movement)
-            const direction = Math.random() < 0.5 ? -1 : 1;
-            const distance = Math.floor(Math.random() * 2) + 1; // 1 or 2 items
-            const newIndex = currentIndex + (direction * distance);
-            
-            // Ensure we stay within reasonable bounds (0 to 11, wrapping handled by infinite scroll)
-            const clampedIndex = Math.max(0, Math.min(11, newIndex));
-            const targetPosition = clampedIndex * itemHeight;
-            
-            // CRITICAL: Ensure the target is actually different from current position
-            // (handles edge case where clamping might result in same position)
-            if (clampedIndex === currentIndex) {
-                // Try the opposite direction or different distance
-                attempts++;
-                continue;
-            }
-            
-            // If we need to avoid a specific color index, check if this target would match it
-            if (avoidColorIndex !== null) {
-                const targetColorIndex = getColorIndexFromScrollPosition(targetPosition);
-                if (targetColorIndex === avoidColorIndex) {
-                    // This target would result in the avoided color - try again
-                    attempts++;
-                    continue;
-                }
-            }
-            
-            // Valid target found that guarantees movement
-            return targetPosition;
-        }
-        
-        // Fallback: if we couldn't find a valid position after max attempts,
-        // try all possible positions systematically to find one that works
-        // This ensures we always return a position that's different from current
-        for (let testDistance = 1; testDistance <= 3; testDistance++) {
-            for (let testDirection of [-1, 1]) {
-                const testIndex = currentIndex + (testDirection * testDistance);
-                const testClamped = Math.max(0, Math.min(11, testIndex));
-                
-                // Must be different from current
-                if (testClamped === currentIndex) continue;
-                
-                const testPosition = testClamped * itemHeight;
-                
-                // Check avoidColorIndex constraint if needed
-                if (avoidColorIndex !== null) {
-                    const testColorIndex = getColorIndexFromScrollPosition(testPosition);
-                    if (testColorIndex === avoidColorIndex) continue;
-                }
-                
-                // Found a valid position
-                return testPosition;
-            }
-        }
-        
-        // Last resort: move at least 1 item in any valid direction
-        // (should never reach here, but ensures we always return something)
-        if (currentIndex > 0) {
-            return (currentIndex - 1) * itemHeight;
-        } else {
-            return (currentIndex + 1) * itemHeight;
-        }
-    }
-    
-    // Function to smoothly scroll to a position using the same logic as user scrolling
-    function smoothScrollTo(column, targetPosition, duration) {
-        // Only proceed if demo is still active
-        if (!autoScrollDemoActive) {
-            return;
-        }
-        
-        const startPosition = column.scrollTop;
-        const snappedTarget = snapToTile(targetPosition); // Ensure target is snapped
-        const distance = snappedTarget - startPosition;
-        
-        // During auto-scroll demo, we guarantee movement, so only skip if distance is truly 0
-        // (This should never happen during demo, but we keep the check for safety)
-        if (Math.abs(distance) < itemHeight * 0.1) {
-            // During demo, log a warning if this happens (shouldn't occur)
-            if (autoScrollDemoActive) {
-                console.warn('Auto-scroll demo: Attempted to scroll with minimal distance', {
-                    startPosition,
-                    targetPosition,
-                    snappedTarget,
-                    distance
-                });
-            }
-            return;
-        }
-        
-        const animationStartTime = Date.now();
-        
-        // Set programmatic scroll flag to prevent user interaction tracking
-        isProgrammaticScroll = true;
-        
-        function animate() {
-            // Check if demo is still active before continuing
-            if (!autoScrollDemoActive) {
-                isProgrammaticScroll = false;
-                return;
-            }
-            
-            const elapsed = Date.now() - animationStartTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Smooth easing function (ease-in-out)
-            const ease = progress < 0.5 
-                ? 2 * progress * progress 
-                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-            
-            // Update scroll position
-            const newScrollTop = startPosition + distance * ease;
-            column.scrollTop = newScrollTop;
-            
-            // Update gradients during scroll (this will be called via scroll event)
-            // The scroll event handler will call updateSelectedIndices() because isAutoScrollDemo is true
-            
-            if (progress < 1 && autoScrollDemoActive) {
-                requestAnimationFrame(animate);
-            } else {
-                // Animation complete - ensure we're snapped to tile
-                column.scrollTop = snapToTile(column.scrollTop);
-                
-                // Update gradients one final time
-                updateSelectedIndices();
-                
-                // Reset flag after a small delay
-                setTimeout(() => {
-                    if (!autoScrollDemoActive) {
-                        isProgrammaticScroll = false;
-                    }
-                }, 50);
-            }
-        }
-        
-        requestAnimationFrame(animate);
-    }
-    
-    // Track scroll positions for each column independently
-    let leftScrollIndex = 0;
-    let rightScrollIndex = 0;
-    
-    // Perform slower, more readable scrolls during the 3-second demo
-    const scrollInterval = 800; // 800ms between scroll changes (slower, more readable)
-    const scrollAnimationDuration = 600; // 600ms for each scroll animation (smooth)
-    
-    function performNextScroll() {
-        // Check if demo should stop
-        if (!autoScrollDemoActive) {
-            // Demo complete - ensure final snap and gradient update
-            isProgrammaticScroll = true;
-            leftColumn.scrollTop = snapToTile(leftColumn.scrollTop);
-            rightColumn.scrollTop = snapToTile(rightColumn.scrollTop);
-            updateSelectedIndices();
-            setTimeout(() => {
-                isProgrammaticScroll = false;
-            }, 100);
-            console.log('AUTO_SCROLL_DEMO_COMPLETE', {
-                finalLeftScroll: leftColumn.scrollTop,
-                finalRightScroll: rightColumn.scrollTop,
-                finalLeftIndex: getSelectedColorIndex(leftColumn),
-                finalRightIndex: getSelectedColorIndex(rightColumn),
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        
-        // Check if demo duration has elapsed
-        const elapsed = Date.now() - startTime;
-        if (elapsed >= demoDuration) {
-            autoScrollDemoActive = false;
-            // Ensure final snap and gradient update
-            isProgrammaticScroll = true;
-            leftColumn.scrollTop = snapToTile(leftColumn.scrollTop);
-            rightColumn.scrollTop = snapToTile(rightColumn.scrollTop);
-            updateSelectedIndices();
-            setTimeout(() => {
-                isProgrammaticScroll = false;
-            }, 100);
-            console.log('AUTO_SCROLL_DEMO_COMPLETE', {
-                finalLeftScroll: leftColumn.scrollTop,
-                finalRightScroll: rightColumn.scrollTop,
-                finalLeftIndex: getSelectedColorIndex(leftColumn),
-                finalRightIndex: getSelectedColorIndex(rightColumn),
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        
-        // Get current color indices to enforce constraint: leftSelected !== rightSelected
-        const currentLeftColorIndex = getSelectedColorIndex(leftColumn);
-        const currentRightColorIndex = getSelectedColorIndex(rightColumn);
-        
-        // Get current scroll positions to ensure both scrollbars will move
-        const currentLeftScroll = leftColumn.scrollTop;
-        const currentRightScroll = rightColumn.scrollTop;
-        
-        // Get random scroll positions for both columns, ensuring they never match
-        // Strategy: pick left target first (avoiding right's current color),
-        // then pick right target (avoiding left's new target color)
-        const leftTarget = getRandomScrollPosition(leftColumn, currentRightColorIndex);
-        const leftTargetColorIndex = getColorIndexFromScrollPosition(leftTarget);
-        
-        // Right target must avoid the left's target color to prevent matching
-        const rightTarget = getRandomScrollPosition(rightColumn, leftTargetColorIndex);
-        
-        // VALIDATION: Ensure both scrollbars will actually move (not just potentially move)
-        // This is a safety check - getRandomScrollPosition should already guarantee movement
-        const leftWillMove = Math.abs(leftTarget - currentLeftScroll) >= itemHeight * 0.5;
-        const rightWillMove = Math.abs(rightTarget - currentRightScroll) >= itemHeight * 0.5;
-        
-        // If either scrollbar wouldn't move, regenerate targets (should be rare)
-        if (!leftWillMove || !rightWillMove) {
-            // Retry with fresh random targets
-            const retryLeftTarget = getRandomScrollPosition(leftColumn, currentRightColorIndex);
-            const retryLeftTargetColorIndex = getColorIndexFromScrollPosition(retryLeftTarget);
-            const retryRightTarget = getRandomScrollPosition(rightColumn, retryLeftTargetColorIndex);
-            
-            // Use retry targets if they're valid, otherwise use original (shouldn't happen)
-            const finalLeftTarget = (Math.abs(retryLeftTarget - currentLeftScroll) >= itemHeight * 0.5) 
-                ? retryLeftTarget : leftTarget;
-            const finalRightTarget = (Math.abs(retryRightTarget - currentRightScroll) >= itemHeight * 0.5)
-                ? retryRightTarget : rightTarget;
-        
-        // Smoothly scroll both columns independently
-            smoothScrollTo(leftColumn, finalLeftTarget, scrollAnimationDuration);
-            smoothScrollTo(rightColumn, finalRightTarget, scrollAnimationDuration);
-        } else {
-            // Both will move - proceed normally
-        smoothScrollTo(leftColumn, leftTarget, scrollAnimationDuration);
-        smoothScrollTo(rightColumn, rightTarget, scrollAnimationDuration);
-        }
-        
-        // Schedule next scroll
-        setTimeout(performNextScroll, scrollInterval);
-    }
-    
-    // Start the first scroll immediately
-    performNextScroll();
+    // Trigger demo - scroll both columns with default duration (3 seconds for visible continuous motion)
+    // Note: Text is already hidden by demo-active class, so it will stay hidden during demo
+    scrollBothColumnsProgrammatically();
 }
+

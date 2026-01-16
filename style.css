@@ -316,8 +316,9 @@ body {
 
 /* Closing phase: faster transition for horizontal expansion */
 .gradient-intro-container.intro-closing .gradient-intro-rectangle {
-    /* Faster transition for closing phase (400ms) */
-    transition: left 400ms ease, width 400ms ease, height 50ms ease;
+    /* Faster transition for closing phase (250ms) - quick expansion that reaches 70-80% very early */
+    /* cubic-bezier(0.4, 0.0, 0.2, 1) accelerates quickly at start, reaching most progress early */
+    transition: left 250ms cubic-bezier(0.4, 0.0, 0.2, 1), width 250ms cubic-bezier(0.4, 0.0, 0.2, 1), height 50ms ease;
 }
 
 /* Vertical collapse phase - bars shrink to 0 height */
@@ -354,15 +355,17 @@ body {
     text-transform: none; /* Allow lowercase like [ethesia] */
     letter-spacing: 0.03em; /* 3% letter spacing - same as [ethesia] */
     text-align: center;
-    white-space: nowrap;
+    white-space: normal;
     pointer-events: none; /* Don't block interactions */
     z-index: 2; /* Above gradient rectangles */
-    line-height: 0.8; /* Match [ethesia] line-height */
+    line-height: 1.4; /* Comfortable line spacing for multi-line text */
     /* Position will be set dynamically via JavaScript */
     /* Start hidden by default - will fade in during entry animation */
     opacity: 0;
+    transform: translateY(10px); /* Start slightly below for smooth slide-up effect */
     /* Opacity transition synced with gradient shrink animation (2000ms with same easing) */
-    transition: left 2s cubic-bezier(0.2, 0.0, 0.0, 1), width 2s cubic-bezier(0.2, 0.0, 0.0, 1), opacity 2s cubic-bezier(0.2, 0.0, 0.0, 1);
+    /* Transform transition for smooth slide-up animation after demo */
+    transition: left 2s cubic-bezier(0.2, 0.0, 0.0, 1), width 2s cubic-bezier(0.2, 0.0, 0.0, 1), opacity 2s cubic-bezier(0.2, 0.0, 0.0, 1), transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* Hide text during entering phase (opacity 0) - will fade in as gradients shrink */
@@ -373,12 +376,23 @@ body {
 /* Show text when active phase is reached (opacity 1) - synced with gradient shrink completion */
 .gradient-intro-container.intro-active .gradient-intro-text {
     opacity: 1 !important;
+    transform: translateY(0); /* Slide up to final position with smooth easing */
+}
+
+/* Hide text during demo - must override intro-active opacity */
+/* More specific selector ensures it wins when both intro-active and demo-active are present */
+.gradient-intro-container.intro-active.demo-active .gradient-intro-text,
+.gradient-intro-container.demo-active .gradient-intro-text {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    display: none !important;
 }
 
 /* START text is no longer clickable - center scroll trigger is used instead */
 
 /* Downward arrow below START text */
 .gradient-intro-arrow {
+    display: none !important; /* Hide arrow */
     position: absolute;
     color: white;
     font-family: sans-serif;
@@ -1264,4 +1278,69 @@ body {
 h1 {
     font-size: 3rem;
     font-weight: normal;
+}
+
+/* Shape & Color canvas controls */
+.shape-color-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 14; /* Above canvas and other elements */
+    pointer-events: auto;
+    /* Hidden by default, shown only for Shape & Color screen */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.shape-color-controls.visible {
+    display: flex;
+    visibility: visible;
+    opacity: 1;
+}
+
+.shape-color-btn {
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    color: #2C2C2C;
+    background-color: white;
+    border: 1px solid #2C2C2C;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.shape-color-btn:hover {
+    background-color: #2C2C2C;
+    color: white;
+}
+
+/* Container for circles on Shape & Color canvas */
+.shape-color-circles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    z-index: 13; /* Above canvas but below buttons */
+}
+
+/* Individual circle on Shape & Color canvas */
+.shape-color-circle {
+    position: absolute;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: #2C2C2C;
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    /* Positioned at center of canvas container */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
