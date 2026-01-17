@@ -529,10 +529,6 @@ body {
 }
 
 /* Rectangle width stays static on hover - only letter-spacing changes */
-/* .black-corner-rectangle:hover,
-.black-corner-rectangle.color-key-expanded {
-    width: 260.5px;
-} */
 
 .black-bottom-rectangle {
     position: absolute;
@@ -555,9 +551,6 @@ body {
 }
 
 /* Rectangle width stays static on hover - only letter-spacing changes */
-/* .black-bottom-rectangle:hover {
-    width: 331.5px;
-} */
 
 .black-middle-rectangle {
     position: absolute;
@@ -580,9 +573,6 @@ body {
 }
 
 /* Rectangle width stays static on hover - only letter-spacing changes */
-/* .black-middle-rectangle:hover {
-    width: 240.5px;
-} */
 
 .black-rectangle {
     position: absolute;
@@ -1337,10 +1327,44 @@ h1 {
     width: 45px;
     height: 45px;
     border-radius: 50%;
-    background-color: #2C2C2C;
+    background-color: #EB4781 !important;
     pointer-events: none; /* Don't interfere with canvas interactions */
     /* Positioned at center of canvas container */
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+}
+
+/* Container for yellow circle on Letter + Letter page */
+.letter-letter-circle-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.letter-letter-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Yellow circle on Letter + Letter page */
+.letter-letter-circle {
+    position: absolute;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: #FAB01B;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none; /* Don't interfere with canvas interactions */
 }

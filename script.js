@@ -29,6 +29,10 @@ let introTextChanged = false; // Prevent multiple changes
 let hasUserInteracted = false; // Track if user has started scrolling (prevents counting initial colors)
 let isProgrammaticScroll = false; // Flag to track programmatic scrolls (should not trigger interaction)
 let isDemoActive = false; // Flag to track demo/programmatic animation (prevents START text change during demo)
+// Store timeout and animation frame IDs for demo cancellation
+let demoTimeouts = []; // Array to store all setTimeout IDs from demo
+let demoAnimationFrames = []; // Array to store all requestAnimationFrame IDs from demo
+let currentAnimationFrame = null; // Current animation frame ID for each column
 let userInteracted = false; // Flag to track real user interaction (wheel/touch/pointer events)
 let isInitializing = true; // Flag to track initialization phase (prevents initial scroll events from counting)
 let introPhase = 'entering'; // Track intro phase: 'entering' (initial full-bleed), 'active' (default), or 'closing' (after START is clicked)
@@ -43,6 +47,11 @@ const SCROLL_THRESHOLD = 3000; // Threshold for full collapse (3x slower: requir
 
 // Initialize columns
 document.addEventListener('DOMContentLoaded', () => {
+    // Verify p5.js is loaded globally
+    if (typeof window.p5 === 'undefined') {
+        console.error('p5.js is not loaded globally. Make sure p5.js is included before script.js');
+    }
+    
     const leftColumn = document.querySelector('.left-column');
     const rightColumn = document.querySelector('.right-column');
     
@@ -73,6 +82,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Shape & Color controls
     initializeShapeColorControls();
     updateShapeColorControls(initialPageId);
+    
+    // Initialize Letter + Letter circle visibility
+    updateLetterLetterCircle(initialPageId);
+    
+    // Register shape-color canvas for pageIds "0-5" and "5-0"
+    if (window.CanvasRegistry && typeof createShapeColorCanvasSketch === 'function') {
+        window.CanvasRegistry.register('0-5', createShapeColorCanvasSketch);
+        window.CanvasRegistry.register('5-0', createShapeColorCanvasSketch);
+    }
+    
+    // Register shape-number canvas for pageIds "0-3" and "3-0"
+    if (window.CanvasRegistry && typeof createShapeNumberCanvasSketch === 'function') {
+        window.CanvasRegistry.register('0-3', createShapeNumberCanvasSketch);
+        window.CanvasRegistry.register('3-0', createShapeNumberCanvasSketch);
+    }
     
     // Initialize p5.js sketch
     initializeP5Sketch();
@@ -123,28 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use a small delay to ensure any pending scroll events from initialization are processed
     setTimeout(() => {
         isInitializing = false;
-        console.log('INITIALIZATION_COMPLETE', {
-            timestamp: new Date().toISOString()
-        });
     }, 100);
-    
-    // DEBUG: Log initial state on page load
-    const initialLeftColor = getSnappedTileColor(leftColumn);
-    const initialRightColor = getSnappedTileColor(rightColumn);
-    const introText = document.getElementById('gradient-intro-text');
-    console.log('=== INTRO INITIAL STATE ===', {
-        currentIntroText: introText ? introText.textContent : 'NOT FOUND',
-        leftSelectedColor: initialLeftColor,
-        rightSelectedColor: initialRightColor,
-        leftHasScrolled: leftColumnScrolled,
-        rightHasScrolled: rightColumnScrolled,
-        uniqueColorCount: uniqueColorsSeen.size,
-        uniqueColors: [...uniqueColorsSeen],
-        hasUserInteracted: hasUserInteracted,
-        introTextChanged: introTextChanged,
-        isInitializing: isInitializing,
-        timestamp: new Date().toISOString()
-    });
     
     // Note: Do NOT check initial state - text should only change after user interaction
     
@@ -308,35 +311,16 @@ function initializeColumn(column, side) {
                 const itemColorId = item.getAttribute('data-color');
                 
                 // Log hover information for side A
-                console.log('🟦 HOVER START - Side:', side === 'left' ? 'A (Left)' : 'B (Right)');
-                console.log('  📍 Color:', itemColorId);
-                console.log('  📊 Item index in column:', itemIndexInColumn);
-                console.log('  🔢 Copy number:', currentCopyNumber + 1, '(out of 3)');
-                console.log('  📏 ScrollTop:', columnScrollTop.toFixed(2));
-                console.log('  📐 Item top position:', itemTop.toFixed(2));
-                console.log('  👁️  Item viewport position:', (itemTop - columnScrollTop).toFixed(2));
                 
                 const matchResult = findMatchingItem();
                 const oppositeColumnScrollTop = oppositeColumn.scrollTop;
                 
                 if (matchResult && matchResult.item) {
                     // Log information about the selected match in opposite column
-                    console.log('🟩 MATCH FOUND - Side:', side === 'left' ? 'B (Right)' : 'A (Left)');
-                    console.log('  📍 Selected color:', itemColorId);
-                    console.log('  📊 Selected item index:', matchResult.index);
-                    console.log('  🔢 Selected copy number:', matchResult.copyNumber + 1, '(out of 3)');
-                    console.log('  📏 Opposite ScrollTop:', oppositeColumnScrollTop.toFixed(2));
-                    console.log('  📐 Selected item top position:', matchResult.item.offsetTop.toFixed(2));
-                    console.log('  👁️  Selected item viewport position:', (matchResult.item.offsetTop - oppositeColumnScrollTop).toFixed(2));
-                    console.log('  📏 Distance score:', matchResult.distance.toFixed(2));
-                    console.log('  ✅ Applying opposite-hovered class');
                     
                     matchResult.item.classList.add('opposite-hovered');
                 } else {
-                    console.log('  ❌ NO MATCH FOUND - Could not find matching item in opposite column');
-                    console.log('  📏 Opposite ScrollTop:', oppositeColumnScrollTop.toFixed(2));
                 }
-                console.log('─'.repeat(50));
             }
         });
         
@@ -345,7 +329,6 @@ function initializeColumn(column, side) {
             const matchResult = findMatchingItem();
             if (matchResult && matchResult.item) {
                 matchResult.item.classList.remove('opposite-hovered');
-                console.log('🟦 HOVER END - Removed opposite-hovered from copy', matchResult.copyNumber + 1);
             }
         });
     });
@@ -383,17 +366,9 @@ function initializeColumn(column, side) {
     }
     
     column.addEventListener('scroll', () => {
-        // DEBUG: Log programmatic scrolls and initialization scrolls
         // CRITICAL: Allow gradient updates during programmatic scrolls (for demo)
         // but skip user interaction tracking during initialization or programmatic adjustments
         if (isProgrammaticScroll || isAdjusting || isInitializing) {
-            console.log(`PROGRAMMATIC_SCROLL [${side.toUpperCase()}]`, {
-                isProgrammaticScroll,
-                isAdjusting,
-                isInitializing,
-                scrollTop: column.scrollTop,
-                timestamp: new Date().toISOString()
-            });
             
             // Update gradients even during programmatic scrolls (demo will use this)
                 updateSelectedIndices();
@@ -404,10 +379,6 @@ function initializeColumn(column, side) {
         
         // CRITICAL: Ignore demo-driven scrolls for START logic
         // Log scroll event for debugging
-        console.log(`scroll event [${side.toUpperCase()}] — demoActive:`, isDemoActive, 'userInteracted:', userInteracted, {
-            scrollTop: column.scrollTop,
-            timestamp: new Date().toISOString()
-        });
         
         if (isDemoActive) {
             // Demo is active - update gradients but don't trigger START logic
@@ -417,10 +388,6 @@ function initializeColumn(column, side) {
         
         // CRITICAL: Only process user interactions AFTER initialization is complete
         if (isInitializing) {
-            console.log(`SCROLL_IGNORED_DURING_INIT [${side.toUpperCase()}]`, {
-                scrollTop: column.scrollTop,
-                timestamp: new Date().toISOString()
-            });
             return;
         }
         
@@ -431,20 +398,12 @@ function initializeColumn(column, side) {
             const currentColor = getSnappedTileColor(column);
             uniqueColorsSeen.add(currentColor);
             previousSnappedColor = currentColor;
-            console.log(`USER_FIRST_INTERACTION [${side.toUpperCase()}]`, {
-                color: currentColor,
-                timestamp: new Date().toISOString()
-            });
         }
         
         // CRITICAL: Ensure userInteracted is set if this is a real user scroll
         // (fallback in case wheel/touch/pointer events didn't fire first)
         if (!userInteracted && !isDemoActive && !isInitializing) {
             userInteracted = true;
-            console.log(`USER_INTERACTION_DETECTED_VIA_SCROLL [${side.toUpperCase()}]`, {
-                userInteracted: userInteracted,
-                timestamp: new Date().toISOString()
-            });
         }
         
         // CRITICAL: Trigger START text on first user scroll (after demo ends)
@@ -452,10 +411,6 @@ function initializeColumn(column, side) {
         // and introTextChanged === false (hasn't been changed yet)
         if (userInteracted && !isDemoActive && !introTextChanged) {
             // First user scroll detected - immediately switch to START
-            console.log(`FIRST_USER_SCROLL_DETECTED [${side.toUpperCase()}]`, {
-                timestamp: new Date().toISOString(),
-                currentColor: getSnappedTileColor(column)
-            });
             
             // Mark that intro text has been changed
             introTextChanged = true;
@@ -466,11 +421,6 @@ function initializeColumn(column, side) {
             // Use shared function to set up START button (ensures consistent behavior)
             setupStartButton();
             
-            console.log('INTRO_TEXT_CHANGED_TO_START', {
-                reason: 'FIRST_USER_SCROLL',
-                side: side,
-                timestamp: new Date().toISOString()
-            });
         }
         
         // Track that this column has been scrolled (for other tracking purposes)
@@ -489,13 +439,6 @@ function initializeColumn(column, side) {
                 const oldColor = previousSnappedColor; // Capture old value before updating
                 uniqueColorsSeen.add(currentSnappedColor);
                 previousSnappedColor = currentSnappedColor;
-                console.log(`COLOR_CHANGED [${side.toUpperCase()}]`, {
-                    from: oldColor,
-                    to: currentSnappedColor,
-                    uniqueColorsCount: uniqueColorsSeen.size,
-                    uniqueColors: [...uniqueColorsSeen],
-                    timestamp: new Date().toISOString()
-                });
                 checkAndUpdateIntroText();
             }
         }
@@ -577,45 +520,114 @@ function initializeColumn(column, side) {
         // This will schedule a gradient update via requestAnimationFrame
         updateSelectedIndices();
         
-        // DEBUG: Log when scroll happens post-intro to confirm introCompleted state
         if (introCompleted) {
-            console.log(`POST_INTRO_SCROLL [${side.toUpperCase()}]`, {
-                introCompleted: introCompleted,
-                scrollTop: column.scrollTop,
-                timestamp: new Date().toISOString()
-            });
         }
     });
     
     // Detect real user wheel interaction
     column.addEventListener('wheel', (e) => {
+        // Check if demo is active - if so, skip it immediately
+        if (isDemoActive) {
+            skipDemo();
+            e.stopPropagation();
+            return;
+        }
+        
         // This is a real user interaction
         if (!hasUserInteracted) {
             hasUserInteracted = true;
             const currentColor = getSnappedTileColor(column);
             uniqueColorsSeen.add(currentColor);
             previousSnappedColor = currentColor;
-            console.log(`USER_WHEEL_EVENT [${side.toUpperCase()}]`, {
-                timestamp: new Date().toISOString(),
-                currentColor: currentColor,
-                deltaY: e.deltaY
-            });
         }
+        
+        // CRITICAL: Set userInteracted flag to enable START button
+        // This allows START to appear even if user scrolls before demo starts
+        if (!userInteracted && !isInitializing) {
+            userInteracted = true;
+            
+            // If intro text hasn't been changed yet, show START button immediately
+            if (!introTextChanged) {
+                introTextChanged = true;
+                introReady = true;
+                setupStartButton();
+                
+                // Remove demo-active class if it exists (in case user scrolls before demo starts)
+                const gradientContainer = document.getElementById('gradient-intro-container');
+                if (gradientContainer) {
+                    gradientContainer.classList.remove('demo-active');
+                    // Ensure intro-active class exists for CSS rules
+                    if (!gradientContainer.classList.contains('intro-active')) {
+                        gradientContainer.classList.add('intro-active');
+                    }
+                }
+                
+                // Ensure text is visible (but don't force opacity - let CSS animation handle it)
+                setTimeout(() => {
+                    const introText = document.getElementById('gradient-intro-text');
+                    if (introText) {
+                        // Use 'flex' to match setupStartButton() and updateGradientIntro()
+                        introText.style.display = 'flex';
+                        introText.style.visibility = 'visible';
+                        // Don't set opacity - let CSS animation handle the fade-in
+                    }
+                }, 0);
+                
+            }
+        }
+        
         e.stopPropagation();
     }, { passive: false });
     
     // Detect real user touch interaction
     column.addEventListener('touchmove', (e) => {
+        // Check if demo is active - if so, skip it immediately
+        if (isDemoActive) {
+            skipDemo();
+            return;
+        }
+        
         // This is a real user interaction
         if (!hasUserInteracted) {
             hasUserInteracted = true;
             const currentColor = getSnappedTileColor(column);
             uniqueColorsSeen.add(currentColor);
             previousSnappedColor = currentColor;
-            console.log(`USER_TOUCH_EVENT [${side.toUpperCase()}]`, {
-                timestamp: new Date().toISOString(),
-                currentColor: currentColor
-            });
+        }
+        
+        // CRITICAL: Set userInteracted flag to enable START button
+        // This allows START to appear even if user scrolls before demo starts
+        if (!userInteracted && !isInitializing) {
+            userInteracted = true;
+            
+            // If intro text hasn't been changed yet, show START button immediately
+            if (!introTextChanged) {
+                introTextChanged = true;
+                introReady = true;
+                setupStartButton();
+                
+                // Remove demo-active class if it exists (in case user scrolls before demo starts)
+                const gradientContainer = document.getElementById('gradient-intro-container');
+                if (gradientContainer) {
+                    gradientContainer.classList.remove('demo-active');
+                    // Ensure intro-active class exists for CSS rules
+                    if (!gradientContainer.classList.contains('intro-active')) {
+                        gradientContainer.classList.add('intro-active');
+                    }
+                }
+                
+                // Ensure text is visible (but don't force opacity - let CSS animation handle it)
+                setTimeout(() => {
+                    const introText = document.getElementById('gradient-intro-text');
+                    if (introText) {
+                        // Use 'flex' to match setupStartButton() and updateGradientIntro()
+                        introText.style.display = 'flex';
+                        introText.style.visibility = 'visible';
+                        // Don't set opacity - let CSS animation handle the fade-in
+                    }
+                }, 0);
+                
+            }
         }
     }, { passive: true });
 }
@@ -949,12 +961,6 @@ function updateCanvasTextBox(pageId) {
     // Render text with per-line grey backgrounds
     renderTextWithLineBackgrounds(textBox, content);
     
-    // DEBUG: Log text box update
-    console.log('CANVAS_TEXT_BOX_UPDATE', {
-        pageId: pageId,
-        content: content,
-        timestamp: new Date().toISOString()
-    });
 }
 
 // Function to wrap text letters in spans for hover interaction
@@ -1119,27 +1125,22 @@ function renderShape(shapeSpec, color = '#2C2C2C') {
 function initializeLetterHoverInteraction() {
     const letterSoundTextBox = document.getElementById('canvas-text-box-letter-sound');
     if (!letterSoundTextBox) {
-        console.log('textBox: not found');
         return;
     }
     
-    console.log('textBox:', letterSoundTextBox);
     
     const paragraph = letterSoundTextBox.querySelector('p');
     if (!paragraph) {
-        console.log('paragraph: not found');
         return;
     }
     
     // Check if already initialized (has letter spans)
     if (paragraph.querySelector('.letter-span')) {
-        console.log('Already initialized, skipping');
         return;
     }
     
     // Get the text content - use textContent as source of truth
     const originalText = paragraph.textContent;
-    console.log('originalText length:', originalText.length);
     
     // Split text into individual characters and wrap each in a span
     // Define punctuation marks that should remain static (no animation, no shape)
@@ -1175,23 +1176,18 @@ function initializeLetterHoverInteraction() {
         }
     }).join('');
     
-    console.log('lastProcessed:', { index: lastProcessedIndex, char: originalText[lastProcessedIndex] });
     
     // Replace paragraph content with wrapped letters
     paragraph.innerHTML = wrappedText;
     
     // Count created spans - verify we wrapped all characters
     const allSpans = paragraph.querySelectorAll('.letter-span');
-    console.log('chars created:', allSpans.length);
     
     // Verify we processed all characters (accounting for spaces and newlines)
     const nonSpaceChars = originalText.split('').filter(c => c !== ' ' && c !== '\n').length;
-    console.log('expected non-space chars:', nonSpaceChars);
-    console.log('actual spans created:', allSpans.length);
     
     // Inject SVG shapes for each letter - MUST use querySelectorAll to get ALL spans
     const letterSpans = paragraph.querySelectorAll('.letter-span:not(.space)');
-    console.log('letter spans found (non-space):', letterSpans.length);
     
     let shapesInjected = 0;
     let lastInjectedIndex = -1;
@@ -1203,21 +1199,12 @@ function initializeLetterHoverInteraction() {
         try {
             const letter = span.getAttribute('data-letter');
             if (!letter) {
-                console.warn('Span at index', index, 'has no data-letter attribute');
                 continue; // Skip this span but continue with others
             }
             
             const upperLetter = letter.toUpperCase();
             const shapeSpec = LETTER_SHAPES[upperLetter];
             
-            // Debug specific letters that are having issues
-            if (upperLetter === 'P' || upperLetter === 'G') {
-                console.log('Processing letter:', upperLetter, { 
-                    hasShapeSpec: !!shapeSpec, 
-                    shapeSpec: shapeSpec,
-                    spanIndex: index 
-                });
-            }
             
             // Create and inject SVG shape (or fallback to circle) with gray color for shape & letter canvas (same as line-bg color)
             const svg = shapeSpec ? renderShape(shapeSpec, '#E0E0E0') : renderShape({ type: 'circle', cx: 22.5, cy: 22.5, r: 18 }, '#E0E0E0');
@@ -1226,25 +1213,6 @@ function initializeLetterHoverInteraction() {
                 shapesInjected++;
                 lastInjectedIndex = index;
                 
-                // Debug specific letters after injection
-                if (upperLetter === 'P' || upperLetter === 'G') {
-                    const injectedShape = span.querySelector('.letter-shape, svg');
-                    console.log('After injection for', upperLetter, ':', {
-                        svgCreated: !!svg,
-                        svgInSpan: !!injectedShape,
-                        svgHTML: injectedShape ? injectedShape.outerHTML.substring(0, 100) : 'none'
-                    });
-                }
-                
-                // Log every 50th character to track progress
-                if (index % 50 === 0 || index === letterSpans.length - 1) {
-                    console.log('Progress:', { index, letter, total: letterSpans.length });
-                }
-            } else {
-                console.warn('Failed to create SVG for letter at index', index, ':', letter);
-                if (upperLetter === 'P' || upperLetter === 'G') {
-                    console.error('SVG creation failed for', upperLetter, 'with shapeSpec:', shapeSpec);
-                }
             }
         } catch (error) {
             console.error('Error injecting shape at index', index, ':', error);
@@ -1252,40 +1220,21 @@ function initializeLetterHoverInteraction() {
         }
     }
     
-    console.log('shapes injected:', shapesInjected);
-    console.log('last injected index:', lastInjectedIndex);
     
     // Verify final count - check for SVG elements
     const finalShapes = paragraph.querySelectorAll('.letter-span .letter-shape, .letter-span svg');
-    console.log('final shapes count:', finalShapes.length);
     
     // Additional verification: check if all letter spans have shapes
     const spansWithoutShapes = Array.from(letterSpans).filter(span => !span.querySelector('.letter-shape, svg'));
     if (spansWithoutShapes.length > 0) {
-        console.warn('Spans without shapes:', spansWithoutShapes.length);
-        const problematicSpans = spansWithoutShapes.slice(0, 10).map(s => {
-            const letter = s.getAttribute('data-letter');
-            const upperLetter = letter ? letter.toUpperCase() : '?';
-            return {
-                letter: letter,
-                upperLetter: upperLetter,
-                text: s.textContent,
-                hasShapeSpec: !!LETTER_SHAPES[upperLetter],
-                shapeSpec: LETTER_SHAPES[upperLetter]
-            };
-        });
-        console.warn('Spans without shapes (details):', problematicSpans);
-        
         // Try to inject shapes for spans that are missing them
         problematicSpans.forEach((info, idx) => {
             const span = spansWithoutShapes[idx];
             if (span && info.hasShapeSpec) {
-                console.log('Attempting to inject shape for', info.upperLetter);
                 try {
                     const svg = renderShape(info.shapeSpec, '#E0E0E0');
                     if (svg) {
                         span.appendChild(svg);
-                        console.log('Successfully injected shape for', info.upperLetter);
                     }
                 } catch (error) {
                     console.error('Failed to inject shape for', info.upperLetter, ':', error);
@@ -1296,7 +1245,6 @@ function initializeLetterHoverInteraction() {
     
     // Final verification: count shapes again after potential fixes
     const finalShapesAfterFix = paragraph.querySelectorAll('.letter-span .letter-shape, .letter-span svg');
-    console.log('final shapes count (after fix):', finalShapesAfterFix.length);
     
     // Restructure: wrap each letter-span in a letter-slot container
     // Create static glyph for layout and sliding glyph inside mask
@@ -1408,106 +1356,8 @@ function initializeLetterHoverInteraction() {
         });
     });
     
-    // Debug: Log left offsets to identify alignment issues
-    debugTextAlignment(letterSoundTextBox, paragraph);
 }
 
-// Debug function to log left offsets and identify alignment issues
-function debugTextAlignment(container, paragraph) {
-    if (!container || !paragraph) return;
-    
-    const containerRect = container.getBoundingClientRect();
-    const containerLeft = containerRect.left;
-    
-    // Get computed styles of the text container
-    const containerStyles = window.getComputedStyle(container);
-    const paragraphStyles = window.getComputedStyle(paragraph);
-    
-    // Get all letter spans
-    const letterSpans = paragraph.querySelectorAll('.letter-span');
-    if (letterSpans.length === 0) return;
-    
-    // Check computed styles of first few letter spans to verify inheritance
-    const sampleSpanStyles = Array.from(letterSpans.slice(0, 3)).map(span => {
-        const styles = window.getComputedStyle(span);
-        return {
-            letterSpacing: styles.letterSpacing,
-            wordSpacing: styles.wordSpacing,
-            display: styles.display,
-            textAlign: styles.textAlign
-        };
-    });
-    
-    // Find first character of each line by checking Y positions
-    const lineFirstChars = [];
-    let lastTop = null;
-    
-    letterSpans.forEach((span, index) => {
-        const rect = span.getBoundingClientRect();
-        const currentTop = rect.top;
-        
-        // If this is the first span or top position changed, it's a new line
-        if (lastTop === null || Math.abs(currentTop - lastTop) > 5) {
-            lineFirstChars.push({
-                index: index,
-                char: span.textContent.trim() || span.textContent,
-                left: rect.left,
-                top: rect.top,
-                offset: rect.left - containerLeft
-            });
-            lastTop = currentTop;
-        }
-    });
-    
-    // Log results with computed styles and alignment verification
-    console.log('TEXT_ALIGNMENT_DEBUG', {
-        // Computed styles of text container
-        containerComputedStyles: {
-            textAlign: containerStyles.textAlign,
-            textJustify: containerStyles.textJustify || 'not supported',
-            letterSpacing: containerStyles.letterSpacing,
-            wordSpacing: containerStyles.wordSpacing,
-            whiteSpace: containerStyles.whiteSpace,
-            display: containerStyles.display,
-            // Direct getComputedStyle values
-            letterSpacingDirect: window.getComputedStyle(container).letterSpacing,
-            wordSpacingDirect: window.getComputedStyle(container).wordSpacing
-        },
-        // Paragraph computed styles (the actual text element)
-        paragraphComputedStyles: {
-            textAlign: paragraphStyles.textAlign,
-            textJustify: paragraphStyles.textJustify || 'not supported',
-            letterSpacing: paragraphStyles.letterSpacing,
-            wordSpacing: paragraphStyles.wordSpacing,
-            whiteSpace: paragraphStyles.whiteSpace,
-            display: paragraphStyles.display,
-            // Direct getComputedStyle values
-            letterSpacingDirect: window.getComputedStyle(paragraph).letterSpacing,
-            wordSpacingDirect: window.getComputedStyle(paragraph).wordSpacing,
-            textIndent: paragraphStyles.textIndent,
-            paddingLeft: paragraphStyles.paddingLeft,
-            marginLeft: paragraphStyles.marginLeft,
-            transform: paragraphStyles.transform
-        },
-        // Sample letter span computed styles (to verify inheritance)
-        sampleSpanStyles: sampleSpanStyles,
-        // Container position info
-        containerLeft: containerLeft,
-        containerWidth: containerRect.width,
-        // Line alignment info
-        totalLines: lineFirstChars.length,
-        firstCharOffset: lineFirstChars[0]?.offset || 0,
-        lineOffsets: lineFirstChars.map(line => ({
-            char: line.char,
-            leftX: line.left,
-            offset: line.offset,
-            isAligned: Math.abs(line.offset - (lineFirstChars[0]?.offset || 0)) < 1
-        })),
-        allAligned: lineFirstChars.every(line => 
-            Math.abs(line.offset - (lineFirstChars[0]?.offset || 0)) < 1
-        )
-    });
-}
 
 // Function to update visibility of SHAPE & LETTER text box
 function updateLetterSoundTextBox(pageId) {
@@ -1553,6 +1403,14 @@ function updateSoundShapeInstructionText(pageId) {
 // ==================
 // Array to store circles for Shape & Color canvas
 let shapeColorCircles = [];
+// Track dragging state for HTML circles
+let draggedCircleElement = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let circleInitialX = 0;
+let circleInitialY = 0;
+const MAX_DRAG_DISTANCE = 40; // Maximum drag distance in pixels (doubled from 20)
+const CIRCLE_SPACING = 40; // Distance between circles when adding new ones (doubled from 20)
 
 // Function to update Shape & Color controls visibility
 function updateShapeColorControls(pageId) {
@@ -1572,21 +1430,84 @@ function updateShapeColorControls(pageId) {
     }
 }
 
+// Function to update Letter + Letter circle visibility
+function updateLetterLetterCircle(pageId) {
+    const circleContainer = document.getElementById('letter-letter-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Letter + Letter page (pageId "2-2")
+    // Parameter indices: 2=letter
+    const isLetterLetterPage = pageId === '2-2';
+    
+    if (isLetterLetterPage) {
+        circleContainer.classList.add('visible');
+    } else {
+        circleContainer.classList.remove('visible');
+    }
+}
+
 // Function to add a circle to the Shape & Color canvas
 function addShapeColorCircle() {
+    // Check if p5.js canvas is active for shape-color pages
+    const isShapeColorPage = activePageId === '0-5' || activePageId === '5-0';
+    
+    // Try to use p5.js canvas if available and has addCircle function
+    if (isShapeColorPage && p5Instance && typeof p5Instance.addCircle === 'function') {
+        try {
+            p5Instance.addCircle();
+            return;
+        } catch (e) {
+            console.error('Error calling p5Instance.addCircle:', e);
+            // Fall through to HTML circles fallback
+        }
+    }
+    
+    // Fallback: Use HTML circles (they work regardless of canvas type)
+    // They will be hidden by CSS when p5.js canvas is properly active
     const circlesContainer = document.getElementById('shape-color-circles');
-    if (!circlesContainer) return;
+    if (!circlesContainer) {
+        console.error('shape-color-circles container not found');
+        return;
+    }
+    
+    // Show HTML circles container (in case it was hidden)
+    circlesContainer.style.opacity = '1';
+    circlesContainer.style.visibility = 'visible';
     
     // Create a new circle element
     const circle = document.createElement('div');
     circle.className = 'shape-color-circle';
     
-    // Generate random offset: ±5px on both axes
-    const offsetX = (Math.random() * 10) - 5; // Random value between -5 and 5
-    const offsetY = (Math.random() * 10) - 5; // Random value between -5 and 5
+    // Calculate offset based on previous circle or center
+    let offsetX = 0;
+    let offsetY = 0;
     
-    // Apply the offset using transform: translate from center, then add random offset
+    if (shapeColorCircles.length > 0) {
+        // Get the last circle's position
+        const lastCircle = shapeColorCircles[shapeColorCircles.length - 1];
+        const lastOffsetX = lastCircle._currentOffsetX || lastCircle._initialOffsetX || 0;
+        const lastOffsetY = lastCircle._currentOffsetY || lastCircle._initialOffsetY || 0;
+        
+        // Place new circle 20 pixels to the right of the last one
+        offsetX = lastOffsetX + CIRCLE_SPACING;
+        offsetY = lastOffsetY;
+    } else {
+        // First circle - place at center (no offset)
+        offsetX = 0;
+        offsetY = 0;
+    }
+    
+    // Apply the offset using transform: translate from center, then add offset
     circle.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    
+    // Store initial offset (this is the offset from center)
+    circle._initialOffsetX = offsetX;
+    circle._initialOffsetY = offsetY;
+    circle._currentOffsetX = offsetX;
+    circle._currentOffsetY = offsetY;
+    
+    // Add drag event listeners
+    setupCircleDrag(circle);
     
     // Add to container
     circlesContainer.appendChild(circle);
@@ -1595,16 +1516,128 @@ function addShapeColorCircle() {
     shapeColorCircles.push(circle);
 }
 
+// Track if global drag listeners are already attached
+let circleDragListenersAttached = false;
+
+// Function to setup drag functionality for a circle
+function setupCircleDrag(circle) {
+    circle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        draggedCircleElement = circle;
+        
+        // Get initial mouse position
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        
+        // Get circle's current position
+        const rect = circle.getBoundingClientRect();
+        const circleCenterX = rect.left + rect.width / 2;
+        const circleCenterY = rect.top + rect.height / 2;
+        
+        // Calculate offset from mouse to circle center
+        const offsetX = dragStartX - circleCenterX;
+        const offsetY = dragStartY - circleCenterY;
+        
+        circle._dragOffsetX = offsetX;
+        circle._dragOffsetY = offsetY;
+    });
+    
+    // Add global mouse move and up listeners only once (on document to track even if mouse leaves circle)
+    if (!circleDragListenersAttached) {
+        document.addEventListener('mousemove', handleCircleDrag);
+        document.addEventListener('mouseup', handleCircleDragEnd);
+        circleDragListenersAttached = true;
+    }
+}
+
+// Function to handle circle dragging
+function handleCircleDrag(e) {
+    if (!draggedCircleElement) return;
+    
+    e.preventDefault();
+    
+    // Calculate desired position
+    const container = document.getElementById('shape-color-circles');
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const containerCenterX = containerRect.left + containerRect.width / 2;
+    const containerCenterY = containerRect.top + containerRect.height / 2;
+    
+    // Calculate desired offset from center (accounting for drag offset)
+    const desiredOffsetX = (e.clientX - containerCenterX) - draggedCircleElement._dragOffsetX;
+    const desiredOffsetY = (e.clientY - containerCenterY) - draggedCircleElement._dragOffsetY;
+    
+    // Calculate distance from initial position
+    const distance = Math.sqrt(
+        Math.pow(desiredOffsetX - draggedCircleElement._initialOffsetX, 2) +
+        Math.pow(desiredOffsetY - draggedCircleElement._initialOffsetY, 2)
+    );
+    
+    // Apply constraint: limit to maxDragDistance from initial position
+    let finalOffsetX = desiredOffsetX;
+    let finalOffsetY = desiredOffsetY;
+    
+    if (distance > MAX_DRAG_DISTANCE) {
+        // Calculate angle from initial position to desired position
+        const angle = Math.atan2(
+            desiredOffsetY - draggedCircleElement._initialOffsetY,
+            desiredOffsetX - draggedCircleElement._initialOffsetX
+        );
+        
+        // Constrain to circle with radius maxDragDistance
+        finalOffsetX = draggedCircleElement._initialOffsetX + Math.cos(angle) * MAX_DRAG_DISTANCE;
+        finalOffsetY = draggedCircleElement._initialOffsetY + Math.sin(angle) * MAX_DRAG_DISTANCE;
+    }
+    
+    // Update circle position
+    draggedCircleElement.style.transform = `translate(calc(-50% + ${finalOffsetX}px), calc(-50% + ${finalOffsetY}px))`;
+    draggedCircleElement._currentOffsetX = finalOffsetX;
+    draggedCircleElement._currentOffsetY = finalOffsetY;
+}
+
+// Function to handle end of circle dragging
+function handleCircleDragEnd(e) {
+    if (!draggedCircleElement) return;
+    
+    draggedCircleElement = null;
+}
+
+// Clean up event listeners when resetting
+function cleanupCircleDragListeners() {
+    if (circleDragListenersAttached) {
+        document.removeEventListener('mousemove', handleCircleDrag);
+        document.removeEventListener('mouseup', handleCircleDragEnd);
+        circleDragListenersAttached = false;
+    }
+    draggedCircleElement = null;
+}
+
+
 // Function to reset (clear all circles) on Shape & Color canvas
 function resetShapeColorCircles() {
-    const circlesContainer = document.getElementById('shape-color-circles');
-    if (!circlesContainer) return;
+    // Check if p5.js canvas is active for shape-color pages
+    const isShapeColorPage = activePageId === '0-5' || activePageId === '5-0';
     
-    // Remove all circles from DOM
-    circlesContainer.innerHTML = '';
-    
-    // Clear array
-    shapeColorCircles = [];
+    if (isShapeColorPage && p5Instance && typeof p5Instance.resetCircles === 'function') {
+        // Use p5.js canvas
+        p5Instance.resetCircles();
+    } else {
+        // Fallback to HTML circles
+        const circlesContainer = document.getElementById('shape-color-circles');
+        if (!circlesContainer) return;
+        
+        // Clean up drag listeners
+        cleanupCircleDragListeners();
+        
+        // Remove all circles from DOM
+        circlesContainer.innerHTML = '';
+        
+        // Clear array
+        shapeColorCircles = [];
+    }
 }
 
 // Initialize Shape & Color controls (button handlers)
@@ -1643,14 +1676,6 @@ function rerenderCanvasTextBox() {
 
 // Function to update the active page/canvas based on color selection
 function updateActivePage(pageId, reason) {
-    // DEBUG: Log page switch
-    console.log('PAGE_SWITCH', {
-        pageId: pageId,
-        reason: reason,
-        introPhase: introPhase,
-        introCompleted: introCompleted,
-        timestamp: new Date().toISOString()
-    });
     
     // CRITICAL: Page switching should work after intro is completed
     // But we should still track the page state even during intro
@@ -1669,26 +1694,149 @@ function updateActivePage(pageId, reason) {
     // Update Shape & Color controls visibility
     updateShapeColorControls(pageId);
     
-    // Update p5 sketch to use the new pageId for state storage
-    if (p5Instance) {
-        // Save current state before switching (if we had a previous page and p5 is ready)
-        if (previousPageId !== null && previousPageId !== pageId && typeof p5Instance.saveState === 'function') {
-            // Store the previous pageId temporarily so saveState can use it
+    // Update Letter + Letter circle visibility
+    updateLetterLetterCircle(pageId);
+    
+    
+    // Check if we need to switch to a different canvas sketch
+    // If there's a registered canvas for the new pageId, and it's different from the current one, recreate the canvas
+    let needsNewCanvas = false;
+    let newSketchFactory = null;
+    
+    if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
+        newSketchFactory = window.CanvasRegistry.get(pageId);
+        // Check if we need a new canvas (if the current canvas is not the one for this pageId)
+        if (p5Instance) {
+            // Determine if current canvas is the default or a registered one
+            const currentPageIdForCanvas = p5Instance._currentPageId || previousPageId;
+            const currentHasRegisteredCanvas = window.CanvasRegistry.has(currentPageIdForCanvas);
+            const newHasRegisteredCanvas = window.CanvasRegistry.has(pageId);
+            
+            // Need new canvas if:
+            // 1. New page has a registered canvas and current doesn't, OR
+            // 2. Both have registered canvases but they're different (different factory functions)
+            if (newHasRegisteredCanvas && (!currentHasRegisteredCanvas || currentPageIdForCanvas !== pageId)) {
+                needsNewCanvas = true;
+            }
+        } else {
+            // No current instance, but we have a registered canvas - create it
+            needsNewCanvas = true;
+        }
+    } else {
+        // New page doesn't have a registered canvas
+        // But if current page has a registered canvas (like Shape & Number), we need to switch to default
+        if (p5Instance && previousPageId) {
+            const currentPageIdForCanvas = p5Instance._currentPageId || previousPageId;
+            const currentHasRegisteredCanvas = window.CanvasRegistry && window.CanvasRegistry.has(currentPageIdForCanvas);
+            
+            // If current page has a registered canvas but new page doesn't, we need to switch to default
+            if (currentHasRegisteredCanvas) {
+                needsNewCanvas = true;
+                newSketchFactory = createP5Cell01Sketch; // Use default sketch factory
+            }
+        }
+    }
+    
+    // If we need a new canvas, create it
+    if (needsNewCanvas && newSketchFactory) {
+        // Save current state before switching
+        if (p5Instance && previousPageId !== null && previousPageId !== pageId && typeof p5Instance.saveState === 'function') {
             p5Instance._currentPageId = previousPageId;
             p5Instance.saveState();
         }
         
-        // Update the current pageId in the p5 instance
-        // The sketch's saveState/restoreState will use this pageId instead of cellId
-        p5Instance._currentPageId = pageId;
+        // Remove old canvas instance using helper
+        unmountP5();
         
-        // Restore state for the new page (if it exists)
-        if (typeof p5Instance.restoreState === 'function') {
-            const restored = p5Instance.restoreState();
-            // If no state was restored (new page), the canvas will be empty (which is correct)
-            // The restoreState function handles image loading asynchronously, so it should redraw automatically
-            // If we need to clear the canvas for a new page, restoreState should handle it
-            // But since brushLayer is per-sketch, switching pages should show the correct state
+        // Create new canvas with the registered sketch
+        const container = document.getElementById('p5-container');
+        const whiteRegion = document.getElementById('white-region');
+        
+        if (container && whiteRegion) {
+            requestAnimationFrame(() => {
+                let width = container.offsetWidth || container.clientWidth || 0;
+                let height = container.offsetHeight || container.clientHeight || 0;
+                
+                if (width <= 0 || height <= 0) {
+                    width = whiteRegion.offsetWidth || whiteRegion.clientWidth || 0;
+                    height = whiteRegion.offsetHeight || whiteRegion.clientHeight || 0;
+                }
+                
+                if (width <= 0) {
+                    const viewportWidth = window.innerWidth;
+                    const leftBoundary = 50;
+                    const rightBoundary = viewportWidth - 50;
+                    width = Math.max(400, rightBoundary - leftBoundary);
+                }
+                if (height <= 0) {
+                    height = Math.max(300, (window.innerHeight - 50));
+                }
+                
+                const sketch = newSketchFactory(
+                    container,
+                    width,
+                    height,
+                    p5SketchActive,
+                    pageId,
+                    p5StateStorage
+                );
+                
+                // For Shape & Number pages (0-3, 3-0), wait a moment to ensure debug marker is visible
+                // then mount p5 sketch
+                if (pageId === '0-3' || pageId === '3-0') {
+                    // Small delay to ensure debug marker is visible first
+                    setTimeout(() => {
+                        p5Instance = mountP5(sketch, container);
+                        
+                        if (p5Instance) {
+                            p5Instance._currentPageId = pageId;
+                            
+                            // Restore state for the new page
+                            if (typeof p5Instance.restoreState === 'function') {
+                                p5Instance.restoreState();
+                            }
+                            
+                        }
+                    }, 100); // 100ms delay to ensure marker is visible
+                } else {
+                    // For other pages, use direct instantiation (maintains existing behavior)
+                    p5Instance = new p5(sketch, container);
+                    
+                    if (p5Instance) {
+                        p5Instance._currentPageId = pageId;
+                        
+                        // Restore state for the new page
+                        if (typeof p5Instance.restoreState === 'function') {
+                            p5Instance.restoreState();
+                        }
+                        
+                    }
+                }
+                
+            });
+        }
+    } else {
+        // Update p5 sketch to use the new pageId for state storage (existing canvas)
+        if (p5Instance) {
+            // Save current state before switching (if we had a previous page and p5 is ready)
+            if (previousPageId !== null && previousPageId !== pageId && typeof p5Instance.saveState === 'function') {
+                // Store the previous pageId temporarily so saveState can use it
+                p5Instance._currentPageId = previousPageId;
+                p5Instance.saveState();
+            }
+            
+            // Update the current pageId in the p5 instance
+            // The sketch's saveState/restoreState will use this pageId instead of cellId
+            p5Instance._currentPageId = pageId;
+            
+            // Restore state for the new page (if it exists)
+            if (typeof p5Instance.restoreState === 'function') {
+                const restored = p5Instance.restoreState();
+                // If no state was restored (new page), the canvas will be empty (which is correct)
+                // The restoreState function handles image loading asynchronously, so it should redraw automatically
+                // If we need to clear the canvas for a new page, restoreState should handle it
+                // But since brushLayer is per-sketch, switching pages should show the correct state
+            }
         }
     }
     
@@ -1768,26 +1916,10 @@ function updateSelectedIndices() {
         // Update word text with new combination
         updateWordText();
         
-        // DEBUG: Log left scrollbar selection change
         if (newLeftIndex !== oldLeftIndex) {
-            console.log('LEFT_SELECTED', {
-                selectedLeftIndex: selectedLeftIndex,
-                selectedLeftColor: leftColor,
-                introPhase: introPhase,
-                introCompleted: introCompleted,
-                timestamp: new Date().toISOString()
-            });
         }
         
-        // DEBUG: Log right scrollbar selection change
         if (newRightIndex !== oldRightIndex) {
-            console.log('RIGHT_SELECTED', {
-                selectedRightIndex: selectedRightIndex,
-                selectedRightColor: rightColor,
-                introPhase: introPhase,
-                introCompleted: introCompleted,
-                timestamp: new Date().toISOString()
-            });
         }
         
         // Generate page ID from color combination
@@ -1821,14 +1953,6 @@ function updateAllGradients() {
     const leftColor = getColorFromIndex(selectedLeftIndex);
     const rightColor = getColorFromIndex(selectedRightIndex);
     
-    // DEBUG: Log when applying gradients
-    console.log('APPLYING_GRADIENTS', {
-        leftIndex: selectedLeftIndex,
-        rightIndex: selectedRightIndex,
-        leftColor: leftColor,
-        rightColor: rightColor,
-        timestamp: new Date().toISOString()
-    });
     
     // Update gradient intro (first rectangle at index 0 serves as the header)
     updateGradientIntroFromColors(leftColor, rightColor);
@@ -1865,21 +1989,9 @@ function updateVisibilityBasedOnColors(leftColor, rightColor) {
     
     const shouldBeVisible = isOrangeBlueCombination(leftColor, rightColor);
     
-    // DEBUG: Log the active combo and resolved page
     const leftIndex = colors.indexOf(leftColor);
     const rightIndex = colors.indexOf(rightColor);
     const pageKey = getPageIdFromColors(leftIndex, rightIndex);
-    console.log('PAGE_ROUTING', {
-        leftIndex: leftIndex,
-        rightIndex: rightIndex,
-        leftColor: leftColor,
-        rightColor: rightColor,
-        leftWord: colorWords[leftIndex],
-        rightWord: colorWords[rightIndex],
-        pageKey: pageKey,
-        shouldShowLetterShape: shouldBeVisible,
-        timestamp: new Date().toISOString()
-    });
     
     // Update text box visibility
     // Text box is always hidden - only interaction is shown for Shape Sound page
@@ -1941,6 +2053,136 @@ let p5Instance = null;
 // State management for p5 sketch
 let p5SketchActive = { value: true };
 let p5StateStorage = {};
+
+
+// ==================
+// P5 HELPER FUNCTIONS
+// ==================
+/**
+ * Mount a p5.js sketch in a container element
+ * @param {Function} sketchFn - The p5 sketch function
+ * @param {HTMLElement} containerEl - The container element to mount the sketch in
+ * @returns {p5} The p5 instance, or null if p5 is not available
+ */
+function mountP5(sketchFn, containerEl) {
+    // Verify p5 is available globally
+    if (typeof window.p5 === 'undefined') {
+        console.error('p5.js is not loaded. Make sure p5.js is included before script.js');
+        return null;
+    }
+    
+    if (!containerEl) {
+        console.error('mountP5: container element is required');
+        return null;
+    }
+    
+    // Create new p5 instance in instance mode
+    const instance = new p5(sketchFn, containerEl);
+    return instance;
+}
+
+/**
+ * Unmount a p5.js sketch instance
+ * @param {p5} instance - The p5 instance to unmount (optional, uses global p5Instance if not provided)
+ */
+function unmountP5(instance) {
+    const targetInstance = instance || p5Instance;
+    
+    if (targetInstance && typeof targetInstance.remove === 'function') {
+        targetInstance.remove();
+    }
+    
+    // Clear global reference if it was the global instance
+    if (!instance && p5Instance === targetInstance) {
+        p5Instance = null;
+    }
+}
+
+// ==================
+// SHAPE & NUMBER TEST SKETCH
+// ==================
+/**
+ * Simple test sketch for Shape & Number screen
+ * Shows a background and a big centered circle
+ */
+function createShapeNumberCanvasSketch(containerElement, containerWidth, containerHeight, p5SketchActive, cellId, stateStorage) {
+    return function(p) {
+        // Verify p is valid
+        if (!p || typeof p.createCanvas !== 'function') {
+            console.error('Invalid p5 instance');
+            return;
+        }
+        
+        // Store container element and dimensions
+        const container = containerElement;
+        let containerW = containerWidth;
+        let containerH = containerHeight;
+        let cnv;
+        
+        // Setup function - runs once
+        p.setup = function() {
+            // Ensure minimum dimensions
+            if (containerW <= 0) {
+                const viewportWidth = window.innerWidth;
+                const leftBoundary = 50;
+                const rightBoundary = viewportWidth - 50;
+                containerW = Math.max(400, rightBoundary - leftBoundary);
+            }
+            if (containerH <= 0) {
+                containerH = Math.max(300, (window.innerHeight - 50));
+            }
+            
+            // Create canvas
+            cnv = p.createCanvas(containerW, containerH);
+            cnv.parent(container);
+            
+            // Style canvas
+            const canvas = cnv.elt;
+            if (canvas) {
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0';
+                canvas.style.left = '0';
+                canvas.style.zIndex = '11';
+                canvas.style.pointerEvents = 'auto';
+            }
+        };
+        
+        // Draw function - runs continuously
+        p.draw = function() {
+            // Only draw if sketch is active
+            if (!p5SketchActive.value) {
+                return;
+            }
+            
+            // Background color (light gray)
+            p.background('#E0E0E0');
+            
+            // Draw a big centered circle
+            p.fill('#2C2C2C'); // Black color
+            p.noStroke();
+            
+            // Calculate center and size
+            const centerX = p.width / 2;
+            const centerY = p.height / 2;
+            const circleSize = Math.min(p.width, p.height) * 0.4; // 40% of smaller dimension
+            
+            p.ellipse(centerX, centerY, circleSize, circleSize);
+        };
+        
+        // Handle window resize
+        p.windowResized = function() {
+            // Get updated container dimensions
+            const updatedWidth = container.offsetWidth || container.clientWidth || containerW;
+            const updatedHeight = container.offsetHeight || container.clientHeight || containerH;
+            
+            if (updatedWidth > 0 && updatedHeight > 0 && cnv) {
+                containerW = updatedWidth;
+                containerH = updatedHeight;
+                p.resizeCanvas(containerW, containerH);
+            }
+        };
+    };
+}
 
 // ==================
 // P5 CELL 01 SKETCH FACTORY
@@ -2961,20 +3203,47 @@ function initializeP5Sketch() {
             height = Math.max(300, (window.innerHeight - 50));
         }
         
+        // Check if there's a registered canvas for the initial pageId
+        // If not, fall back to the default canvas
+        let sketchFactory = null;
+        const initialPageId = getPageIdFromColors(selectedLeftIndex, selectedRightIndex);
+        
+        if (window.CanvasRegistry && window.CanvasRegistry.has(initialPageId)) {
+            sketchFactory = window.CanvasRegistry.get(initialPageId);
+        }
+        
+        // If no registered canvas found, use the default canvas
+        if (!sketchFactory) {
+            sketchFactory = createP5Cell01Sketch;
+        }
+        
+        
         // Create p5 sketch using the factory function
-        // Parameters: container, width, height, active flag, cellId, state storage
-        const sketch = createP5Cell01Sketch(
+        // Parameters: container, width, height, active flag, pageId, state storage
+        const sketch = sketchFactory(
             container,
             width,
             height,
             p5SketchActive,
-            0, // cellId (using 0 for single sketch)
+            initialPageId, // Use pageId instead of cellId for new canvases
             p5StateStorage // state storage object
         );
         
         // Create p5 instance - always create it once, even if initially hidden
-        // Store the instance globally for later access
-        p5Instance = new p5(sketch, container);
+        // Use mountP5 helper for Shape & Number pages (0-3, 3-0)
+        if (initialPageId === '0-3' || initialPageId === '3-0') {
+            // Small delay to ensure debug marker is visible first
+            setTimeout(() => {
+                p5Instance = mountP5(sketch, container);
+                
+                if (p5Instance) {
+                    p5Instance._currentPageId = initialPageId;
+                }
+            }, 100); // 100ms delay to ensure marker is visible
+        } else {
+            // For other pages, use direct instantiation (maintains existing behavior)
+            p5Instance = new p5(sketch, container);
+        }
     });
 }
 
@@ -3234,16 +3503,6 @@ function alignRectanglesWithEsthesia() {
                 parameterRect.style.top = `${parameterTop}px`;
                 colorKeyRect.style.top = `${colorKeyTop}px`;
                 
-                console.log('LOGO_BOTTOM_ALIGNMENT', {
-                    logoBottom: logoBottom,
-                    parameterTop: parameterTop,
-                    colorKeyTop: colorKeyTop,
-                    logoRect: {
-                        top: logoRectBounds.top,
-                        bottom: logoRectBounds.bottom,
-                        height: logoRectBounds.height
-                    }
-                });
             });
         });
     };
@@ -3298,12 +3557,6 @@ function updateUIVisibility() {
     updateUIMaskVisibility();
     
     // Debug logging as specified
-    console.log("UI_VIS", {
-        show,
-        hasExpandedToScrollbars,
-        introCompleted,
-        introPhase
-    });
 }
 
 // Function to update canvas cover visibility based on intro phase
@@ -3337,16 +3590,6 @@ function updateUIMaskVisibility() {
     uiMask.classList.toggle('visible', shouldShow);
     
     // Debug logging
-    console.log("UI_MASK", {
-        shouldShow,
-        hasGapDuringTransition,
-        isAtStartCheckpoint,
-        introPhase,
-        hasExpandedToScrollbars,
-        introCompleted,
-        introReady,
-        timestamp: new Date().toISOString()
-    });
 }
 
 // Note: Header visibility is now controlled by the intro container visibility
@@ -3385,11 +3628,6 @@ function startEntryAnimation() {
     setTimeout(() => {
         // Entry animation complete - but UI stays hidden
         // hasExpandedToScrollbars remains false until EXPAND happens
-        console.log('ENTRY_ANIMATION_COMPLETE', {
-            introPhase: introPhase,
-            hasExpandedToScrollbars: hasExpandedToScrollbars,
-            timestamp: new Date().toISOString()
-        });
         
         // Verify UI is still hidden after entry animation
         updateUIVisibility();
@@ -3455,10 +3693,6 @@ function initializeGradientIntro() {
 function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     // CRITICAL: Early return if intro is completed - prevent any intro layout updates
     if (introCompleted) {
-        console.log('INTRO_UPDATE_BLOCKED', {
-            reason: 'introCompleted === true',
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
@@ -3507,17 +3741,7 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         const leftColor = getColorFromIndex(leftColorIndex);
         const rightColor = getColorFromIndex(rightColorIndex);
         
-        // DEBUG: Log which gradient row is being set
         if (index === 0 || index === 4) { // Log first and 5th row (where START text is)
-            console.log(`GRADIENT_ROW_${index}`, {
-                leftColorIndex: leftColorIndex,
-                rightColorIndex: rightColorIndex,
-                leftColor: leftColor,
-                rightColor: rightColor,
-                baseLeftIndex: selectedLeftIndex,
-                baseRightIndex: selectedRightIndex,
-                timestamp: new Date().toISOString()
-            });
         }
         
         // Set gradient: starts with left color (left edge), ends with right color (right edge)
@@ -3532,19 +3756,28 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     // Text fades in during entry animation (synced with gradient shrink)
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
-        const fourthRectIndex = 3; // 4th rectangle (0-indexed)
-        const fourthRectTop = fourthRectIndex * itemHeight;
+        const isStartButton = introText.textContent === '[start]';
         
-        // Position text in the 4th rectangle (positioned even during entering phase for fade-in)
+        // For START button, position it in the 5th rectangle (index 4) instead of 4th
+        // For instruction text, use 4th rectangle (index 3)
+        const rectIndex = isStartButton ? 4 : 3;
+        const rectTop = rectIndex * itemHeight;
+        
+        // Position text in the appropriate rectangle
         introText.style.left = `${leftEdge}px`;
         introText.style.width = `${width}px`;
-        introText.style.top = `${fourthRectTop}px`;
+        introText.style.top = `${rectTop}px`;
         introText.style.height = `${itemHeight}px`;
-        introText.style.display = 'flex';
         introText.style.alignItems = 'center';
         introText.style.justifyContent = 'center';
         introText.style.flexDirection = 'column';
-        introText.style.visibility = 'visible';
+        
+        // For START button, don't set display/visibility here - let setupStartButton() handle it
+        // to allow the animation to work properly
+        if (!isStartButton) {
+            introText.style.display = 'flex';
+            introText.style.visibility = 'visible';
+        }
         // DO NOT set opacity inline - let CSS classes control it for smooth transition
         // Opacity is controlled by CSS classes (intro-entering = 0, intro-active = 1)
         // This allows the fade-in to sync with the gradient shrink animation
@@ -3692,11 +3925,6 @@ function showMainGradientHeader() {
     const rightColor = getColorFromIndex(selectedRightIndex);
     updateMainGradientHeader(leftColor, rightColor);
     
-    console.log('MAIN_GRADIENT_HEADER_SHOWN', {
-        leftColor: leftColor,
-        rightColor: rightColor,
-        timestamp: new Date().toISOString()
-    });
 }
 
 // Function to trigger final intro cleanup (called when progress reaches 1)
@@ -3735,7 +3963,6 @@ function triggerIntroTransition() {
     }
     
     // Log to console
-    console.log('INTRO_FULLY_CLOSED_BY_CENTER_SCROLL');
     
     // Heights are already at 0 (progress = 1), so we can set final state immediately
     // Wait for horizontal expansion to complete (250ms) before setting final state
@@ -3752,14 +3979,7 @@ function triggerIntroTransition() {
         gradientContainer.style.opacity = '0';
         gradientContainer.style.pointerEvents = 'none';
         
-        console.log('INTRO_COMPLETED', {
-            introCompleted: introCompleted,
-            timestamp: new Date().toISOString()
-        });
         
-        console.log('INTRO_FINAL_STATE_SET', {
-            timestamp: new Date().toISOString()
-        });
         
         // Show main gradient header when intro completes
         showMainGradientHeader();
@@ -3776,10 +3996,6 @@ function triggerIntroTransition() {
 function startHorizontalExpansion() {
     // CRITICAL: Early return if intro is completed - prevent expansion from restarting
     if (introCompleted) {
-        console.log('HORIZONTAL_EXPANSION_BLOCKED', {
-            reason: 'introCompleted === true',
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
@@ -3838,11 +4054,6 @@ function startHorizontalExpansion() {
 function updateGradientBarHeights(progress) {
     // CRITICAL: Early return if intro is completed - prevent height updates
     if (introCompleted) {
-        console.log('GRADIENT_BAR_HEIGHT_UPDATE_BLOCKED', {
-            reason: 'introCompleted === true',
-            progress: progress,
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
@@ -3924,10 +4135,6 @@ function initializeCenterScrollTrigger() {
     gradientContainer.addEventListener('wheel', (e) => {
         // CRITICAL: Check if intro is completed - if so, ignore all wheel events
         if (introCompleted) {
-            console.log('CENTER_SCROLL_BLOCKED', {
-                reason: 'introCompleted === true',
-                timestamp: new Date().toISOString()
-            });
             return;
         }
         
@@ -3938,19 +4145,11 @@ function initializeCenterScrollTrigger() {
         
         // CRITICAL: Block center scroll during START click transition (programmatic transition active)
         if (startClickTransitionActive) {
-            console.log('CENTER_SCROLL_BLOCKED', {
-                reason: 'startClickTransitionActive === true',
-                timestamp: new Date().toISOString()
-            });
             return;
         }
         
         // CRITICAL: Disable scroll-to-close after START appears - only click should trigger transition
         if (introReady) {
-            console.log('CENTER_SCROLL_BLOCKED', {
-                reason: 'introReady === true (START is visible - click only)',
-                timestamp: new Date().toISOString()
-            });
             return;
         }
         
@@ -4007,11 +4206,6 @@ function initializeCenterScrollTrigger() {
             // When progress reaches 1 for the first time, lock it
             if (introProgress >= 1 && !introCompleted) {
                 introCompleted = true;
-                console.log('INTRO_COMPLETED', {
-                    introProgress: introProgress,
-                    introCompleted: introCompleted,
-                    timestamp: new Date().toISOString()
-                });
                 // Update UI visibility - UI remains visible after intro is done
                 updateUIVisibility();
                 
@@ -4039,11 +4233,6 @@ function initializeUserInteractionDetection() {
         // Only set flag if not during demo and not during initialization
         if (!isDemoActive && !isInitializing) {
             userInteracted = true;
-            console.log('USER_INTERACTION_DETECTED', {
-                type: 'wheel',
-                userInteracted: userInteracted,
-                timestamp: new Date().toISOString()
-            });
         }
     }, { passive: true });
     
@@ -4052,11 +4241,6 @@ function initializeUserInteractionDetection() {
         // Only set flag if not during demo and not during initialization
         if (!isDemoActive && !isInitializing) {
             userInteracted = true;
-            console.log('USER_INTERACTION_DETECTED', {
-                type: 'touchstart',
-                userInteracted: userInteracted,
-                timestamp: new Date().toISOString()
-            });
         }
     }, { passive: true });
     
@@ -4065,11 +4249,6 @@ function initializeUserInteractionDetection() {
         // Only set flag if not during demo and not during initialization
         if (!isDemoActive && !isInitializing) {
             userInteracted = true;
-            console.log('USER_INTERACTION_DETECTED', {
-                type: 'pointerdown',
-                userInteracted: userInteracted,
-                timestamp: new Date().toISOString()
-            });
         }
     }, { passive: true });
 }
@@ -4079,18 +4258,9 @@ function initializeUserInteractionDetection() {
 function reverseIntroTransition() {
     // Only allow reverse if intro is completed (we're on main screen)
     if (!introCompleted) {
-        console.log('REVERSE_TRANSITION_BLOCKED', {
-            reason: 'introCompleted === false',
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
-    console.log('LOGO_CLICK → REVERSE_INTRO_TRANSITION_START', {
-        introProgress: introProgress,
-        introPhase: introPhase,
-        timestamp: new Date().toISOString()
-    });
     
     // Keep main gradient header visible - don't hide it during reverse transition
     // The intro gradient rectangles will animate on top of it (higher z-index)
@@ -4249,11 +4419,6 @@ function reverseIntroTransition() {
                 updateGradientIntro();
             }
             
-            console.log('LOGO_CLICK → ANIMATION_COMPLETE', {
-                introProgress: introProgress,
-                introPhase: introPhase,
-                timestamp: new Date().toISOString()
-            });
             
             // Wait for horizontal contraction to complete (250ms), then transition to entering phase
             setTimeout(() => {
@@ -4271,9 +4436,6 @@ function reverseIntroTransition() {
                     introCompleted = wasIntroCompleted;
                     horizontalExpansionStarted = wasHorizontalExpansionStarted;
                     
-                    console.log('LOGO_CLICK → RESTART_INTRO', {
-                        timestamp: new Date().toISOString()
-                    });
                     
                     // Now restart intro (which will reset everything properly)
                     restartIntro();
@@ -4286,6 +4448,95 @@ function reverseIntroTransition() {
     requestAnimationFrame(animate);
 }
 
+// Function to cancel all demo animations
+function cancelDemoAnimations() {
+    // Store counts before clearing
+    const timeoutCount = demoTimeouts.length;
+    const frameCount = demoAnimationFrames.length;
+    
+    // Cancel all timeouts
+    demoTimeouts.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+    });
+    demoTimeouts = [];
+    
+    // Cancel all animation frames
+    demoAnimationFrames.forEach(frameId => {
+        cancelAnimationFrame(frameId);
+    });
+    demoAnimationFrames = [];
+    
+    // Cancel current animation frame if exists
+    if (currentAnimationFrame !== null) {
+        cancelAnimationFrame(currentAnimationFrame);
+        currentAnimationFrame = null;
+    }
+    
+    // Re-enable scroll-snap on both columns
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    if (leftColumn) {
+        leftColumn.style.removeProperty('scroll-snap-type');
+    }
+    if (rightColumn) {
+        rightColumn.style.removeProperty('scroll-snap-type');
+    }
+    
+    // Reset programmatic scroll flag
+    isProgrammaticScroll = false;
+    
+}
+
+// Function to skip demo when user scrolls during demo
+// Immediately stops demo and shows START button
+function skipDemo() {
+    // Stop demo logic
+    isDemoActive = false;
+    
+    // Cancel all demo animations immediately
+    cancelDemoAnimations();
+    
+    // Mark user interaction
+    userInteracted = true;
+    
+    // Prevent text from reverting
+    introTextChanged = true;
+    
+    // Enable START button
+    introReady = true;
+    
+    // Remove demo-active class to show text immediately
+    const gradientContainer = document.getElementById('gradient-intro-container');
+    if (gradientContainer) {
+        gradientContainer.classList.remove('demo-active');
+    }
+    
+    // Show START button immediately (this will set up the text content)
+    setupStartButton();
+    
+    // Use setTimeout to ensure DOM updates and CSS transitions are applied before forcing visibility
+    // This ensures the demo-active class removal has taken effect
+    setTimeout(() => {
+        // Get intro text element and ensure it's visible after setupStartButton
+        const introText = document.getElementById('gradient-intro-text');
+        if (introText) {
+            // Also ensure the container has intro-active class for CSS rules to work
+            if (gradientContainer && !gradientContainer.classList.contains('intro-active')) {
+                gradientContainer.classList.add('intro-active');
+            }
+            
+            // Ensure visibility (but don't force opacity - let CSS animation handle it)
+            // After removing demo-active class, intro-active CSS rule should apply
+            // and the animation will handle the fade-in
+            // Use 'flex' to match setupStartButton() and updateGradientIntro()
+            introText.style.display = 'flex';
+            introText.style.visibility = 'visible';
+            // Don't set opacity - let CSS animation handle the fade-in
+        }
+    }, 0);
+    
+}
+
 // Shared function to set up START button click handler
 // This ensures consistent behavior whether START appears in initial intro or after returning via logo click
 function setupStartButton() {
@@ -4295,12 +4546,18 @@ function setupStartButton() {
         return;
     }
     
-    // Set START text (CSS will handle opacity since we're in intro-active phase)
+    // Reset element to initial animation state (same as 3 instruction sentences)
+    // This ensures the START button animates in with the same fade-in and slide-up effect
+    introText.style.opacity = '0';
+    introText.style.transform = 'translateY(10px)';
+    
+    // Set START text
     introText.textContent = '[start]';
-    // Remove any inline styles that might override CSS
-    introText.style.display = '';
-    introText.style.visibility = '';
-    introText.style.opacity = '';
+    
+    // Set display and visibility so element is ready for animation
+    // But keep opacity/transform at initial state for animation
+    introText.style.display = 'flex';
+    introText.style.visibility = 'visible';
     
     // Make START text clickable
     introText.style.cursor = 'pointer';
@@ -4318,12 +4575,21 @@ function setupStartButton() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('START_CLICKED', {
-            timestamp: new Date().toISOString()
-        });
         
         // Trigger forward transition (intro → main)
         forwardIntroTransition();
+    });
+    
+    // Use requestAnimationFrame to ensure DOM is ready, then remove inline styles
+    // This allows CSS to take control and apply the animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            // Remove inline opacity and transform to let CSS animation take over
+            // The CSS rule .gradient-intro-container.intro-active .gradient-intro-text
+            // will apply opacity: 1 and transform: translateY(0) with the transition
+            updatedIntroText.style.opacity = '';
+            updatedIntroText.style.transform = '';
+        });
     });
     
     // Show arrow (positioning is handled by updateGradientIntro, but visibility needs to be set)
@@ -4345,21 +4611,12 @@ function setupStartButton() {
 function forwardIntroTransition() {
     // Only allow if intro is ready and not completed (we're at START checkpoint)
     if (!introReady || introCompleted) {
-        console.log('FORWARD_TRANSITION_BLOCKED', {
-            reason: !introReady ? 'introReady === false' : 'introCompleted === true',
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
     // Prevent scroll-based trigger during programmatic transition
     startClickTransitionActive = true;
     
-    console.log('START_CLICK → FORWARD_INTRO_TRANSITION_START', {
-        introProgress: introProgress,
-        introPhase: introPhase,
-        timestamp: new Date().toISOString()
-    });
     
     // Get gradient container
     const gradientContainer = document.getElementById('gradient-intro-container');
@@ -4446,9 +4703,6 @@ function forwardIntroTransition() {
     
     // STEP 1: Horizontal expansion first
     // Transition from 'active' phase (narrowed with gap) to 'closing' phase (expanded to scrollbar edges)
-    console.log('START_CLICK → STEP_1_HORIZONTAL_EXPANSION_START', {
-        timestamp: new Date().toISOString()
-    });
     
     // Transition to closing phase (expanded to scrollbar edges)
     introPhase = 'closing';
@@ -4471,9 +4725,6 @@ function forwardIntroTransition() {
     
     // STEP 2: Start collapse animation immediately (same frame as expansion) - zero delay for continuous gesture
     // Expansion and collapse now run simultaneously on the same timeline for uninterrupted motion
-    console.log('START_CLICK → STEP_2_COLLAPSE_START', {
-        timestamp: new Date().toISOString()
-    });
     
     // Animation parameters for collapse transition
     const duration = 2000; // 2 seconds for the collapse animation
@@ -4515,14 +4766,6 @@ function forwardIntroTransition() {
         
         // Log progress for debugging
         if (Math.floor(progress * 10) % 2 === 0) { // Log every 20% to avoid spam
-            console.log('START_CLICK → COLLAPSE_PROGRESS_UPDATE', {
-                elapsed: elapsed.toFixed(2),
-                progress: progress.toFixed(3),
-                easedProgress: easedProgress.toFixed(3),
-                currentProgress: currentProgress.toFixed(3),
-                introProgress: introProgress.toFixed(3),
-                introPhase: introPhase
-            });
         }
         
         // Update gradient bar heights using existing collapse logic
@@ -4546,12 +4789,6 @@ function forwardIntroTransition() {
                 gradientContainer.classList.add('intro-closing');
             }
             
-            console.log('START_CLICK → COLLAPSE_ANIMATION_COMPLETE', {
-                introProgress: introProgress,
-                introPhase: introPhase,
-                introCompleted: introCompleted,
-                timestamp: new Date().toISOString()
-            });
             
             // Trigger final cleanup
             setTimeout(() => {
@@ -4566,9 +4803,6 @@ function forwardIntroTransition() {
                 // Reset flag
                 startClickTransitionActive = false;
                 
-                console.log('START_CLICK → FINAL_CLEANUP_COMPLETE', {
-                    timestamp: new Date().toISOString()
-                });
             }, 100); // Small delay for final state updates
         }
     }
@@ -4582,16 +4816,9 @@ function forwardIntroTransition() {
 function goToStartCheckpoint() {
     // Only allow if intro is completed (we're on main screen)
     if (!introCompleted) {
-        console.log('GO_TO_START_BLOCKED', {
-            reason: 'introCompleted === false',
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
-    console.log('GO_TO_START_CHECKPOINT_START', {
-        timestamp: new Date().toISOString()
-    });
     
     // Hide UI immediately
     updateUIVisibility();
@@ -4752,14 +4979,6 @@ function goToStartCheckpoint() {
                 // It should remain visible under the UI at all times
                 showMainGradientHeader();
                 
-                console.log('START_CHECKPOINT_REACHED', {
-                    introPhase: introPhase,
-                    introProgress: introProgress,
-                    introReady: introReady,
-                    introCompleted: introCompleted,
-                    hasExpandedToScrollbars: hasExpandedToScrollbars,
-                    timestamp: new Date().toISOString()
-                });
             }, 250); // Match CSS transition duration for closing → active
         }
     }
@@ -4771,9 +4990,6 @@ function goToStartCheckpoint() {
 // Function to restart the intro sequence
 // Resets all intro-related state and replays the intro from the beginning
 function restartIntro() {
-    console.log('INTRO_RESTART', {
-        timestamp: new Date().toISOString()
-    });
     
     // Reset all intro-related state variables
     introPhase = 'entering';
@@ -4844,11 +5060,6 @@ function restartIntro() {
     // Re-initialize the gradient intro (this will create new rectangles and start the animation)
     initializeGradientIntro();
     
-    console.log('INTRO_RESTART_COMPLETE', {
-        introPhase: introPhase,
-        introCompleted: introCompleted,
-        timestamp: new Date().toISOString()
-    });
 }
 
 // Function to initialize logo click handler
@@ -4871,9 +5082,6 @@ function initializeLogoClickHandler() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('LOGO_CLICKED', {
-            timestamp: new Date().toISOString()
-        });
         
         // If intro is completed, go to START checkpoint (no intro restart)
         if (introCompleted) {
@@ -4884,9 +5092,6 @@ function initializeLogoClickHandler() {
         }
     });
     
-    console.log('LOGO_CLICK_HANDLER_INITIALIZED', {
-        timestamp: new Date().toISOString()
-    });
 }
 
 // Function to check if intro text should be updated
@@ -4898,33 +5103,17 @@ function checkAndUpdateIntroText() {
     
     // CRITICAL: Block START text change during demo or when no real user interaction detected
     if (isDemoActive) {
-        console.log('CHECK_INTRO_TEXT_BLOCKED', {
-            reason: 'isDemoActive === true (demo scroll in progress)',
-            isDemoActive: isDemoActive,
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
     // Only allow START to appear when userInteracted === true (real user interaction detected)
     if (!userInteracted) {
-        console.log('CHECK_INTRO_TEXT_BLOCKED', {
-            reason: 'userInteracted === false (no real user interaction detected)',
-            userInteracted: userInteracted,
-            timestamp: new Date().toISOString()
-        });
         return;
     }
     
     // NOTE: START is now triggered on first user scroll in the scroll handler
     // This function is kept for backward compatibility but should rarely be called
     // The scroll handler directly calls setupStartButton() on first user scroll
-    console.log('CHECK_INTRO_TEXT (legacy function - START should be triggered in scroll handler)', {
-        introTextChanged: introTextChanged,
-        userInteracted: userInteracted,
-        isDemoActive: isDemoActive,
-        timestamp: new Date().toISOString()
-    });
 }
 
 // ==================
@@ -4963,6 +5152,15 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
     
     // Function to perform one discrete scroll gesture
     function performScrollStep(stepIndex) {
+        // Check if demo was cancelled - if so, stop immediately
+        if (!isDemoActive) {
+            // Re-enable scroll-snap
+            column.style.removeProperty('scroll-snap-type');
+            // Reset flags
+            isProgrammaticScroll = false;
+            return;
+        }
+        
         if (stepIndex >= numSteps) {
             // All steps complete - re-enable scroll-snap and ensure final snap
             column.style.removeProperty('scroll-snap-type');
@@ -4974,10 +5172,11 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
             column.scrollTop = snappedPosition;
             
             // Reset flags after a small delay
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 isProgrammaticScroll = false;
                 // Note: isDemoActive is reset in scrollBothColumnsProgrammatically after all animations complete
             }, 50);
+            demoTimeouts.push(timeoutId);
             return;
         }
         
@@ -4988,6 +5187,15 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
         
         // Animate this single step
         function animateStep() {
+            // Check if demo was cancelled - if so, stop immediately
+            if (!isDemoActive) {
+                // Re-enable scroll-snap
+                column.style.removeProperty('scroll-snap-type');
+                // Reset flags
+                isProgrammaticScroll = false;
+                return;
+            }
+            
             const elapsed = Date.now() - stepStartTime;
             const progress = Math.min(elapsed / stepDuration, 1);
             
@@ -4999,11 +5207,30 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
             column.scrollTop = newScrollTop;
             
             if (progress < 1) {
-                requestAnimationFrame(animateStep);
+                // Check again before scheduling next frame
+                if (!isDemoActive) {
+                    // Re-enable scroll-snap
+                    column.style.removeProperty('scroll-snap-type');
+                    // Reset flags
+                    isProgrammaticScroll = false;
+                    return;
+                }
+                const frameId = requestAnimationFrame(animateStep);
+                demoAnimationFrames.push(frameId);
+                currentAnimationFrame = frameId;
             } else {
                 // Step complete - snap to exact position
                 column.scrollTop = stepTargetScrollTop;
                 currentStartScrollTop = stepTargetScrollTop;
+                
+                // Check if demo was cancelled before proceeding
+                if (!isDemoActive) {
+                    // Re-enable scroll-snap
+                    column.style.removeProperty('scroll-snap-type');
+                    // Reset flags
+                    isProgrammaticScroll = false;
+                    return;
+                }
                 
                 // Check if this is the last step
                 const isLastStep = (stepIndex + 1) >= numSteps;
@@ -5013,14 +5240,25 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
                     performScrollStep(stepIndex + 1);
                 } else {
                     // Not last step - pause before next step
-                    setTimeout(() => {
+                    const timeoutId = setTimeout(() => {
+                        // Check again before proceeding
+                        if (!isDemoActive) {
+                            // Re-enable scroll-snap
+                            column.style.removeProperty('scroll-snap-type');
+                            // Reset flags
+                            isProgrammaticScroll = false;
+                            return;
+                        }
                         performScrollStep(stepIndex + 1);
                     }, pauseDuration);
+                    demoTimeouts.push(timeoutId);
                 }
             }
         }
         
-        requestAnimationFrame(animateStep);
+        const frameId = requestAnimationFrame(animateStep);
+        demoAnimationFrames.push(frameId);
+        currentAnimationFrame = frameId;
     }
     
     // Start the first step
@@ -5038,12 +5276,11 @@ function scrollBothColumnsProgrammatically(duration) {
         return;
     }
     
+    // Clear any previous demo timeouts and animation frames
+    cancelDemoAnimations();
+    
     // Set demo active flag at the start of demo
     isDemoActive = true;
-    console.log('DEMO_START', {
-        isDemoActive: isDemoActive,
-        timestamp: new Date().toISOString()
-    });
     
     // Note: demo-active class is already added in startEntryAnimation()
     // to prevent text from appearing before demo starts
@@ -5064,16 +5301,22 @@ function scrollBothColumnsProgrammatically(duration) {
     
     // Phase 2: After Phase 1 completes, left column scrolls DOWN (4 items with discrete gestures)
     // Right column stays still
-    setTimeout(() => {
+    const phase2Timeout = setTimeout(() => {
+        // Check if demo was cancelled before starting phase 2
+        if (!isDemoActive) {
+            return;
+        }
+        
         scrollColumnProgrammatically(leftColumn, phaseDuration, 4); // Down 4 items
         
         // Reset demo active flag after all animations complete (both phases)
-        setTimeout(() => {
+        const cleanupTimeout = setTimeout(() => {
+            // Check again before cleanup
+            if (!isDemoActive) {
+                return;
+            }
+            
             isDemoActive = false;
-            console.log('DEMO_END', {
-                isDemoActive: isDemoActive,
-                timestamp: new Date().toISOString()
-            });
             
             // Remove demo-active class to show instruction text again
             const gradientContainer = document.getElementById('gradient-intro-container');
@@ -5094,13 +5337,16 @@ function scrollBothColumnsProgrammatically(duration) {
                 // Force reflow to ensure transform reset is applied
                 void introText.offsetHeight;
                 // Remove inline transform to let CSS transition handle the animation
-                setTimeout(() => {
+                const transformTimeout = setTimeout(() => {
                     introText.style.transform = '';
                 }, 0);
+                demoTimeouts.push(transformTimeout);
                 // CSS will handle visibility via intro-active class (opacity: 1)
             }
         }, phaseDuration + 50); // Wait for phase 2 to complete plus small buffer
+        demoTimeouts.push(cleanupTimeout);
     }, phaseDuration);
+    demoTimeouts.push(phase2Timeout);
 }
 
 // Function to trigger demo when intro is in active phase
