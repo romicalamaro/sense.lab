@@ -6,7 +6,7 @@ const colors = ['#EF4538', '#891951', '#FAB01B', '#007A6F', '#EB4781', '#293990'
 const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
-const INITIAL_INSTRUCTION_TEXT = 'Synesthesia is a perceptual experience where one sense triggers another<br>This site explores synesthesia through combinations of two senses at a time<div style="margin-top: 21px;">[Scroll the left and right bars to combine senses]</div>';
+const INITIAL_INSTRUCTION_TEXT = 'Synesthesia is a perceptual experience where one sense triggers another,<br>This site explores synesthesia through combinations of two senses at a time.<div style="margin-top: 21px;">Scroll the left and right bars to combine senses</div>';
 
 // Color constants for visibility check
 const ORANGE_COLOR = '#EF4538';  // shape (index 0)
@@ -27,6 +27,7 @@ let rightColumnScrolled = false;
 let uniqueColorsSeen = new Set(); // Track unique colors that have been selected (only after user interaction)
 let introTextChanged = false; // Prevent multiple changes
 let hasUserInteracted = false; // Track if user has started scrolling (prevents counting initial colors)
+let initialInstructionTextShown = false; // Track if initial instruction text has been shown after demo
 let isProgrammaticScroll = false; // Flag to track programmatic scrolls (should not trigger interaction)
 let isDemoActive = false; // Flag to track demo/programmatic animation (prevents START text change during demo)
 // Store timeout and animation frame IDs for demo cancellation
@@ -34,6 +35,7 @@ let demoTimeouts = []; // Array to store all setTimeout IDs from demo
 let demoAnimationFrames = []; // Array to store all requestAnimationFrame IDs from demo
 let currentAnimationFrame = null; // Current animation frame ID for each column
 let userInteracted = false; // Flag to track real user interaction (wheel/touch/pointer events)
+let hasScrolledScrollbar = false; // Flag to track if user has actually scrolled a scrollbar (not just moved mouse)
 let isInitializing = true; // Flag to track initialization phase (prevents initial scroll events from counting)
 let introPhase = 'entering'; // Track intro phase: 'entering' (initial full-bleed), 'active' (default), or 'closing' (after START is clicked)
 let introReady = false; // Gate: true when START text is visible, false otherwise
@@ -79,24 +81,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(initialPageId);
     
-    // Initialize Shape & Color controls
-    initializeShapeColorControls();
-    updateShapeColorControls(initialPageId);
-    
     // Initialize Letter + Letter circle visibility
     updateLetterLetterCircle(initialPageId);
     
-    // Register shape-color canvas for pageIds "0-5" and "5-0"
-    if (window.CanvasRegistry && typeof createShapeColorCanvasSketch === 'function') {
-        window.CanvasRegistry.register('0-5', createShapeColorCanvasSketch);
-        window.CanvasRegistry.register('5-0', createShapeColorCanvasSketch);
-    }
+    // Initialize Shape + Color circle visibility
+    updateShapeColorCircle(initialPageId);
     
-    // Register shape-number canvas for pageIds "0-3" and "3-0"
-    if (window.CanvasRegistry && typeof createShapeNumberCanvasSketch === 'function') {
-        window.CanvasRegistry.register('0-3', createShapeNumberCanvasSketch);
-        window.CanvasRegistry.register('3-0', createShapeNumberCanvasSketch);
-    }
+    // Initialize Shape & Emotion canvas visibility
+    updateShapeEmotionCanvasVisibility(initialPageId);
+    
+    // Initialize PANEL expanded state (expanded only on pages with internal panels)
+    updatePanelExpandedState(initialPageId);
+    
+    // Initialize Shape & Number canvas (not using p5.js)
+    initializeShapeNumberCanvas();
+    
+    // Initialize Shape & Emotion canvas (not using p5.js)
+    initializeShapeEmotionCanvas();
     
     // Initialize p5.js sketch
     initializeP5Sketch();
@@ -109,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 200);
     
-    // Initialize about text hover effect
-    initializeAboutHoverEffect();
+    // Initialize panel text hover effect
+    initializePanelHoverEffect();
     
     // Initialize color key click effect
     initializeColorKeyClickEffect();
@@ -139,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize canvas cover visibility (visible by default during intro)
     updateCanvasCoverVisibility();
     
-    // Align ABOUT and COLOR KEY rectangles with ESTHESIA text center
+    // Align PANEL and COLOR KEY rectangles with ESTHESIA text center
     // Wait for layout to stabilize (fonts loaded, DOM ready)
     alignRectanglesWithEsthesia();
     
@@ -406,10 +407,21 @@ function initializeColumn(column, side) {
             userInteracted = true;
         }
         
+        // CRITICAL: Mark that user has scrolled a scrollbar (actual scrollbar interaction)
+        // Only count real user scrolls, not programmatic ones
+        // CRITICAL: Only set hasScrolledScrollbar AFTER initial instruction text has been shown
+        // This ensures START only appears on scroll AFTER the 3 intro sentences are visible
+        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown) {
+            hasScrolledScrollbar = true;
+        }
+        
         // CRITICAL: Trigger START text on first user scroll (after demo ends)
-        // Only allow START to appear when userInteracted === true (real user interaction detected)
-        // and introTextChanged === false (hasn't been changed yet)
-        if (userInteracted && !isDemoActive && !introTextChanged) {
+        // Only allow START to appear when:
+        // 1. hasScrolledScrollbar === true (user has actually scrolled a scrollbar, not just moved mouse)
+        // 2. !isDemoActive (demo has ended)
+        // 3. !introTextChanged (hasn't been changed yet)
+        // 4. initialInstructionTextShown === true (initial text has been shown after demo)
+        if (hasScrolledScrollbar && !isDemoActive && !introTextChanged && initialInstructionTextShown && !isProgrammaticScroll) {
             // First user scroll detected - immediately switch to START
             
             // Mark that intro text has been changed
@@ -542,17 +554,21 @@ function initializeColumn(column, side) {
         }
         
         // CRITICAL: Set userInteracted flag to enable START button
-        // This allows START to appear even if user scrolls before demo starts
+        // Only show START button if:
+        // 1. User has interacted (scrolled)
+        // 2. Demo has ended (!isDemoActive)
+        // 3. Initial instruction text has been shown (initialInstructionTextShown)
+        // 4. Text hasn't been changed yet (!introTextChanged)
         if (!userInteracted && !isInitializing) {
             userInteracted = true;
             
-            // If intro text hasn't been changed yet, show START button immediately
-            if (!introTextChanged) {
+            // Only show START button if initial instruction text has been shown after demo
+            if (!introTextChanged && initialInstructionTextShown && !isDemoActive) {
                 introTextChanged = true;
                 introReady = true;
                 setupStartButton();
                 
-                // Remove demo-active class if it exists (in case user scrolls before demo starts)
+                // Remove demo-active class if it exists
                 const gradientContainer = document.getElementById('gradient-intro-container');
                 if (gradientContainer) {
                     gradientContainer.classList.remove('demo-active');
@@ -595,18 +611,25 @@ function initializeColumn(column, side) {
             previousSnappedColor = currentColor;
         }
         
-        // CRITICAL: Set userInteracted flag to enable START button
-        // This allows START to appear even if user scrolls before demo starts
+        // CRITICAL: Set userInteracted flag (for other tracking purposes)
         if (!userInteracted && !isInitializing) {
             userInteracted = true;
+        }
+        
+        // CRITICAL: Mark that user has scrolled a scrollbar (actual scrollbar interaction)
+        // Only count real user scrolls, not programmatic ones
+        // CRITICAL: Only set hasScrolledScrollbar AFTER initial instruction text has been shown
+        // This ensures START only appears on scroll AFTER the 3 intro sentences are visible
+        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown) {
+            hasScrolledScrollbar = true;
             
-            // If intro text hasn't been changed yet, show START button immediately
-            if (!introTextChanged) {
+            // Only show START button if initial instruction text has been shown after demo
+            if (!introTextChanged && initialInstructionTextShown && !isDemoActive) {
                 introTextChanged = true;
                 introReady = true;
                 setupStartButton();
                 
-                // Remove demo-active class if it exists (in case user scrolls before demo starts)
+                // Remove demo-active class if it exists
                 const gradientContainer = document.getElementById('gradient-intro-container');
                 if (gradientContainer) {
                     gradientContainer.classList.remove('demo-active');
@@ -908,7 +931,7 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         lineRow.style.display = 'flex';
         lineRow.style.alignItems = 'center'; // Vertically center content
         
-        // Check if this is the last line - extend background by 2px for ABOUT overlay
+        // Check if this is the last line - extend background by 2px for PANEL overlay
         const isLastLine = index === lines.length - 1;
         const extendedBgHeight = isLastLine && backgroundColor === '#2C2C2C' ? bgHeight + 2 : bgHeight;
         
@@ -1206,8 +1229,8 @@ function initializeLetterHoverInteraction() {
             const shapeSpec = LETTER_SHAPES[upperLetter];
             
             
-            // Create and inject SVG shape (or fallback to circle) with gray color for shape & letter canvas (same as line-bg color)
-            const svg = shapeSpec ? renderShape(shapeSpec, '#E0E0E0') : renderShape({ type: 'circle', cx: 22.5, cy: 22.5, r: 18 }, '#E0E0E0');
+            // Create and inject SVG shape (or fallback to circle) with UI black stroke for shape & letter canvas (to match UI style)
+            const svg = shapeSpec ? renderShape(shapeSpec, '#2C2C2C') : renderShape({ type: 'circle', cx: 22.5, cy: 22.5, r: 18 }, '#2C2C2C');
             if (svg) {
                 span.appendChild(svg);
                 shapesInjected++;
@@ -1232,7 +1255,7 @@ function initializeLetterHoverInteraction() {
             const span = spansWithoutShapes[idx];
             if (span && info.hasShapeSpec) {
                 try {
-                    const svg = renderShape(info.shapeSpec, '#E0E0E0');
+                    const svg = renderShape(info.shapeSpec, '#2C2C2C');
                     if (svg) {
                         span.appendChild(svg);
                     }
@@ -1386,50 +1409,27 @@ function updateSoundShapeInstructionText(pageId) {
     const instructionText = document.getElementById('canvas-instruction-text');
     if (!instructionText) return;
     
-    // Show instruction text only for SOUND & SHAPE pages (pageId "1-0" or "0-1")
     // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
-    // So "1-0" = sound-shape, "0-1" = shape-sound
+    // Check for SOUND & SHAPE pages (pageId "1-0" or "0-1")
     const isSoundShapePage = pageId === '1-0' || pageId === '0-1';
+    // Check for SHAPE & COLOR pages (pageId "0-5" or "5-0")
+    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
     if (isSoundShapePage) {
+        // Show instruction text for SOUND & SHAPE pages
+        instructionText.textContent = '[choose a shape and drag to create a sound]';
+        instructionText.classList.add('visible');
+    } else if (isShapeColorPage) {
+        // Show instruction text for SHAPE & COLOR pages
+        instructionText.textContent = '[click to create shapes]';
         instructionText.classList.add('visible');
     } else {
+        // Hide instruction text for all other pages
         instructionText.classList.remove('visible');
     }
 }
 
 // ==================
-// SHAPE & COLOR CANVAS CONTROLS
-// ==================
-// Array to store circles for Shape & Color canvas
-let shapeColorCircles = [];
-// Track dragging state for HTML circles
-let draggedCircleElement = null;
-let dragStartX = 0;
-let dragStartY = 0;
-let circleInitialX = 0;
-let circleInitialY = 0;
-const MAX_DRAG_DISTANCE = 40; // Maximum drag distance in pixels (doubled from 20)
-const CIRCLE_SPACING = 40; // Distance between circles when adding new ones (doubled from 20)
-
-// Function to update Shape & Color controls visibility
-function updateShapeColorControls(pageId) {
-    const controls = document.getElementById('shape-color-controls');
-    if (!controls) return;
-    
-    // Show controls only for Shape & Color pages (pageId "0-5" or "5-0")
-    // Parameter indices: 0=shape, 5=color
-    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
-    
-    if (isShapeColorPage) {
-        controls.classList.add('visible');
-    } else {
-        controls.classList.remove('visible');
-        // Clear circles when switching away from Shape & Color page
-        resetShapeColorCircles();
-    }
-}
-
 // Function to update Letter + Letter circle visibility
 function updateLetterLetterCircle(pageId) {
     const circleContainer = document.getElementById('letter-letter-circle-container');
@@ -1446,211 +1446,631 @@ function updateLetterLetterCircle(pageId) {
     }
 }
 
-// Function to add a circle to the Shape & Color canvas
-function addShapeColorCircle() {
-    // Check if p5.js canvas is active for shape-color pages
-    const isShapeColorPage = activePageId === '0-5' || activePageId === '5-0';
+// State for Shape + Color page click interaction
+let shapeColorClickHandler = null;
+let previousCirclePosition = null; // Store position of previous circle for line drawing
+let shapeColorSequence = []; // Array לשמירת סדר הצורות שנוצרו
+let shapeColorAnimationInterval = null; // Reference לאנימציית הלופ
+let currentAnimationIndex = 0; // Index של הצורה הנוכחית באנימציה
+let lastShapeType = null; // Track the last shape type to prevent duplicates
+let shapeDistribution = { // Track distribution of each shape type for uniform selection
+    'circle': 0,
+    'square': 0,
+    'ellipse': 0,
+    'triangle': 0,
+    'pentagon': 0,
+    'star': 0
+};
+
+// Function to get or create SVG element for drawing lines
+function getShapeColorLinesSVG(container) {
+    let svg = container.querySelector('.shape-color-lines-svg');
+    if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.className = 'shape-color-lines-svg';
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';
+        svg.style.zIndex = '1'; // Below circles (which are at z-index: 2)
+        container.insertBefore(svg, container.firstChild); // Insert before circles
+    }
+    return svg;
+}
+
+// Function to get original color for a shape type
+function getShapeOriginalColor(shapeType) {
+    switch(shapeType) {
+        case 'circle':
+            return 'linear-gradient(135deg, #1e3a8a 0%, #0ea5e9 100%)'; // Deep blue to cyan gradient
+        case 'square':
+            return '#EF4538'; // Orange color
+        case 'ellipse':
+            return 'linear-gradient(135deg, #891951 0%, #EB4781 100%)'; // Purple to pink gradient
+        case 'triangle':
+            return '#FAB01B'; // Yellow color
+        case 'pentagon':
+            // Return gradient ID pattern - will be replaced with actual gradient ID
+            return 'pentagon-gradient';
+        case 'star':
+            // Return gradient ID pattern - will be replaced with actual gradient ID
+            return 'star-gradient';
+        default:
+            return '#ffffff'; // White as fallback
+    }
+}
+
+// Function to apply color to a shape element (ensuring no transparency)
+function applyShapeColor(shapeEntry, color) {
+    const { element, type } = shapeEntry;
     
-    // Try to use p5.js canvas if available and has addCircle function
-    if (isShapeColorPage && p5Instance && typeof p5Instance.addCircle === 'function') {
-        try {
-            p5Instance.addCircle();
-            return;
-        } catch (e) {
-            console.error('Error calling p5Instance.addCircle:', e);
-            // Fall through to HTML circles fallback
+    if (type === 'circle' || type === 'square' || type === 'ellipse') {
+        // CSS shapes - change background (ensure no transparency, instant change)
+        // No transition needed - instant color change
+        if (color.startsWith('linear-gradient')) {
+            element.style.background = color;
+            element.style.backgroundColor = 'transparent'; // Allow gradient to show
+        } else {
+            element.style.backgroundColor = color;
+            element.style.background = color; // Also set background for consistency
+            element.style.backgroundImage = 'none'; // Remove any gradient
+        }
+    } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
+        // SVG shapes - change fill attribute (ensure no transparency, instant change)
+        const path = element.querySelector('svg path');
+        if (path) {
+            // No transition needed - instant color change
+            path.setAttribute('fill', color);
+            path.style.fill = color; // Also set via style for consistency
         }
     }
+}
+
+// Function to reset all shapes to white (ensuring no transparency, instant reset)
+function resetAllShapesToWhite() {
+    shapeColorSequence.forEach(shapeEntry => {
+        const { element, type } = shapeEntry;
+        
+        if (type === 'circle' || type === 'square' || type === 'ellipse') {
+            // Disable transition temporarily for instant reset
+            element.style.transition = 'none'; // No transition for reset
+            
+            // Ensure both background and backgroundColor are set to white (no transparency)
+            element.style.background = '#ffffff';
+            element.style.backgroundColor = '#ffffff';
+            element.style.backgroundImage = 'none'; // Remove any gradient
+            
+            // Restore transition after a brief moment (for next color application)
+            setTimeout(() => {
+                element.style.transition = '';
+            }, 10);
+        } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
+            const path = element.querySelector('svg path');
+            if (path) {
+                // Disable transition temporarily for instant reset
+                path.style.transition = 'none'; // No transition for reset
+                
+                // Set fill to white, ensuring it's not transparent
+                path.setAttribute('fill', '#ffffff');
+                path.style.fill = '#ffffff'; // Also set via style for consistency
+                
+                // Restore transition after a brief moment (for next color application)
+                setTimeout(() => {
+                    path.style.transition = '';
+                }, 10);
+            }
+        }
+    });
+}
+
+// Function to start shape color animation loop
+function startShapeColorAnimation() {
+    // Stop existing animation if running
+    if (shapeColorAnimationInterval) {
+        clearInterval(shapeColorAnimationInterval);
+        shapeColorAnimationInterval = null;
+    }
     
-    // Fallback: Use HTML circles (they work regardless of canvas type)
-    // They will be hidden by CSS when p5.js canvas is properly active
-    const circlesContainer = document.getElementById('shape-color-circles');
-    if (!circlesContainer) {
-        console.error('shape-color-circles container not found');
+    // Don't start if no shapes
+    if (shapeColorSequence.length === 0) {
         return;
     }
     
-    // Show HTML circles container (in case it was hidden)
-    circlesContainer.style.opacity = '1';
-    circlesContainer.style.visibility = 'visible';
+    // Reset all shapes to white first (ensure all are white before starting)
+    resetAllShapesToWhite();
+    currentAnimationIndex = 0;
     
-    // Create a new circle element
-    const circle = document.createElement('div');
-    circle.className = 'shape-color-circle';
-    
-    // Calculate offset based on previous circle or center
-    let offsetX = 0;
-    let offsetY = 0;
-    
-    if (shapeColorCircles.length > 0) {
-        // Get the last circle's position
-        const lastCircle = shapeColorCircles[shapeColorCircles.length - 1];
-        const lastOffsetX = lastCircle._currentOffsetX || lastCircle._initialOffsetX || 0;
-        const lastOffsetY = lastCircle._currentOffsetY || lastCircle._initialOffsetY || 0;
+    // Start animation loop - show shapes one by one in sequence, very fast
+    // Each shape appears colored for 0.2 seconds, then returns to white
+    shapeColorAnimationInterval = setInterval(() => {
+        // Ensure we have shapes to animate
+        if (shapeColorSequence.length === 0) {
+            return;
+        }
         
-        // Place new circle 20 pixels to the right of the last one
-        offsetX = lastOffsetX + CIRCLE_SPACING;
-        offsetY = lastOffsetY;
-    } else {
-        // First circle - place at center (no offset)
-        offsetX = 0;
-        offsetY = 0;
-    }
-    
-    // Apply the offset using transform: translate from center, then add offset
-    circle.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-    
-    // Store initial offset (this is the offset from center)
-    circle._initialOffsetX = offsetX;
-    circle._initialOffsetY = offsetY;
-    circle._currentOffsetX = offsetX;
-    circle._currentOffsetY = offsetY;
-    
-    // Add drag event listeners
-    setupCircleDrag(circle);
-    
-    // Add to container
-    circlesContainer.appendChild(circle);
-    
-    // Store reference in array
-    shapeColorCircles.push(circle);
+        // Ensure currentAnimationIndex is within bounds (in case sequence changed)
+        if (currentAnimationIndex >= shapeColorSequence.length) {
+            currentAnimationIndex = 0;
+            resetAllShapesToWhite();
+        }
+        
+        // First, reset the previous shape to white (if we're not at the first shape or after reset)
+        if (currentAnimationIndex > 0) {
+            const previousShape = shapeColorSequence[currentAnimationIndex - 1];
+            if (previousShape) {
+                resetShapeToWhite(previousShape);
+            }
+        } else if (currentAnimationIndex === 0 && shapeColorSequence.length > 1) {
+            // If we're back at the start, reset the last shape from previous cycle
+            const lastShape = shapeColorSequence[shapeColorSequence.length - 1];
+            if (lastShape) {
+                resetShapeToWhite(lastShape);
+            }
+        }
+        
+        // Apply color to current shape (only one shape colored at a time)
+        const currentShape = shapeColorSequence[currentAnimationIndex];
+        if (currentShape) {
+            applyShapeColor(currentShape, currentShape.originalColor);
+        }
+        
+        // Move to next shape
+        currentAnimationIndex++;
+        
+        // If we've shown all shapes, reset all and start over
+        // This uses shapeColorSequence.length dynamically, so new shapes are automatically included
+        if (currentAnimationIndex >= shapeColorSequence.length) {
+            // Reset all shapes to white before starting new cycle
+            resetAllShapesToWhite();
+            // Start from beginning
+            currentAnimationIndex = 0;
+        }
+    }, 200); // 0.2 seconds = 200ms - very fast, no delay between shapes
 }
 
-// Track if global drag listeners are already attached
-let circleDragListenersAttached = false;
+// Helper function to reset a single shape to white (instant, no transition)
+function resetShapeToWhite(shapeEntry) {
+    const { element, type } = shapeEntry;
+    
+    if (type === 'circle' || type === 'square' || type === 'ellipse') {
+        // Disable transition temporarily for instant reset
+        const originalTransition = element.style.transition;
+        element.style.transition = 'none'; // No transition for reset
+        
+        // Ensure both background and backgroundColor are set to white (no transparency)
+        element.style.background = '#ffffff';
+        element.style.backgroundColor = '#ffffff';
+        element.style.backgroundImage = 'none'; // Remove any gradient
+        
+        // Restore transition after a brief moment (for next color application)
+        setTimeout(() => {
+            element.style.transition = originalTransition || '';
+        }, 10);
+    } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
+        const path = element.querySelector('svg path');
+        if (path) {
+            // Disable transition temporarily for instant reset
+            const originalTransition = path.style.transition;
+            path.style.transition = 'none'; // No transition for reset
+            
+            // Set fill to white, ensuring it's not transparent
+            path.setAttribute('fill', '#ffffff');
+            path.style.fill = '#ffffff'; // Also set via style for consistency
+            
+            // Restore transition after a brief moment (for next color application)
+            setTimeout(() => {
+                path.style.transition = originalTransition || '';
+            }, 10);
+        }
+    }
+}
 
-// Function to setup drag functionality for a circle
-function setupCircleDrag(circle) {
-    circle.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+// Function to handle clicks on Shape + Color page and add circles or squares
+function handleShapeColorClick(event) {
+    const circleContainer = document.getElementById('shape-color-circle-container');
+    if (!circleContainer) return;
+    
+    // Check if click is on an element that should block interaction (UI, columns, text boxes)
+    // Use elementFromPoint to check what's actually at the click position
+    const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
+    if (elementAtPoint && (
+        elementAtPoint.closest('.ui-layer') || 
+        elementAtPoint.closest('.column-container') || 
+        elementAtPoint.closest('.canvas-text-box') ||
+        elementAtPoint.closest('.black-corner-rectangle') ||
+        elementAtPoint.closest('.black-bottom-rectangle') ||
+        elementAtPoint.closest('.black-middle-rectangle') ||
+        elementAtPoint.closest('.black-rectangle') ||
+        elementAtPoint.closest('.color-item'))) {
+        return; // Let the click pass through to those elements
+    }
+    
+    // Hide instruction text after first click on Shape + Color page
+    const instructionText = document.getElementById('canvas-instruction-text');
+    if (instructionText && instructionText.classList.contains('visible')) {
+        // Check if this is the Shape + Color instruction text
+        if (instructionText.textContent === '[click to create shapes]') {
+            instructionText.classList.remove('visible');
+        }
+    }
+    
+    // Get click coordinates relative to the circle container
+    const rect = circleContainer.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Draw line from previous shape to new shape (if previous shape exists)
+    if (previousCirclePosition) {
+        const svg = getShapeColorLinesSVG(circleContainer);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', previousCirclePosition.x);
+        line.setAttribute('y1', previousCirclePosition.y);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#2C2C2C'); // Black color matching UI
+        line.setAttribute('stroke-width', '3'); // 3 pixels thick
+        svg.appendChild(line);
+    }
+    
+    // Update previous shape position for next line
+    previousCirclePosition = { x: x, y: y };
+    
+    // Array of all available shape types
+    const shapeTypes = ['circle', 'square', 'ellipse', 'triangle', 'pentagon', 'star'];
+    
+    // Filter out the last shape type to prevent consecutive duplicates
+    const availableShapes = lastShapeType 
+        ? shapeTypes.filter(shape => shape !== lastShapeType)
+        : shapeTypes;
+    
+    // Find the minimum count in distribution to maintain uniform distribution
+    const minCount = Math.min(...availableShapes.map(shape => shapeDistribution[shape]));
+    
+    // Filter to only shapes with the minimum count (to maintain uniform distribution)
+    const leastUsedShapes = availableShapes.filter(shape => shapeDistribution[shape] === minCount);
+    
+    // Randomly choose from the least used shapes
+    const randomShapeType = leastUsedShapes[Math.floor(Math.random() * leastUsedShapes.length)];
+    
+    // Update distribution counter and last shape type
+    shapeDistribution[randomShapeType]++;
+    lastShapeType = randomShapeType;
+    
+    // Create a new shape element
+    const shape = document.createElement('div');
+    shape.className = 'shape-color-' + randomShapeType;
+    shape.style.left = x + 'px';
+    shape.style.top = y + 'px';
+    shape.style.transform = 'translate(-50%, -50%)'; // Center the shape on the click point
+    
+    // Ensure CSS shapes start with white fill (not transparent)
+    if (randomShapeType === 'circle' || randomShapeType === 'square' || randomShapeType === 'ellipse') {
+        shape.style.background = '#ffffff';
+        shape.style.backgroundColor = '#ffffff';
+        shape.style.backgroundImage = 'none';
+    }
+    
+    // For complex shapes (triangle, pentagon, star), use SVG instead of clip-path for better border support
+    if (randomShapeType === 'triangle' || randomShapeType === 'pentagon' || randomShapeType === 'star') {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        // Stars are 30% smaller (70% of 135 = 94.5), triangles are 50% smaller (50% of 135 = 67.5), other shapes remain 135
+        const svgSize = randomShapeType === 'star' ? '94.5' : (randomShapeType === 'triangle' ? '67.5' : '135');
+        svg.setAttribute('width', svgSize);
+        svg.setAttribute('height', svgSize);
+        svg.setAttribute('viewBox', '-10 -10 155 155');
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';
         
-        draggedCircleElement = circle;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let pathData = '';
+        let gradientId = null;
         
-        // Get initial mouse position
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
+        // Create gradients for star and pentagon
+        if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            
+            if (randomShapeType === 'star') {
+                gradientId = 'star-gradient-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                gradient.setAttribute('id', gradientId);
+                gradient.setAttribute('x1', '0%');
+                gradient.setAttribute('y1', '0%');
+                gradient.setAttribute('x2', '100%');
+                gradient.setAttribute('y2', '100%');
+                
+                // Pink at edges
+                const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop1.setAttribute('offset', '0%');
+                stop1.setAttribute('stop-color', '#EB4781'); // Pink color matching scrollbar rectangles
+                gradient.appendChild(stop1);
+                
+                // Silver in the middle
+                const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop2.setAttribute('offset', '50%');
+                stop2.setAttribute('stop-color', '#C0C0C0'); // Silver
+                gradient.appendChild(stop2);
+                
+                // Pink at edges
+                const stop3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop3.setAttribute('offset', '100%');
+                stop3.setAttribute('stop-color', '#EB4781'); // Pink color matching scrollbar rectangles
+                gradient.appendChild(stop3);
+            } else if (randomShapeType === 'pentagon') {
+                gradientId = 'pentagon-gradient-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                gradient.setAttribute('id', gradientId);
+                gradient.setAttribute('x1', '0%');
+                gradient.setAttribute('y1', '0%');
+                gradient.setAttribute('x2', '100%');
+                gradient.setAttribute('y2', '100%');
+                
+                // Dark green (from scrollbar)
+                const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop1.setAttribute('offset', '0%');
+                stop1.setAttribute('stop-color', '#007A6F'); // Green color matching scrollbar rectangles
+                gradient.appendChild(stop1);
+                
+                // Bright green
+                const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop2.setAttribute('offset', '100%');
+                stop2.setAttribute('stop-color', '#00B894'); // Brighter green
+                gradient.appendChild(stop2);
+            }
+            
+            defs.appendChild(gradient);
+            svg.appendChild(defs);
+        }
         
-        // Get circle's current position
-        const rect = circle.getBoundingClientRect();
-        const circleCenterX = rect.left + rect.width / 2;
-        const circleCenterY = rect.top + rect.height / 2;
+        if (randomShapeType === 'triangle') {
+            pathData = 'M 77.5 10 L 10 145 L 145 145 Z';
+        } else if (randomShapeType === 'pentagon') {
+            pathData = 'M 77.5 10 L 145 61.3 L 120.7 145 L 34.3 145 L 10 61.3 Z';
+        } else if (randomShapeType === 'star') {
+            pathData = 'M 77.5 10 L 92.35 57.25 L 145 57.25 L 101.8 86.5 L 116.65 133.75 L 77.5 104.5 L 38.35 133.75 L 53.2 86.5 L 10 57.25 L 62.65 57.25 Z';
+        }
         
-        // Calculate offset from mouse to circle center
-        const offsetX = dragStartX - circleCenterX;
-        const offsetY = dragStartY - circleCenterY;
+        path.setAttribute('d', pathData);
+        // Set fill color to white by default (will change to original color on hover)
+        path.setAttribute('fill', '#ffffff'); // White fill by default
+        // Store original fill color/gradient as data attribute for hover restoration
+        if (randomShapeType === 'triangle') {
+            path.setAttribute('data-original-fill', '#FAB01B'); // Yellow color matching scrollbar rectangles
+        } else if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
+            // Store gradient reference for hover
+            path.setAttribute('data-original-fill', 'url(#' + gradientId + ')');
+            path.setAttribute('data-gradient-id', gradientId); // Store gradient ID for reference
+        }
+        path.setAttribute('stroke', '#2C2C2C');
+        // Calculate stroke-width in viewBox space to ensure 3px on screen
+        // For stars: scale = 94.5/135 = 0.7, so stroke-width = 3/0.7 = 4.286
+        // For triangles: scale = 67.5/135 = 0.5, so stroke-width = 3/0.5 = 6
+        // For pentagon: scale = 135/135 = 1, so stroke-width = 3
+        let strokeWidthInViewBox = '3';
+        if (randomShapeType === 'star') {
+            strokeWidthInViewBox = '4.286'; // Exact value: 3 / (94.5 / 135) = 4.286
+        } else if (randomShapeType === 'triangle') {
+            strokeWidthInViewBox = '6'; // Exact value: 3 / (67.5 / 135) = 6
+        } else if (randomShapeType === 'pentagon') {
+            strokeWidthInViewBox = '3'; // Exact value: 3 / (135 / 135) = 3
+        }
+        path.setAttribute('stroke-width', strokeWidthInViewBox); // Ensures 3px on screen regardless of shape size
+        // Add smooth line joins and caps for consistent outline at corners
+        path.setAttribute('stroke-linejoin', 'round'); // Round joins for smooth corners
+        path.setAttribute('stroke-linecap', 'round'); // Round caps for smooth line ends
+        path.setAttribute('stroke-miterlimit', '10'); // High miter limit for round joins
+        // Ensure path is closed properly
+        if (!pathData.endsWith('Z') && !pathData.endsWith('z')) {
+            pathData += ' Z';
+            path.setAttribute('d', pathData);
+        }
+        path.style.transition = 'fill 0.3s ease'; // Smooth color transition for animation
+        // Ensure fill is explicitly set to white (not transparent)
+        path.style.fill = '#ffffff';
+        svg.appendChild(path);
         
-        circle._dragOffsetX = offsetX;
-        circle._dragOffsetY = offsetY;
+        shape.appendChild(svg);
+    }
+    
+    // Add the shape to the container
+    circleContainer.appendChild(shape);
+    
+    // Determine original color for this shape
+    let originalColor;
+    if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
+        // For gradient shapes, get the gradient URL from the path's data attribute
+        const pathElement = shape.querySelector('svg path');
+        if (pathElement) {
+            originalColor = pathElement.getAttribute('data-original-fill') || getShapeOriginalColor(randomShapeType);
+        } else {
+            originalColor = getShapeOriginalColor(randomShapeType);
+        }
+    } else {
+        originalColor = getShapeOriginalColor(randomShapeType);
+    }
+    
+    // Add shape to sequence
+    const newShapeEntry = {
+        element: shape,
+        type: randomShapeType,
+        originalColor: originalColor
+    };
+    shapeColorSequence.push(newShapeEntry);
+    
+    // Ensure the new shape starts white (not colored)
+    resetShapeToWhite(newShapeEntry);
+    
+    // Start animation if this is the first shape
+    if (shapeColorSequence.length === 1) {
+        currentAnimationIndex = 0;
+        startShapeColorAnimation();
+    } else if (!shapeColorAnimationInterval) {
+        // If animation stopped for some reason, restart it
+        currentAnimationIndex = 0;
+        startShapeColorAnimation();
+    } else {
+        // Animation is already running - ensure the new shape will be included
+        // The interval callback checks shapeColorSequence.length on each iteration,
+        // so the new shape will be included in the next cycle automatically
+        // No need to restart - just ensure currentAnimationIndex is valid
+        if (currentAnimationIndex >= shapeColorSequence.length) {
+            // If we're past the end, reset to start (this includes the new shape)
+            currentAnimationIndex = 0;
+            resetAllShapesToWhite();
+        }
+    }
+}
+
+// Function to clear all shapes from Shape + Color page
+function clearShapeColorCircles() {
+    // Stop animation if running
+    if (shapeColorAnimationInterval) {
+        clearInterval(shapeColorAnimationInterval);
+        shapeColorAnimationInterval = null;
+    }
+    
+    // Reset animation state
+    currentAnimationIndex = 0;
+    shapeColorSequence = [];
+    
+    // Reset shape selection state
+    lastShapeType = null;
+    shapeDistribution = {
+        'circle': 0,
+        'square': 0,
+        'ellipse': 0,
+        'triangle': 0,
+        'pentagon': 0,
+        'star': 0
+    };
+    
+    const circleContainer = document.getElementById('shape-color-circle-container');
+    if (!circleContainer) return;
+    
+    // Remove all child elements from the container (this includes all shapes and SVG)
+    // This is the most reliable way to clear everything
+    while (circleContainer.firstChild) {
+        circleContainer.removeChild(circleContainer.firstChild);
+    }
+    
+    // Also explicitly remove SVG elements using querySelector (in case they're not direct children)
+    const svgElements = circleContainer.querySelectorAll('.shape-color-lines-svg');
+    svgElements.forEach((svg) => {
+        svg.remove();
     });
     
-    // Add global mouse move and up listeners only once (on document to track even if mouse leaves circle)
-    if (!circleDragListenersAttached) {
-        document.addEventListener('mousemove', handleCircleDrag);
-        document.addEventListener('mouseup', handleCircleDragEnd);
-        circleDragListenersAttached = true;
-    }
+    // Remove all shapes explicitly as well (double-check)
+    const shapeTypes = ['circle', 'square', 'ellipse', 'triangle', 'pentagon', 'star'];
+    shapeTypes.forEach((shapeType) => {
+        const shapes = circleContainer.querySelectorAll('.shape-color-' + shapeType);
+        shapes.forEach((shape) => {
+            shape.remove();
+        });
+    });
+    
+    // Reset previous shape position
+    previousCirclePosition = null;
 }
 
-// Function to handle circle dragging
-function handleCircleDrag(e) {
-    if (!draggedCircleElement) return;
+// Function to update existing shapes' stroke properties and viewBox
+function updateExistingShapesStroke() {
+    const circleContainer = document.getElementById('shape-color-circle-container');
+    if (!circleContainer) return;
     
-    e.preventDefault();
-    
-    // Calculate desired position
-    const container = document.getElementById('shape-color-circles');
-    if (!container) return;
-    
-    const containerRect = container.getBoundingClientRect();
-    const containerCenterX = containerRect.left + containerRect.width / 2;
-    const containerCenterY = containerRect.top + containerRect.height / 2;
-    
-    // Calculate desired offset from center (accounting for drag offset)
-    const desiredOffsetX = (e.clientX - containerCenterX) - draggedCircleElement._dragOffsetX;
-    const desiredOffsetY = (e.clientY - containerCenterY) - draggedCircleElement._dragOffsetY;
-    
-    // Calculate distance from initial position
-    const distance = Math.sqrt(
-        Math.pow(desiredOffsetX - draggedCircleElement._initialOffsetX, 2) +
-        Math.pow(desiredOffsetY - draggedCircleElement._initialOffsetY, 2)
-    );
-    
-    // Apply constraint: limit to maxDragDistance from initial position
-    let finalOffsetX = desiredOffsetX;
-    let finalOffsetY = desiredOffsetY;
-    
-    if (distance > MAX_DRAG_DISTANCE) {
-        // Calculate angle from initial position to desired position
-        const angle = Math.atan2(
-            desiredOffsetY - draggedCircleElement._initialOffsetY,
-            desiredOffsetX - draggedCircleElement._initialOffsetX
-        );
+    // Update all SVG elements in existing shapes
+    const svgElements = circleContainer.querySelectorAll('svg');
+    svgElements.forEach(svg => {
+        // Update viewBox to include stroke area
+        svg.setAttribute('viewBox', '-10 -10 155 155');
         
-        // Constrain to circle with radius maxDragDistance
-        finalOffsetX = draggedCircleElement._initialOffsetX + Math.cos(angle) * MAX_DRAG_DISTANCE;
-        finalOffsetY = draggedCircleElement._initialOffsetY + Math.sin(angle) * MAX_DRAG_DISTANCE;
-    }
-    
-    // Update circle position
-    draggedCircleElement.style.transform = `translate(calc(-50% + ${finalOffsetX}px), calc(-50% + ${finalOffsetY}px))`;
-    draggedCircleElement._currentOffsetX = finalOffsetX;
-    draggedCircleElement._currentOffsetY = finalOffsetY;
+        // Update path coordinates to match new viewBox (shift by 10,10)
+        const path = svg.querySelector('path');
+        if (path) {
+            const pathData = path.getAttribute('d');
+            if (pathData) {
+                // Identify shape type by checking parent container class
+                const container = svg.closest('.shape-color-triangle, .shape-color-pentagon, .shape-color-star');
+                let updatedPathData = '';
+                
+                if (container && container.classList.contains('shape-color-triangle')) {
+                    updatedPathData = 'M 77.5 10 L 10 145 L 145 145 Z';
+                } else if (container && container.classList.contains('shape-color-pentagon')) {
+                    updatedPathData = 'M 77.5 10 L 145 61.3 L 120.7 145 L 34.3 145 L 10 61.3 Z';
+                } else if (container && container.classList.contains('shape-color-star')) {
+                    updatedPathData = 'M 77.5 10 L 92.35 57.25 L 145 57.25 L 101.8 86.5 L 116.65 133.75 L 77.5 104.5 L 38.35 133.75 L 53.2 86.5 L 10 57.25 L 62.65 57.25 Z';
+                } else {
+                    // Fallback: try to shift coordinates by 10
+                    updatedPathData = pathData.replace(/\b(\d+\.?\d*)\s+(\d+\.?\d*)\b/g, (match, x, y) => {
+                        return (parseFloat(x) + 10) + ' ' + (parseFloat(y) + 10);
+                    });
+                }
+                
+                if (updatedPathData) {
+                    path.setAttribute('d', updatedPathData);
+                }
+            }
+            
+            // Update stroke properties for consistent rendering
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-miterlimit', '10');
+            // Ensure stroke color is correct
+            path.setAttribute('stroke', '#2C2C2C');
+        }
+    });
 }
 
-// Function to handle end of circle dragging
-function handleCircleDragEnd(e) {
-    if (!draggedCircleElement) return;
+// Function to update Shape + Color circle visibility
+function updateShapeColorCircle(pageId) {
+    const circleContainer = document.getElementById('shape-color-circle-container');
+    if (!circleContainer) return;
     
-    draggedCircleElement = null;
-}
-
-// Clean up event listeners when resetting
-function cleanupCircleDragListeners() {
-    if (circleDragListenersAttached) {
-        document.removeEventListener('mousemove', handleCircleDrag);
-        document.removeEventListener('mouseup', handleCircleDragEnd);
-        circleDragListenersAttached = false;
-    }
-    draggedCircleElement = null;
-}
-
-
-// Function to reset (clear all circles) on Shape & Color canvas
-function resetShapeColorCircles() {
-    // Check if p5.js canvas is active for shape-color pages
-    const isShapeColorPage = activePageId === '0-5' || activePageId === '5-0';
+    // Show circle only for Shape + Color page (pageId "0-5" or "5-0")
+    // Parameter indices: 0=shape, 5=color
+    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
-    if (isShapeColorPage && p5Instance && typeof p5Instance.resetCircles === 'function') {
-        // Use p5.js canvas
-        p5Instance.resetCircles();
+    if (isShapeColorPage) {
+        circleContainer.classList.add('visible');
+        // Update existing shapes when page becomes visible
+        updateExistingShapesStroke();
+        // Keep pointer-events: none on container, but add click handler to canvas-container
+        // This allows clicks to pass through to elements above (UI, columns, text boxes)
+        // but still capture clicks in empty areas to create shapes
+        circleContainer.style.pointerEvents = 'none';
+        
+        // Get canvas container to attach click handler
+        const canvasContainer = document.getElementById('canvas-container');
+        if (canvasContainer) {
+            // Remove existing click handler if any
+            if (shapeColorClickHandler) {
+                canvasContainer.removeEventListener('click', shapeColorClickHandler);
+            }
+            
+            // Add click handler to canvas container instead
+            shapeColorClickHandler = handleShapeColorClick;
+            canvasContainer.addEventListener('click', shapeColorClickHandler);
+        }
+        
+        // Clear any existing circles when entering the page (reset state)
+        clearShapeColorCircles();
     } else {
-        // Fallback to HTML circles
-        const circlesContainer = document.getElementById('shape-color-circles');
-        if (!circlesContainer) return;
+        // When leaving the page, clear everything immediately
+        clearShapeColorCircles();
         
-        // Clean up drag listeners
-        cleanupCircleDragListeners();
+        circleContainer.classList.remove('visible');
+        // Disable pointer events when not on this page
+        circleContainer.style.pointerEvents = 'none';
         
-        // Remove all circles from DOM
-        circlesContainer.innerHTML = '';
-        
-        // Clear array
-        shapeColorCircles = [];
-    }
-}
-
-// Initialize Shape & Color controls (button handlers)
-function initializeShapeColorControls() {
-    const addCircleBtn = document.getElementById('add-circle-btn');
-    const resetBtn = document.getElementById('reset-circles-btn');
-    
-    if (addCircleBtn) {
-        addCircleBtn.addEventListener('click', addShapeColorCircle);
-    }
-    
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetShapeColorCircles);
+        // Remove click handler from canvas container
+        const canvasContainer = document.getElementById('canvas-container');
+        if (canvasContainer && shapeColorClickHandler) {
+            canvasContainer.removeEventListener('click', shapeColorClickHandler);
+            shapeColorClickHandler = null;
+        }
     }
 }
 
@@ -1674,6 +2094,70 @@ function rerenderCanvasTextBox() {
     renderTextWithLineBackgrounds(textBox, content);
 }
 
+// Function to update Shape & Number canvas visibility
+function updateShapeNumberCanvasVisibility(pageId) {
+    const shapeNumberContainer = document.getElementById('shape-number-container');
+    const shapeNumberPanel = document.getElementById('shape-number-panel');
+    const p5Container = document.getElementById('p5-container');
+    
+    if (!shapeNumberContainer) return;
+    
+    // Show Shape & Number canvas only for pageIds "0-3" or "3-0"
+    const isShapeNumberPage = pageId === '0-3' || pageId === '3-0';
+    
+    if (isShapeNumberPage) {
+        // Show Shape & Number container, hide p5 container
+        shapeNumberContainer.classList.remove('hidden');
+        if (p5Container) {
+            p5Container.style.opacity = '0';
+            p5Container.style.visibility = 'hidden';
+            p5Container.style.pointerEvents = 'none';
+        }
+        // Trigger render and slide in panel after a brief delay to ensure container is visible
+        setTimeout(() => {
+            if (shapeNumberContainer && !shapeNumberContainer.classList.contains('hidden')) {
+                renderShapeNumber();
+                // Slide in the panel
+                if (shapeNumberPanel) {
+                    shapeNumberPanel.classList.add('visible');
+                }
+            }
+        }, 50);
+    } else {
+        // Slide out the panel first
+        if (shapeNumberPanel) {
+            shapeNumberPanel.classList.remove('visible');
+        }
+        // Hide Shape & Number container, show p5 container
+        shapeNumberContainer.classList.add('hidden');
+        if (p5Container) {
+            p5Container.style.opacity = '';
+            p5Container.style.visibility = '';
+            p5Container.style.pointerEvents = '';
+        }
+    }
+}
+
+// Function to update PANEL expanded state based on current page
+// PANEL word shows expanded letter-spacing only on pages with internal panels:
+// - Shape & Number (0-3, 3-0)
+// - Shape & Sound (0-1, 1-0)
+function updatePanelExpandedState(pageId) {
+    const panelElement = document.querySelector('.black-middle-rectangle');
+    if (!panelElement) return;
+    
+    // Check if current page has an internal panel
+    const hasInternalPanel = 
+        pageId === '0-3' || pageId === '3-0' ||  // Shape & Number
+        pageId === '0-1' || pageId === '1-0';    // Shape & Sound
+    
+    if (hasInternalPanel) {
+        panelElement.classList.add('panel-expanded');
+    } else {
+        panelElement.classList.remove('panel-expanded');
+    }
+}
+
 // Function to update the active page/canvas based on color selection
 function updateActivePage(pageId, reason) {
     
@@ -1691,19 +2175,56 @@ function updateActivePage(pageId, reason) {
     // Update SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(pageId);
     
-    // Update Shape & Color controls visibility
-    updateShapeColorControls(pageId);
-    
     // Update Letter + Letter circle visibility
     updateLetterLetterCircle(pageId);
     
+    // Update Shape + Color circle visibility
+    updateShapeColorCircle(pageId);
+    
+    // Update Shape & Number canvas visibility
+    updateShapeNumberCanvasVisibility(pageId);
+    
+    // Update Shape & Emotion canvas visibility
+    updateShapeEmotionCanvasVisibility(pageId);
+    
+    // Update PANEL expanded state (expanded only on pages with internal panels)
+    updatePanelExpandedState(pageId);
     
     // Check if we need to switch to a different canvas sketch
-    // If there's a registered canvas for the new pageId, and it's different from the current one, recreate the canvas
+    // Skip p5.js canvas creation for Shape & Number pages (0-3, 3-0) - they use native Canvas API
+    // Skip p5.js canvas creation for Shape & Emotion pages (0-4, 4-0) - they use native Canvas API
+    const isShapeNumberPage = pageId === '0-3' || pageId === '3-0';
+    const wasShapeNumberPage = previousPageId === '0-3' || previousPageId === '3-0';
+    const isShapeEmotionPage = pageId === '0-4' || pageId === '4-0';
+    const wasShapeEmotionPage = previousPageId === '0-4' || previousPageId === '4-0';
+    
     let needsNewCanvas = false;
     let newSketchFactory = null;
     
-    if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
+    // If switching to or from Shape & Number page, handle p5.js canvas accordingly
+    if (isShapeNumberPage) {
+        // Switching to Shape & Number page - unmount p5.js if it exists
+        if (p5Instance && !wasShapeNumberPage) {
+            unmountP5();
+        }
+        // Don't create p5.js canvas for Shape & Number pages
+    } else if (isShapeEmotionPage) {
+        // Switching to Shape & Emotion page - unmount p5.js if it exists
+        if (p5Instance && !wasShapeEmotionPage) {
+            unmountP5();
+        }
+        // Don't create p5.js canvas for Shape & Emotion pages
+    } else if ((wasShapeNumberPage || wasShapeEmotionPage) && !isShapeNumberPage && !isShapeEmotionPage) {
+        // Switching from Shape & Number page to a different page - need to create p5.js canvas
+        needsNewCanvas = true;
+        // Check if new page has a registered canvas
+        if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
+            newSketchFactory = window.CanvasRegistry.get(pageId);
+        } else {
+            newSketchFactory = createP5Cell01Sketch; // Use default sketch factory
+        }
+    } else if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
+        // Regular page with registered canvas
         newSketchFactory = window.CanvasRegistry.get(pageId);
         // Check if we need a new canvas (if the current canvas is not the one for this pageId)
         if (p5Instance) {
@@ -1724,7 +2245,7 @@ function updateActivePage(pageId, reason) {
         }
     } else {
         // New page doesn't have a registered canvas
-        // But if current page has a registered canvas (like Shape & Number), we need to switch to default
+        // But if current page has a registered canvas, we need to switch to default
         if (p5Instance && previousPageId) {
             const currentPageIdForCanvas = p5Instance._currentPageId || previousPageId;
             const currentHasRegisteredCanvas = window.CanvasRegistry && window.CanvasRegistry.has(currentPageIdForCanvas);
@@ -1781,35 +2302,15 @@ function updateActivePage(pageId, reason) {
                     p5StateStorage
                 );
                 
-                // For Shape & Number pages (0-3, 3-0), wait a moment to ensure debug marker is visible
-                // then mount p5 sketch
-                if (pageId === '0-3' || pageId === '3-0') {
-                    // Small delay to ensure debug marker is visible first
-                    setTimeout(() => {
-                        p5Instance = mountP5(sketch, container);
-                        
-                        if (p5Instance) {
-                            p5Instance._currentPageId = pageId;
-                            
-                            // Restore state for the new page
-                            if (typeof p5Instance.restoreState === 'function') {
-                                p5Instance.restoreState();
-                            }
-                            
-                        }
-                    }, 100); // 100ms delay to ensure marker is visible
-                } else {
-                    // For other pages, use direct instantiation (maintains existing behavior)
-                    p5Instance = new p5(sketch, container);
+                // Create p5 instance (Shape & Number pages don't reach here)
+                p5Instance = new p5(sketch, container);
+                
+                if (p5Instance) {
+                    p5Instance._currentPageId = pageId;
                     
-                    if (p5Instance) {
-                        p5Instance._currentPageId = pageId;
-                        
-                        // Restore state for the new page
-                        if (typeof p5Instance.restoreState === 'function') {
-                            p5Instance.restoreState();
-                        }
-                        
+                    // Restore state for the new page
+                    if (typeof p5Instance.restoreState === 'function') {
+                        p5Instance.restoreState();
                     }
                 }
                 
@@ -2099,89 +2600,757 @@ function unmountP5(instance) {
 }
 
 // ==================
-// SHAPE & NUMBER TEST SKETCH
+// SHAPE & NUMBER CANVAS
 // ==================
-/**
- * Simple test sketch for Shape & Number screen
- * Shows a background and a big centered circle
- */
-function createShapeNumberCanvasSketch(containerElement, containerWidth, containerHeight, p5SketchActive, cellId, stateStorage) {
-    return function(p) {
-        // Verify p is valid
-        if (!p || typeof p.createCanvas !== 'function') {
-            console.error('Invalid p5 instance');
-            return;
+// Shape & Number canvas implementation using native Canvas API (not p5.js)
+
+// State variables for Shape & Number canvas
+let shapeNumberCanvas = null;
+let shapeNumberCtx = null;
+let shapeNumberContainer = null;
+let shapeNumberResizeObserver = null;
+
+// Config / State
+const SHAPE_NUMBER_PANEL_W = 180;
+const SHAPE_NUMBER_STROKE_W = 3;
+
+const TOP_ROW = ["1","2","3","4","5"];
+const BOTTOM_ROW = ["6","7","8","9","0"];
+
+let numShapes = 10;
+let shapeType = "circle";
+let shapeSizeFactor = 1.4;
+
+// Initialize Shape & Number canvas
+function initializeShapeNumberCanvas() {
+    shapeNumberContainer = document.getElementById('shape-number-container');
+    if (!shapeNumberContainer) {
+        console.error('Shape & Number container not found');
+        return;
+    }
+    
+    const canvas = document.getElementById('shape-number-draw-surface');
+    if (!canvas) {
+        console.error('Shape & Number canvas not found');
+        return;
+    }
+    
+    shapeNumberCanvas = canvas;
+    shapeNumberCtx = canvas.getContext('2d');
+    
+    // Get UI elements
+    const countSlider = document.getElementById('shape-number-countSlider');
+    const sizeSlider = document.getElementById('shape-number-sizeSlider');
+    const countLabel = document.getElementById('shape-number-countLabel');
+    const sizeLabel = document.getElementById('shape-number-sizeLabel');
+    
+    // Get shape buttons
+    const circleBtn = document.getElementById('shape-number-circle-btn');
+    const squareBtn = document.getElementById('shape-number-square-btn');
+    const triangleBtn = document.getElementById('shape-number-triangle-btn');
+    const ellipseBtn = document.getElementById('shape-number-ellipse-btn');
+    const starBtn = document.getElementById('shape-number-star-btn');
+    const pentagonBtn = document.getElementById('shape-number-pentagon-btn');
+    
+    if (!countSlider || !sizeSlider || !countLabel || !sizeLabel) {
+        console.error('Shape & Number UI elements not found');
+        return;
+    }
+    
+    if (!circleBtn || !squareBtn || !triangleBtn || !ellipseBtn || !starBtn || !pentagonBtn) {
+        console.error('Shape & Number shape buttons not found');
+        return;
+    }
+    
+    // Helper function to create SVG shape
+    function createShapeSVG(shapeType, isSelected, size = 20) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", size);
+        svg.setAttribute("height", size);
+        svg.setAttribute("viewBox", `-${size/2} -${size/2} ${size} ${size}`);
+        svg.style.display = "block";
+        
+        const fillColor = isSelected ? "#ffffff" : "none";
+        const strokeColor = "#ffffff";
+        const strokeWidth = 2;
+        
+        if (shapeType === "circle") {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", "0");
+            circle.setAttribute("cy", "0");
+            circle.setAttribute("r", size * 0.4);
+            circle.setAttribute("fill", fillColor);
+            circle.setAttribute("stroke", strokeColor);
+            circle.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(circle);
+        } else if (shapeType === "square") {
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            const s = size * 0.5;
+            rect.setAttribute("x", -s/2);
+            rect.setAttribute("y", -s/2);
+            rect.setAttribute("width", s);
+            rect.setAttribute("height", s);
+            rect.setAttribute("fill", fillColor);
+            rect.setAttribute("stroke", strokeColor);
+            rect.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(rect);
+        } else if (shapeType === "triangle") {
+            const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            const h = size * 0.45;
+            const points = `0,${-h/2} ${-h/2},${h/2} ${h/2},${h/2}`;
+            polygon.setAttribute("points", points);
+            polygon.setAttribute("fill", fillColor);
+            polygon.setAttribute("stroke", strokeColor);
+            polygon.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(polygon);
+        } else if (shapeType === "ellipse") {
+            const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+            ellipse.setAttribute("cx", "0");
+            ellipse.setAttribute("cy", "0");
+            ellipse.setAttribute("rx", size * 0.5);
+            ellipse.setAttribute("ry", size * 0.3);
+            ellipse.setAttribute("fill", fillColor);
+            ellipse.setAttribute("stroke", strokeColor);
+            ellipse.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(ellipse);
+        } else if (shapeType === "star") {
+            const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            let points = "";
+            for (let i = 0; i < 10; i++) {
+                const angle = (i * Math.PI) / 5 - Math.PI / 2;
+                const r = (i % 2 === 0) ? size * 0.4 : size * 0.2;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                points += `${x},${y} `;
+            }
+            polygon.setAttribute("points", points.trim());
+            polygon.setAttribute("fill", fillColor);
+            polygon.setAttribute("stroke", strokeColor);
+            polygon.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(polygon);
+        } else if (shapeType === "pentagon") {
+            const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            let points = "";
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+                const r = size * 0.4;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                points += `${x},${y} `;
+            }
+            polygon.setAttribute("points", points.trim());
+            polygon.setAttribute("fill", fillColor);
+            polygon.setAttribute("stroke", strokeColor);
+            polygon.setAttribute("stroke-width", strokeWidth);
+            svg.appendChild(polygon);
         }
         
-        // Store container element and dimensions
-        const container = containerElement;
-        let containerW = containerWidth;
-        let containerH = containerHeight;
-        let cnv;
+        return svg;
+    }
+    
+    // Initialize shape buttons with SVG
+    function initializeShapeButtons() {
+        const shapeButtons = [
+            { btn: circleBtn, type: "circle" },
+            { btn: squareBtn, type: "square" },
+            { btn: triangleBtn, type: "triangle" },
+            { btn: ellipseBtn, type: "ellipse" },
+            { btn: starBtn, type: "star" },
+            { btn: pentagonBtn, type: "pentagon" }
+        ];
         
-        // Setup function - runs once
-        p.setup = function() {
-            // Ensure minimum dimensions
-            if (containerW <= 0) {
-                const viewportWidth = window.innerWidth;
-                const leftBoundary = 50;
-                const rightBoundary = viewportWidth - 50;
-                containerW = Math.max(400, rightBoundary - leftBoundary);
-            }
-            if (containerH <= 0) {
-                containerH = Math.max(300, (window.innerHeight - 50));
-            }
-            
-            // Create canvas
-            cnv = p.createCanvas(containerW, containerH);
-            cnv.parent(container);
-            
-            // Style canvas
-            const canvas = cnv.elt;
-            if (canvas) {
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0';
-                canvas.style.left = '0';
-                canvas.style.zIndex = '11';
-                canvas.style.pointerEvents = 'auto';
-            }
-        };
+        shapeButtons.forEach(({ btn, type }) => {
+            const isSelected = shapeType === type;
+            btn.appendChild(createShapeSVG(type, isSelected));
+        });
+    }
+    
+    // Highlight selected shape
+    function highlightShape(selectedType) {
+        const shapeButtons = [
+            { btn: circleBtn, type: "circle" },
+            { btn: squareBtn, type: "square" },
+            { btn: triangleBtn, type: "triangle" },
+            { btn: ellipseBtn, type: "ellipse" },
+            { btn: starBtn, type: "star" },
+            { btn: pentagonBtn, type: "pentagon" }
+        ];
         
-        // Draw function - runs continuously
-        p.draw = function() {
-            // Only draw if sketch is active
-            if (!p5SketchActive.value) {
-                return;
+        shapeButtons.forEach(({ btn, type }) => {
+            const existingSVG = btn.querySelector("svg");
+            if (existingSVG) {
+                btn.removeChild(existingSVG);
             }
-            
-            // Background color (light gray)
-            p.background('#E0E0E0');
-            
-            // Draw a big centered circle
-            p.fill('#2C2C2C'); // Black color
-            p.noStroke();
-            
-            // Calculate center and size
-            const centerX = p.width / 2;
-            const centerY = p.height / 2;
-            const circleSize = Math.min(p.width, p.height) * 0.4; // 40% of smaller dimension
-            
-            p.ellipse(centerX, centerY, circleSize, circleSize);
-        };
+            const isSelected = selectedType === type;
+            btn.appendChild(createShapeSVG(type, isSelected));
+        });
+    }
+    
+    // Helper function
+    function prettyShapeName(t) {
+        return ({
+            circle: "Circles",
+            ellipse: "Ellipses",
+            square: "Squares",
+            triangle: "Triangles",
+            pentagon: "Pentagons",
+            star: "Stars",
+        })[t] || t;
+    }
+    
+    // Sync UI state
+    function syncFromUI() {
+        numShapes = parseInt(countSlider.value, 10);
+        shapeSizeFactor = parseFloat(sizeSlider.value);
         
-        // Handle window resize
-        p.windowResized = function() {
-            // Get updated container dimensions
-            const updatedWidth = container.offsetWidth || container.clientWidth || containerW;
-            const updatedHeight = container.offsetHeight || container.clientHeight || containerH;
-            
-            if (updatedWidth > 0 && updatedHeight > 0 && cnv) {
-                containerW = updatedWidth;
-                containerH = updatedHeight;
-                p.resizeCanvas(containerW, containerH);
-            }
-        };
+        countLabel.textContent = `Count: ${numShapes}`;
+        sizeLabel.textContent = `Size: ${shapeSizeFactor.toFixed(2)}`;
+    }
+    
+    // Update state on input + redraw
+    [countSlider, sizeSlider].forEach(el => {
+        el.addEventListener('input', () => {
+            syncFromUI();
+            renderShapeNumber();
+        });
+    });
+    
+    // Add click handlers for shape buttons
+    circleBtn.addEventListener('click', () => {
+        shapeType = 'circle';
+        highlightShape('circle');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    squareBtn.addEventListener('click', () => {
+        shapeType = 'square';
+        highlightShape('square');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    triangleBtn.addEventListener('click', () => {
+        shapeType = 'triangle';
+        highlightShape('triangle');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    ellipseBtn.addEventListener('click', () => {
+        shapeType = 'ellipse';
+        highlightShape('ellipse');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    starBtn.addEventListener('click', () => {
+        shapeType = 'star';
+        highlightShape('star');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    pentagonBtn.addEventListener('click', () => {
+        shapeType = 'pentagon';
+        highlightShape('pentagon');
+        syncFromUI();
+        renderShapeNumber();
+    });
+    
+    // Initialize shape buttons
+    initializeShapeButtons();
+    
+    // Initial sync
+    syncFromUI();
+    
+    // Resize handler
+    function resizeShapeNumber() {
+        if (!shapeNumberContainer || !shapeNumberCanvas) return;
+        
+        const containerRect = shapeNumberContainer.getBoundingClientRect();
+        const containerW = containerRect.width;
+        const containerH = containerRect.height;
+        
+        if (containerW <= 0 || containerH <= 0) return;
+        
+        // Match device pixel ratio for crisp lines
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        shapeNumberCanvas.width = Math.floor(containerW * dpr);
+        shapeNumberCanvas.height = Math.floor(containerH * dpr);
+        shapeNumberCanvas.style.width = containerW + 'px';
+        shapeNumberCanvas.style.height = containerH + 'px';
+        shapeNumberCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        
+        renderShapeNumber();
+    }
+    
+    // Use ResizeObserver to watch container size changes
+    if (window.ResizeObserver) {
+        shapeNumberResizeObserver = new ResizeObserver(() => {
+            resizeShapeNumber();
+        });
+        shapeNumberResizeObserver.observe(shapeNumberContainer);
+    } else {
+        // Fallback to window resize
+        window.addEventListener('resize', resizeShapeNumber);
+    }
+    
+    // Initial resize
+    resizeShapeNumber();
+}
+
+// Render function
+function renderShapeNumber() {
+    if (!shapeNumberCanvas || !shapeNumberCtx || !shapeNumberContainer) return;
+    
+    const containerRect = shapeNumberContainer.getBoundingClientRect();
+    const W = containerRect.width;
+    const H = containerRect.height;
+    
+    if (W <= 0 || H <= 0) return;
+    
+    // Background
+    shapeNumberCtx.clearRect(0, 0, W, H);
+    shapeNumberCtx.fillStyle = '#ffffff';
+    shapeNumberCtx.fillRect(0, 0, W, H);
+    
+    // Use full width, ignoring panel
+    // Spacing between digits: digitSpacing is the gap between each pair of digits
+    const cellW = W / 7.5; // Cell width for each digit
+    const cellH = H / 2;
+    const digitSpacing = 50; // Gap between digits in px (was 15, then 30 – increased to 50 for clearer separation)
+    
+    // Center the rows horizontally: 5 cells + 4 gaps between them
+    const totalWidth = 5 * cellW + 4 * digitSpacing;
+    const startX = (W - totalWidth) / 2; // Centered (removed the -10px shift)
+    
+    // Top row: 1,2,3,4,5 - align left edge of digit 1
+    for (let i = 0; i < TOP_ROW.length; i++) {
+        drawDigitInCell(TOP_ROW[i], startX + i * (cellW + digitSpacing), -20, cellW, cellH);
+    }
+    // Bottom row: 6,7,8,9,0 - align left edge of digit 6 with digit 1
+    for (let i = 0; i < BOTTOM_ROW.length; i++) {
+        drawDigitInCell(BOTTOM_ROW[i], startX + i * (cellW + digitSpacing), cellH - 100 - 40, cellW, cellH);
+    }
+}
+
+function drawDigitInCell(digit, x, y, w, h) {
+    const poly = getDigitGlyph(digit);
+    if (!poly) return;
+    
+    const pts = resamplePolyline(poly, numShapes);
+    
+    const boxSize = Math.min(w, h) * 0.75;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    
+    drawChain(pts, cx, cy, boxSize);
+}
+
+// Drawing functions
+function drawChain(points, cx, cy, boxSize) {
+    const left = cx - boxSize / 2;
+    const top = cy - boxSize / 2;
+    
+    const baseSize = boxSize * 0.16;
+    const size = baseSize * shapeSizeFactor;
+    
+    // Path
+    shapeNumberCtx.strokeStyle = '#000';
+    shapeNumberCtx.lineWidth = SHAPE_NUMBER_STROKE_W;
+    shapeNumberCtx.beginPath();
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const px = left + p.x * boxSize;
+        const py = top + p.y * boxSize;
+        if (i === 0) shapeNumberCtx.moveTo(px, py);
+        else shapeNumberCtx.lineTo(px, py);
+    }
+    shapeNumberCtx.stroke();
+    
+    // Particles
+    shapeNumberCtx.fillStyle = '#fff';
+    shapeNumberCtx.strokeStyle = '#000';
+    shapeNumberCtx.lineWidth = SHAPE_NUMBER_STROKE_W;
+    
+    for (const p of points) {
+        const px = left + p.x * boxSize;
+        const py = top + p.y * boxSize;
+        drawParticle(px, py, size, shapeType);
+    }
+}
+
+function drawParticle(x, y, size, type) {
+    if (type === 'circle') {
+        drawCircle(x, y, size);
+    } else if (type === 'ellipse') {
+        drawEllipse(x, y, size * 1.4, size * 0.85);
+    } else if (type === 'square') {
+        drawRectCenter(x, y, size, size);
+    } else if (type === 'triangle') {
+        drawRegularPolygon(x, y, size * 0.62, 3);
+    } else if (type === 'pentagon') {
+        drawRegularPolygon(x, y, size * 0.62, 5);
+    } else if (type === 'star') {
+        drawStar(x, y, size * 0.7, size * 0.32, 5);
+    }
+}
+
+function drawCircle(cx, cy, d) {
+    const r = d / 2;
+    shapeNumberCtx.beginPath();
+    shapeNumberCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    shapeNumberCtx.fill();
+    shapeNumberCtx.stroke();
+}
+
+function drawEllipse(cx, cy, w, h) {
+    shapeNumberCtx.beginPath();
+    shapeNumberCtx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+    shapeNumberCtx.fill();
+    shapeNumberCtx.stroke();
+}
+
+function drawRectCenter(cx, cy, w, h) {
+    shapeNumberCtx.beginPath();
+    shapeNumberCtx.rect(cx - w / 2, cy - h / 2, w, h);
+    shapeNumberCtx.fill();
+    shapeNumberCtx.stroke();
+}
+
+function drawRegularPolygon(cx, cy, r, sides) {
+    shapeNumberCtx.beginPath();
+    for (let i = 0; i < sides; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI * 2) / sides;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        if (i === 0) shapeNumberCtx.moveTo(x, y);
+        else shapeNumberCtx.lineTo(x, y);
+    }
+    shapeNumberCtx.closePath();
+    shapeNumberCtx.fill();
+    shapeNumberCtx.stroke();
+}
+
+function drawStar(cx, cy, rOuter, rInner, points) {
+    shapeNumberCtx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? rOuter : rInner;
+        const a = -Math.PI / 2 + (i * Math.PI) / points;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        if (i === 0) shapeNumberCtx.moveTo(x, y);
+        else shapeNumberCtx.lineTo(x, y);
+    }
+    shapeNumberCtx.closePath();
+    shapeNumberCtx.fill();
+    shapeNumberCtx.stroke();
+}
+
+// Geometry functions
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+function dist(x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    return Math.hypot(dx, dy);
+}
+
+function resamplePolyline(poly, n) {
+    if (n === 1) return [poly[0]];
+    
+    const lengths = [];
+    let total = 0;
+    for (let i = 0; i < poly.length - 1; i++) {
+        const d = dist(poly[i].x, poly[i].y, poly[i + 1].x, poly[i + 1].y);
+        lengths.push(d);
+        total += d;
+    }
+    
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const t = i / (n - 1);
+        const target = t * total;
+        
+        let acc = 0;
+        let j = 0;
+        while (j < lengths.length && acc + lengths[j] < target) {
+            acc += lengths[j];
+            j++;
+        }
+        
+        const a = poly[j];
+        const b = poly[Math.min(j + 1, poly.length - 1)];
+        const segLen = lengths[j] || 0;
+        const u = segLen ? (target - acc) / segLen : 0;
+        
+        out.push({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) });
+    }
+    return out;
+}
+
+// Digit glyphs
+function P(x, y) {
+    return { x, y };
+}
+
+function arcPts(cx, cy, rx, ry, a0, a1, steps) {
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const a = lerp(a0, a1, t);
+        pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry });
+    }
+    return pts;
+}
+
+function getDigitGlyph(d) {
+    const HALF_PI = Math.PI / 2;
+    const TWO_PI = Math.PI * 2;
+    
+    switch (d) {
+        case '0': return arcPts(0.52, 0.52, 0.34, 0.42, -HALF_PI, -HALF_PI + TWO_PI - 0.18, 70);
+        case '1': return [P(0.56, 0.12), P(0.46, 0.2), P(0.56, 0.12), P(0.56, 0.9)];
+        case '2': return [...arcPts(0.52, 0.3, 0.3, 0.2, 3.9, 6.15, 22), P(0.82, 0.38), P(0.28, 0.9), P(0.84, 0.9)];
+        case '3': return [...arcPts(0.52, 0.3, 0.32, 0.22, -1.15, 1.15, 26), P(0.66, 0.5), ...arcPts(0.52, 0.7, 0.32, 0.22, -1.15, 1.15, 26)];
+        case '4': return [P(0.72, 0.12), P(0.32, 0.58), P(0.84, 0.58), P(0.72, 0.12), P(0.72, 0.9)];
+        case '5': return [P(0.84, 0.14), P(0.3, 0.14), P(0.3, 0.48), P(0.66, 0.48), ...arcPts(0.56, 0.72, 0.32, 0.24, -0.35, 2.75, 32)];
+        case '6': return [P(0.72, 0.18), P(0.46, 0.18), P(0.32, 0.34), ...arcPts(0.5, 0.68, 0.32, 0.26, 0.3, TWO_PI + 0.3, 40)];
+        case '7': return [P(0.28, 0.16), P(0.84, 0.16), P(0.42, 0.9)];
+        case '8': return [...arcPts(0.5, 0.34, 0.28, 0.18, HALF_PI, HALF_PI + TWO_PI - 0.18, 46), P(0.5, 0.52), ...arcPts(0.5, 0.72, 0.32, 0.2, -HALF_PI, -HALF_PI + TWO_PI - 0.18, 52)];
+        case '9': return [P(0.72, 0.9), P(0.72, 0.55), ...arcPts(0.52, 0.34, 0.3, 0.23, 0.85, 0.85 + TWO_PI - 0.18, 56)];
+        default: return null;
+    }
+}
+
+// ==================
+// SHAPE & EMOTION CANVAS
+// ==================
+// Shape & Emotion canvas implementation using native Canvas API (not p5.js)
+
+// State variables for Shape & Emotion canvas
+let shapeEmotionCanvas = null;
+let shapeEmotionCtx = null;
+let shapeEmotionContainer = null;
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+let prevX = 0;
+let prevY = 0; // Previous point for smooth curve calculation
+
+// Initialize Shape & Emotion canvas
+function initializeShapeEmotionCanvas() {
+    shapeEmotionContainer = document.getElementById('shape-emotion-container');
+    if (!shapeEmotionContainer) {
+        console.error('Shape & Emotion container not found');
+        return;
+    }
+    
+    const canvas = document.getElementById('shape-emotion-draw-surface');
+    if (!canvas) {
+        console.error('Shape & Emotion canvas not found');
+        return;
+    }
+    
+    shapeEmotionCanvas = canvas;
+    shapeEmotionCtx = canvas.getContext('2d');
+    
+    // Set up canvas dimensions
+    resizeShapeEmotionCanvas();
+    
+    // Set up event listeners for mouse
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseleave', handleMouseUp);
+    
+    // Set up event listeners for touch (mobile)
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd);
+    canvas.addEventListener('touchcancel', handleTouchEnd);
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        resizeShapeEmotionCanvas();
+    });
+    
+    // Initialize canvas with white background
+    clearShapeEmotionCanvas();
+}
+
+// Resize canvas to match container dimensions
+function resizeShapeEmotionCanvas() {
+    if (!shapeEmotionCanvas || !shapeEmotionContainer) return;
+    
+    const containerRect = shapeEmotionContainer.getBoundingClientRect();
+    const width = containerRect.width;
+    const height = containerRect.height;
+    
+    if (width <= 0 || height <= 0) return;
+    
+    // Set canvas size
+    shapeEmotionCanvas.width = width;
+    shapeEmotionCanvas.height = height;
+    
+    // Redraw background
+    clearShapeEmotionCanvas();
+}
+
+// Clear canvas with white background
+function clearShapeEmotionCanvas() {
+    if (!shapeEmotionCtx || !shapeEmotionCanvas) return;
+    
+    shapeEmotionCtx.fillStyle = '#fff';
+    shapeEmotionCtx.fillRect(0, 0, shapeEmotionCanvas.width, shapeEmotionCanvas.height);
+}
+
+// Get coordinates relative to canvas
+function getCanvasCoordinates(e) {
+    if (!shapeEmotionCanvas) return { x: 0, y: 0 };
+    
+    const rect = shapeEmotionCanvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
     };
+}
+
+// Get touch coordinates relative to canvas
+function getTouchCoordinates(e) {
+    if (!shapeEmotionCanvas || !e.touches || e.touches.length === 0) return { x: 0, y: 0 };
+    
+    const rect = shapeEmotionCanvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+// Mouse event handlers
+function handleMouseDown(e) {
+    if (!shapeEmotionCtx) return;
+    
+    const coords = getCanvasCoordinates(e);
+    isDrawing = true;
+    lastX = coords.x;
+    lastY = coords.y;
+    prevX = coords.x;
+    prevY = coords.y;
+    
+    // Start a new path
+    shapeEmotionCtx.beginPath();
+    shapeEmotionCtx.moveTo(lastX, lastY);
+}
+
+function handleMouseMove(e) {
+    if (!isDrawing || !shapeEmotionCtx) return;
+    
+    const coords = getCanvasCoordinates(e);
+    drawOnShapeEmotionCanvas(coords.x, coords.y);
+}
+
+function handleMouseUp(e) {
+    if (!isDrawing) return;
+    isDrawing = false;
+}
+
+// Touch event handlers
+function handleTouchStart(e) {
+    e.preventDefault(); // Prevent scrolling
+    if (!shapeEmotionCtx) return;
+    
+    const coords = getTouchCoordinates(e);
+    isDrawing = true;
+    lastX = coords.x;
+    lastY = coords.y;
+    prevX = coords.x;
+    prevY = coords.y;
+    
+    // Start a new path
+    shapeEmotionCtx.beginPath();
+    shapeEmotionCtx.moveTo(lastX, lastY);
+}
+
+function handleTouchMove(e) {
+    e.preventDefault(); // Prevent scrolling
+    if (!isDrawing || !shapeEmotionCtx) return;
+    
+    const coords = getTouchCoordinates(e);
+    drawOnShapeEmotionCanvas(coords.x, coords.y);
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    isDrawing = false;
+}
+
+// Drawing function - draws a smooth curve from last point to current point
+function drawOnShapeEmotionCanvas(x, y) {
+    if (!shapeEmotionCtx) return;
+    
+    // Set drawing style
+    shapeEmotionCtx.strokeStyle = '#2C2C2C'; // Black, same as UI rectangles
+    shapeEmotionCtx.lineWidth = 3; // 3 pixels as specified
+    shapeEmotionCtx.lineCap = 'round'; // Round line caps for smooth drawing
+    shapeEmotionCtx.lineJoin = 'round'; // Round line joins for smooth drawing
+    
+    // Calculate control point for smooth curve
+    // Use the midpoint between previous and last point as control point
+    // This creates a smooth, continuous curve
+    const controlX = (prevX + lastX) / 2;
+    const controlY = (prevY + lastY) / 2;
+    
+    // Use quadratic curve: from last point, through control point, to current point
+    // This creates a smooth, continuous line
+    shapeEmotionCtx.quadraticCurveTo(controlX, controlY, x, y);
+    shapeEmotionCtx.stroke();
+    
+    // Update positions: previous becomes last, last becomes current
+    prevX = lastX;
+    prevY = lastY;
+    lastX = x;
+    lastY = y;
+}
+
+// Function to update Shape & Emotion canvas visibility
+function updateShapeEmotionCanvasVisibility(pageId) {
+    const shapeEmotionContainer = document.getElementById('shape-emotion-container');
+    const p5Container = document.getElementById('p5-container');
+    
+    if (!shapeEmotionContainer) return;
+    
+    // Show Shape & Emotion canvas only for pageIds "0-4" or "4-0"
+    // Parameter indices: 0=shape, 4=emotion
+    const isShapeEmotionPage = pageId === '0-4' || pageId === '4-0';
+    
+    if (isShapeEmotionPage) {
+        // Show Shape & Emotion container, hide p5 container
+        shapeEmotionContainer.classList.remove('hidden');
+        if (p5Container) {
+            p5Container.style.opacity = '0';
+            p5Container.style.visibility = 'hidden';
+            p5Container.style.pointerEvents = 'none';
+        }
+        // Resize canvas after a brief delay to ensure container is visible
+        setTimeout(() => {
+            if (shapeEmotionContainer && !shapeEmotionContainer.classList.contains('hidden')) {
+                resizeShapeEmotionCanvas();
+            }
+        }, 50);
+    } else {
+        // Hide Shape & Emotion container, show p5 container
+        shapeEmotionContainer.classList.add('hidden');
+        if (p5Container) {
+            p5Container.style.opacity = '';
+            p5Container.style.visibility = '';
+            p5Container.style.pointerEvents = '';
+        }
+    }
 }
 
 // ==================
@@ -2736,7 +3905,15 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
             panel.style.background = "#2C2C2C";
             panel.style.borderRadius = "0";
             panel.style.zIndex = "1000";
+            // Slide-in animation: start off-screen right
+            panel.style.transform = "translateX(100%)";
+            panel.style.transition = "transform 0.3s ease";
             container.appendChild(panel);
+            
+            // Trigger slide-in animation after a brief delay
+            setTimeout(() => {
+                panel.style.transform = "translateX(0)";
+            }, 50);
             
             // Create columns container - 2 columns for 6 shapes (3 per column)
             const leftColumn = document.createElement("div");
@@ -3204,9 +4381,19 @@ function initializeP5Sketch() {
         }
         
         // Check if there's a registered canvas for the initial pageId
-        // If not, fall back to the default canvas
-        let sketchFactory = null;
+        // Skip p5.js canvas creation for Shape & Number pages (0-3, 3-0) - they use native Canvas API
+        // Skip p5.js canvas creation for Shape & Emotion pages (0-4, 4-0) - they use native Canvas API
         const initialPageId = getPageIdFromColors(selectedLeftIndex, selectedRightIndex);
+        const isShapeNumberPage = initialPageId === '0-3' || initialPageId === '3-0';
+        const isShapeEmotionPage = initialPageId === '0-4' || initialPageId === '4-0';
+        
+        if (isShapeNumberPage || isShapeEmotionPage) {
+            // Don't create p5.js sketch for Shape & Number or Shape & Emotion pages
+            return;
+        }
+        
+        // If not Shape & Number page, proceed with p5.js sketch creation
+        let sketchFactory = null;
         
         if (window.CanvasRegistry && window.CanvasRegistry.has(initialPageId)) {
             sketchFactory = window.CanvasRegistry.get(initialPageId);
@@ -3216,7 +4403,6 @@ function initializeP5Sketch() {
         if (!sketchFactory) {
             sketchFactory = createP5Cell01Sketch;
         }
-        
         
         // Create p5 sketch using the factory function
         // Parameters: container, width, height, active flag, pageId, state storage
@@ -3230,25 +4416,16 @@ function initializeP5Sketch() {
         );
         
         // Create p5 instance - always create it once, even if initially hidden
-        // Use mountP5 helper for Shape & Number pages (0-3, 3-0)
-        if (initialPageId === '0-3' || initialPageId === '3-0') {
-            // Small delay to ensure debug marker is visible first
-            setTimeout(() => {
-                p5Instance = mountP5(sketch, container);
-                
-                if (p5Instance) {
-                    p5Instance._currentPageId = initialPageId;
-                }
-            }, 100); // 100ms delay to ensure marker is visible
-        } else {
-            // For other pages, use direct instantiation (maintains existing behavior)
-            p5Instance = new p5(sketch, container);
+        p5Instance = new p5(sketch, container);
+        
+        if (p5Instance) {
+            p5Instance._currentPageId = initialPageId;
         }
     });
 }
 
-// Function to initialize about text hover effect
-function initializeAboutHoverEffect() {
+// Function to initialize panel text hover effect
+function initializePanelHoverEffect() {
     const whiteRegion = document.getElementById('white-region');
     if (!whiteRegion) return;
     
@@ -3261,28 +4438,28 @@ function initializeAboutHoverEffect() {
         document.body.classList.remove('white-region-hovered');
     });
     
-    // Initialize ABOUT hover overlay
-    const aboutElement = document.querySelector('.black-middle-rectangle');
-    const aboutOverlay = document.getElementById('canvas-text-box-about-overlay');
-    const aboutBacking = document.getElementById('canvas-text-box-about-backing');
+    // Initialize PANEL hover overlay
+    const panelElement = document.querySelector('.black-rectangle');
+    const panelOverlay = document.getElementById('canvas-text-box-panel-overlay');
+    const panelBacking = document.getElementById('canvas-text-box-panel-backing');
     
-    if (aboutElement && aboutOverlay && aboutBacking) {
+    if (panelElement && panelOverlay && panelBacking) {
         // Render overlay text with line backgrounds to match main text box styling
-        // Use same width as main text box (1035px) for the ABOUT overlay
+        // Use same width as main text box (1035px) for the PANEL overlay
         // Use black background color (#2C2C2C) for line backgrounds to match UI black
-        const aboutText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
-        renderTextWithLineBackgrounds(aboutOverlay, aboutText, 1035, '#2C2C2C');
+        const panelText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
+        renderTextWithLineBackgrounds(panelOverlay, panelText, 1035, '#2C2C2C');
         
         // Show overlay and backing layer on hover
-        aboutElement.addEventListener('mouseenter', () => {
-            aboutBacking.classList.add('visible');
-            aboutOverlay.classList.add('visible');
+        panelElement.addEventListener('mouseenter', () => {
+            panelBacking.classList.add('visible');
+            panelOverlay.classList.add('visible');
         });
         
         // Hide overlay and backing layer when hover ends
-        aboutElement.addEventListener('mouseleave', () => {
-            aboutBacking.classList.remove('visible');
-            aboutOverlay.classList.remove('visible');
+        panelElement.addEventListener('mouseleave', () => {
+            panelBacking.classList.remove('visible');
+            panelOverlay.classList.remove('visible');
         });
     }
 }
@@ -3741,14 +4918,23 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         const leftColor = getColorFromIndex(leftColorIndex);
         const rightColor = getColorFromIndex(rightColorIndex);
         
-        if (index === 0 || index === 4) { // Log first and 5th row (where START text is)
+        if (index === 0 || index === 3) { // Log first and 4th row (where START text is - 3rd from bottom)
         }
         
         // Set gradient: starts with left color (left edge), ends with right color (right edge)
         // This ensures: left scrollbar → left edge of gradient, right scrollbar → right edge of gradient
         rect.style.background = `linear-gradient(to right, ${leftColor}, ${rightColor})`;
-        rect.style.left = `${leftEdge}px`;
-        rect.style.width = `${width}px`;
+        
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        // Left edge aligns with inner edge of left scrollbar (50px), right edge aligns with inner edge of right scrollbar
+        // This applies regardless of intro phase - it never shrinks back
+        if (index === 0) {
+            rect.style.left = `${SCROLLBAR_COLLAPSED_WIDTH}px`; // 50px - inner edge of left scrollbar
+            rect.style.width = `${window.innerWidth - (2 * SCROLLBAR_COLLAPSED_WIDTH)}px`; // window.innerWidth - 100px
+        } else {
+            rect.style.left = `${leftEdge}px`;
+            rect.style.width = `${width}px`;
+        }
         rect.style.height = `${itemHeight}px`;
     });
     
@@ -3758,9 +4944,9 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     if (introText) {
         const isStartButton = introText.textContent === '[start]';
         
-        // For START button, position it in the 5th rectangle (index 4) instead of 4th
+        // For START button, position it in the 4th rectangle (index 3) - 3rd from bottom
         // For instruction text, use 4th rectangle (index 3)
-        const rectIndex = isStartButton ? 4 : 3;
+        const rectIndex = isStartButton ? 3 : 3;
         const rectTop = rectIndex * itemHeight;
         
         // Position text in the appropriate rectangle
@@ -3792,12 +4978,12 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
             arrowElement.style.visibility = 'hidden';
             arrowElement.style.opacity = '0';
         } else if (introText && introText.textContent === '[start]') {
-            const fifthRectIndex = 4; // 5th rectangle (0-indexed)
-            const fifthRectTop = fifthRectIndex * itemHeight;
+            const fourthRectIndex = 3; // 4th rectangle (0-indexed) - 3rd from bottom
+            const fourthRectTop = fourthRectIndex * itemHeight;
             
             // Position arrow centered below START text
             // Calculate vertical offset: START text is centered, so we add some spacing below it
-            const arrowTop = fifthRectTop + (itemHeight / 2) + 30; // 30px below center of START text
+            const arrowTop = fourthRectTop + (itemHeight / 2) + 30; // 30px below center of START text
             
             arrowElement.style.left = `${leftEdge}px`;
             arrowElement.style.width = `${width}px`;
@@ -4019,9 +5205,18 @@ function startHorizontalExpansion() {
     
     // Set target left/width for horizontal expansion (CSS transition will animate)
     gradientBars.forEach((bar) => {
-        const containerLocalLeft = leftInnerX - containerRect.left;
-        bar.style.left = containerLocalLeft + 'px';
-        bar.style.width = targetWidth + 'px';
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        const barIndex = parseInt(bar.getAttribute('data-bar-index'), 10);
+        if (barIndex === 0) {
+            // Top bar aligns with inner edges of scrollbars (same as other bars in closing phase)
+            const containerLocalLeft = leftInnerX - containerRect.left;
+            bar.style.left = containerLocalLeft + 'px';
+            bar.style.width = targetWidth + 'px';
+        } else {
+            const containerLocalLeft = leftInnerX - containerRect.left;
+            bar.style.left = containerLocalLeft + 'px';
+            bar.style.width = targetWidth + 'px';
+        }
         bar.style.outline = 'none';
         bar.style.border = 'none';
         bar.style.boxShadow = 'none';
@@ -4322,8 +5517,16 @@ function reverseIntroTransition() {
     const targetWidth = rightInnerX - leftInnerX;
     
     rectangles.forEach((bar) => {
-        bar.style.left = containerLocalLeft + 'px';
-        bar.style.width = targetWidth + 'px';
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        const barIndex = parseInt(bar.getAttribute('data-bar-index'), 10);
+        if (barIndex === 0) {
+            // Top bar aligns with inner edges (same as other bars in closing phase)
+            bar.style.left = containerLocalLeft + 'px';
+            bar.style.width = targetWidth + 'px';
+        } else {
+            bar.style.left = containerLocalLeft + 'px';
+            bar.style.width = targetWidth + 'px';
+        }
     });
     
     // Update colors for closing phase
@@ -4679,8 +5882,16 @@ function forwardIntroTransition() {
     const containerLocalLeft = leftEdge - containerRect.left;
     
     rectangles.forEach((bar) => {
-        bar.style.left = containerLocalLeft + 'px';
-        bar.style.width = activeWidth + 'px';
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        const barIndex = parseInt(bar.getAttribute('data-bar-index'), 10);
+        if (barIndex === 0) {
+            // Top bar aligns with inner edges: 50px from left, width = window.innerWidth - 100px
+            bar.style.left = `${SCROLLBAR_COLLAPSED_WIDTH}px`;
+            bar.style.width = `${window.innerWidth - (2 * SCROLLBAR_COLLAPSED_WIDTH)}px`;
+        } else {
+            bar.style.left = containerLocalLeft + 'px';
+            bar.style.width = activeWidth + 'px';
+        }
     });
     
     // Update colors for active phase
@@ -4716,6 +5927,9 @@ function forwardIntroTransition() {
     const targetWidth = rightInnerX - leftInnerX;
     
     rectangles.forEach((bar) => {
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        // All bars use the same values (inner edges) in closing phase
+        const barIndex = parseInt(bar.getAttribute('data-bar-index'), 10);
         bar.style.left = containerLocalLeftExpanded + 'px';
         bar.style.width = targetWidth + 'px';
     });
@@ -4879,6 +6093,9 @@ function goToStartCheckpoint() {
     const targetWidth = rightInnerX - leftInnerX;
     
     rectangles.forEach((bar) => {
+        // CRITICAL: Topmost bar (index 0) always stays full width between scrollbar inner edges
+        // All bars use the same values (inner edges) in closing phase
+        const barIndex = parseInt(bar.getAttribute('data-bar-index'), 10);
         bar.style.left = containerLocalLeft + 'px';
         bar.style.width = targetWidth + 'px';
     });
@@ -5003,9 +6220,11 @@ function restartIntro() {
     
     // Reset intro text state
     introTextChanged = false;
+    initialInstructionTextShown = false; // Reset initial instruction text shown flag
     leftColumnScrolled = false;
     rightColumnScrolled = false;
     userInteracted = false; // Reset user interaction flag
+    hasScrolledScrollbar = false; // Reset scrollbar scroll flag
     isDemoActive = false; // Reset demo active flag
     uniqueColorsSeen.clear();
     hasUserInteracted = false;
@@ -5279,6 +6498,11 @@ function scrollBothColumnsProgrammatically(duration) {
     // Clear any previous demo timeouts and animation frames
     cancelDemoAnimations();
     
+    // CRITICAL: Reset userInteracted and hasScrolledScrollbar when demo starts
+    // This ensures START only appears on first user scroll AFTER demo ends, not before
+    userInteracted = false;
+    hasScrolledScrollbar = false;
+    
     // Set demo active flag at the start of demo
     isDemoActive = true;
     
@@ -5322,26 +6546,47 @@ function scrollBothColumnsProgrammatically(duration) {
             const gradientContainer = document.getElementById('gradient-intro-container');
             if (gradientContainer) {
                 gradientContainer.classList.remove('demo-active');
+                // Ensure intro-active class is present for CSS rules to work
+                if (!gradientContainer.classList.contains('intro-active')) {
+                    gradientContainer.classList.add('intro-active');
+                }
             }
             
             // Show instruction text after demo ends (only if not already changed to START)
             const introText = document.getElementById('gradient-intro-text');
-            if (introText && !introTextChanged) {
+            // Check if text exists and either hasn't been changed yet, or current text is not the initial instruction text
+            const currentText = introText ? introText.textContent.trim().toLowerCase() : '';
+            const isCurrentlyStart = currentText === '[start]';
+            const hasInitialText = currentText.includes('synesthesia') || currentText.includes('scroll');
+            if (introText && (!introTextChanged || (!isCurrentlyStart && !hasInitialText))) {
                 // Restore initial instruction text content
                 introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
                 // Remove any inline styles that might override CSS
                 introText.style.cursor = '';
                 introText.style.pointerEvents = '';
+                // Ensure text is visible (display and visibility) - override any CSS that might hide it
+                introText.style.display = 'flex';
+                introText.style.visibility = 'visible';
+                // Force opacity to be visible (override CSS if needed)
+                introText.style.opacity = '1';
                 // Reset transform to trigger smooth animation
                 introText.style.transform = 'translateY(10px)';
                 // Force reflow to ensure transform reset is applied
                 void introText.offsetHeight;
+                // Update gradient intro to position text correctly
+                updateGradientIntro();
+                // Mark that initial instruction text has been shown immediately
+                initialInstructionTextShown = true;
                 // Remove inline transform to let CSS transition handle the animation
+                // But keep opacity: 1 to ensure text stays visible
                 const transformTimeout = setTimeout(() => {
                     introText.style.transform = '';
+                    // DO NOT remove opacity - keep it at 1 to ensure text is always visible
+                    // CSS will handle the transition, but we keep opacity: 1 as fallback
                 }, 0);
                 demoTimeouts.push(transformTimeout);
-                // CSS will handle visibility via intro-active class (opacity: 1)
+                // CSS will handle visibility via intro-active class (opacity: 1 !important)
+                // But we keep inline opacity: 1 to ensure text is always visible even if CSS fails
             }
         }, phaseDuration + 50); // Wait for phase 2 to complete plus small buffer
         demoTimeouts.push(cleanupTimeout);

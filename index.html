@@ -75,17 +75,16 @@
             </div>
         </div>
         <div class="black-middle-rectangle">
-            <div class="about-text">
-                <span class="about-letter-a">A</span>
-                <span class="about-letter-b">B</span>
-                <span class="about-letter-o">O</span>
-                <span class="about-letter-u">U</span>
-                <span class="about-letter-t">T</span>
-                <span class="parameter-info-marker">[i]</span>
+            <div class="panel-text">
+                <span class="panel-letter-p">P</span>
+                <span class="panel-letter-a">A</span>
+                <span class="panel-letter-n">N</span>
+                <span class="panel-letter-e">E</span>
+                <span class="panel-letter-l">L</span>
             </div>
         </div>
         <div class="black-rectangle">
-            <div class="syn-text"><span class="syn-word">SYN</span><span class="ethesia-text">[ethesia]</span></div>
+            <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span><span class="ethesia-text">[i]</span></div>
         </div>
     </div>
     <div class="split-region split-region-white" id="white-region">
@@ -104,9 +103,37 @@
     <!-- This defines the exact bounds of the canvas area for positioning all interaction content -->
     <div class="canvas-container" id="canvas-container">
         <div id="p5-container"></div>
+        <!-- Shape & Number canvas container -->
+        <div id="shape-number-container" class="shape-number-container hidden">
+            <canvas id="shape-number-draw-surface"></canvas>
+            <div id="shape-number-panel" class="shape-number-panel">
+                <input id="shape-number-countSlider" type="range" min="1" max="20" step="1" value="10" />
+                <div id="shape-number-countLabel" class="shape-number-value"></div>
+                <div class="shape-number-spacer"></div>
+                <input id="shape-number-sizeSlider" type="range" min="0.2" max="4.0" step="0.01" value="1.4" />
+                <div id="shape-number-sizeLabel" class="shape-number-value"></div>
+                <div class="shape-number-spacer"></div>
+                <div class="shape-number-shapes-container">
+                    <div class="shape-number-shapes-row shape-number-shapes-top">
+                        <button class="shape-number-shape-btn" data-shape="circle" id="shape-number-circle-btn"></button>
+                        <button class="shape-number-shape-btn" data-shape="square" id="shape-number-square-btn"></button>
+                        <button class="shape-number-shape-btn" data-shape="triangle" id="shape-number-triangle-btn"></button>
+                    </div>
+                    <div class="shape-number-shapes-row shape-number-shapes-bottom">
+                        <button class="shape-number-shape-btn" data-shape="ellipse" id="shape-number-ellipse-btn"></button>
+                        <button class="shape-number-shape-btn" data-shape="star" id="shape-number-star-btn"></button>
+                        <button class="shape-number-shape-btn" data-shape="pentagon" id="shape-number-pentagon-btn"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Shape & Emotion canvas container -->
+        <div id="shape-emotion-container" class="shape-emotion-container hidden">
+            <canvas id="shape-emotion-draw-surface"></canvas>
+        </div>
         <div class="canvas-text-box" id="canvas-text-box"></div>
-        <div class="canvas-text-box-about-backing" id="canvas-text-box-about-backing"></div>
-        <div class="canvas-text-box-about-overlay" id="canvas-text-box-about-overlay">
+        <div class="canvas-text-box-panel-backing" id="canvas-text-box-panel-backing"></div>
+        <div class="canvas-text-box-panel-overlay" id="canvas-text-box-panel-overlay">
             <p>Synesthesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another.</p>
             <p>A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured.</p>
             <p>These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.</p>
@@ -118,16 +145,13 @@
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
         </div>
-        <!-- Shape & Color canvas controls -->
-        <div class="shape-color-controls" id="shape-color-controls">
-            <button class="shape-color-btn" id="add-circle-btn">ADD CIRCLE</button>
-            <button class="shape-color-btn" id="reset-circles-btn">RESET</button>
-        </div>
-        <!-- Container for circles on Shape & Color canvas -->
-        <div class="shape-color-circles" id="shape-color-circles"></div>
         <!-- Container for yellow circle on Letter + Letter page -->
         <div class="letter-letter-circle-container" id="letter-letter-circle-container">
             <div class="letter-letter-circle"></div>
+        </div>
+        <!-- Container for white circle with black outline on Shape + Color page -->
+        <div class="shape-color-circle-container" id="shape-color-circle-container">
+            <div class="shape-color-circle"></div>
         </div>
     </div>
     <div class="line line-outer-left"></div>

@@ -352,8 +352,8 @@ body {
     font-family: 'JetBrains Mono NL', monospace;
     font-size: 15px;
     font-weight: normal;
-    text-transform: none; /* Allow lowercase like [ethesia] */
-    letter-spacing: 0.03em; /* 3% letter spacing - same as [ethesia] */
+    text-transform: none; /* Allow lowercase like [i] */
+    letter-spacing: 0.03em; /* 3% letter spacing - same as [i] */
     text-align: center;
     white-space: normal;
     pointer-events: none; /* Don't block interactions */
@@ -426,7 +426,7 @@ body {
 }
 
 
-/* UI layer wrapper - contains all UI elements (logo, about, colorkey) */
+/* UI layer wrapper - contains all UI elements (logo, panel, colorkey) */
 .ui-layer {
     position: absolute;
     left: 0;
@@ -472,7 +472,7 @@ body {
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     white-space: nowrap;
     text-transform: uppercase;
     padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
@@ -493,14 +493,14 @@ body {
 .black-corner-rectangle .color-key-text .letter-l {
     display: inline-block; /* Allow individual letter control */
     font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
 }
 
-/* Expanded letter-spacing on hover - progressive spacing (same logic as ABOUT) */
+/* Expanded letter-spacing on hover - progressive spacing (same logic as PANEL) */
 .black-corner-rectangle:hover .color-key-text .letter-s,
 .black-corner-rectangle.color-key-expanded .color-key-text .letter-s {
-    letter-spacing: 0.16em; /* 16% - between S and I (same as A→B in ABOUT) */
+    letter-spacing: 0.16em; /* 16% - between S and I (same as P→A in PANEL) */
 }
 
 .black-corner-rectangle:hover .color-key-text .letter-i,
@@ -556,7 +556,7 @@ body {
     position: absolute;
     right: 50px; /* 50px from right edge - aligns with left edge of right scrollbar */
     bottom: 0; /* Positioned at bottom of screen */
-    width: 225px; /* Keep original width - this is the about rectangle (short rectangle) */
+    width: 225px; /* Keep original width - this is the panel rectangle (short rectangle) */
     height: 40px; /* Increased from 35px by 5px - top edge only */
     background-color: #2C2C2C; /* Same black as other rectangles */
     z-index: 1; /* Relative to ui-layer */
@@ -582,7 +582,8 @@ body {
     height: 75px; /* Reduced height, bottom edge stays fixed */
     background-color: #2C2C2C;
     z-index: 1; /* Relative to ui-layer */
-    pointer-events: none;
+    pointer-events: auto; /* Enable hover interactions for SYN letter-spacing effect */
+    cursor: pointer; /* Indicate interactivity */
     padding-left: 0; /* No left padding - text sits flush with left edge */
     padding-bottom: 0; /* No bottom padding - text sits on bottom edge */
     font-family: sans-serif;
@@ -591,6 +592,7 @@ body {
     color: white; /* Match white canvas color */
     letter-spacing: 2px;
     line-height: 114%;
+    overflow: visible; /* Allow SYN text to extend beyond container on hover */
 }
 
 .black-rectangle .syn-text {
@@ -606,17 +608,49 @@ body {
     margin: 0;
     padding: 0;
     transform: translateX(-4px); /* Pull text left to eliminate gap from font sidebearings */
+    white-space: nowrap; /* Prevent line breaking when letters expand */
+    overflow: visible; /* Allow text to extend beyond container */
 }
 
 .black-rectangle .syn-text .syn-word {
     display: inline-block;
     position: relative;
+    white-space: nowrap; /* Prevent line breaking when letters expand */
+}
+
+/* Default letter-spacing for each SYN letter */
+.black-rectangle .syn-text .syn-letter-s,
+.black-rectangle .syn-text .syn-letter-y,
+.black-rectangle .syn-text .syn-letter-n {
+    display: inline-block; /* Allow individual letter control */
+    letter-spacing: -0.17em; /* -17% letter spacing - matches original */
+    transition: letter-spacing 0.3s ease; /* Smooth transition */
+}
+
+/* Specific S letter spacing - 3px tighter than default */
+.black-rectangle .syn-text .syn-letter-s {
+    letter-spacing: -0.204em; /* -0.17em - 0.034em (3px at 88px font) */
+}
+
+/* Expanded letter-spacing on hover - progressive spacing (same logic as PANEL) */
+.black-rectangle:hover .syn-text .syn-letter-s {
+    letter-spacing: 0.068em; /* ~6px at 88px font - reduced by 2px */
+}
+
+.black-rectangle:hover .syn-text .syn-letter-y {
+    letter-spacing: 0.205em; /* ~18px at 88px font - reduced by 3px from 0.24em */
+}
+
+.black-rectangle:hover .syn-text .syn-letter-n {
+    letter-spacing: -0.17em; /* Keep same as default - maintains consistent gap to [i] */
 }
 
 .black-rectangle .syn-text .ethesia-text {
-    position: absolute;
-    left: calc(100% + 13px); /* Position 13px to the right of SYN word */
-    top: 3px; /* Position 3px below SYN's top edge */
+    position: relative; /* Changed from absolute to flow with SYN letters */
+    display: inline-block;
+    vertical-align: top; /* Align to top of SYN */
+    margin-left: 15px; /* 15px gap from SYN */
+    margin-top: 3px; /* Same 3px offset from top as before */
     font-family: 'JetBrains Mono NL', monospace;
     font-size: 15px;
     letter-spacing: 0.03em; /* 3% letter spacing */
@@ -624,9 +658,11 @@ body {
     white-space: nowrap;
     text-transform: none; /* Override parent's uppercase transform to keep lowercase */
     line-height: 0.8; /* Match SYN's line-height */
-    margin: 0;
+    margin-right: 0;
+    margin-bottom: 0;
     padding: 0;
 }
+
 
 
 .split-region {
@@ -647,61 +683,63 @@ body {
     flex-direction: column;
 }
 
-/* Text styling for ABOUT - same as COLOR KEY */
-.black-middle-rectangle .about-text {
+/* Text styling for PANEL - same as COLOR KEY */
+.black-middle-rectangle .panel-text {
     color: white; /* Match white canvas color */
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     white-space: nowrap;
     text-transform: uppercase;
     padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
     box-sizing: border-box;
     position: relative;
     top: 9px; /* Moved up 3px from 12px */
+    left: -3px; /* Moved 3px to the left */
 }
 
 /* Default letter-spacing for each letter - -15% spacing */
-.black-middle-rectangle .about-text .about-letter-a,
-.black-middle-rectangle .about-text .about-letter-b,
-.black-middle-rectangle .about-text .about-letter-o,
-.black-middle-rectangle .about-text .about-letter-u,
-.black-middle-rectangle .about-text .about-letter-t {
+.black-middle-rectangle .panel-text .panel-letter-p,
+.black-middle-rectangle .panel-text .panel-letter-a,
+.black-middle-rectangle .panel-text .panel-letter-n,
+.black-middle-rectangle .panel-text .panel-letter-e,
+.black-middle-rectangle .panel-text .panel-letter-l {
     display: inline-block; /* Allow individual letter control */
     font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
 }
 
-/* Expanded letter-spacing on hover - progressive spacing */
-.black-middle-rectangle:hover .about-text .about-letter-a {
-    letter-spacing: 0.16em; /* 16% - between A and B (stays the same) */
+/* Expanded letter-spacing for pages with internal panels - progressive spacing */
+/* Applied via .panel-expanded class (not hover) for Shape & Number and Shape & Sound pages */
+.black-middle-rectangle.panel-expanded .panel-text .panel-letter-p {
+    letter-spacing: 0.16em; /* 16% - between P and A */
 }
 
-.black-middle-rectangle:hover .about-text .about-letter-b {
-    letter-spacing: 0.24em; /* 24% - between B and O */
+.black-middle-rectangle.panel-expanded .panel-text .panel-letter-a {
+    letter-spacing: 0.24em; /* 24% - between A and N */
 }
 
-.black-middle-rectangle:hover .about-text .about-letter-o {
-    letter-spacing: 0.32em; /* 32% - between O and U */
+.black-middle-rectangle.panel-expanded .panel-text .panel-letter-n {
+    letter-spacing: 0.32em; /* 32% - between N and E */
 }
 
-.black-middle-rectangle:hover .about-text .about-letter-u {
-    letter-spacing: 0.4em; /* 40% - between U and T */
+.black-middle-rectangle.panel-expanded .panel-text .panel-letter-e {
+    letter-spacing: 0.4em; /* 40% - between E and L */
 }
 
-.black-middle-rectangle:hover .about-text .about-letter-t {
-    letter-spacing: 0.48em; /* 48% - after T */
+.black-middle-rectangle.panel-expanded .panel-text .panel-letter-l {
+    letter-spacing: 0.48em; /* 48% - after L */
 }
 
-/* Text styling for WORD - same as ABOUT */
+/* Text styling for WORD - same as PANEL */
 .black-bottom-rectangle .word-text {
     color: white; /* Match white canvas color */
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     white-space: nowrap;
     text-transform: uppercase;
     text-align: left; /* Explicitly align text to left */
@@ -719,7 +757,7 @@ body {
 .black-bottom-rectangle .word-text .word-letter {
     display: inline-block; /* Allow individual letter control */
     font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.15em; /* -15% letter spacing */
+    letter-spacing: -0.05em; /* -5% letter spacing */
     /* Removed transition - no hover effects on text */
 }
 
@@ -728,8 +766,8 @@ body {
     margin-right: 0.25em; /* Add visible spacing despite negative letter-spacing */
 }
 
-/* Info marker [i] next to about text */
-.black-middle-rectangle .about-text .parameter-info-marker {
+/* Info marker [i] next to panel text */
+.black-middle-rectangle .panel-text .parameter-info-marker {
     position: absolute;
     left: 100%; /* Start at end of text content */
     margin-left: -3px; /* Move 3px to the left (was -5px, moved 2px right) */
@@ -748,11 +786,11 @@ body {
     transition: transform 0.3s ease; /* Smooth transition to match letter spacing */
 }
 
-/* On hover, move [i] left to stick to the T letter (T has letter-spacing: 0.48em) */
-.black-middle-rectangle:hover .about-text .parameter-info-marker {
-    /* Move left by T's letter-spacing (0.48em) to stick to T */
+/* When panel is expanded, move [i] left to stick to the L letter (L has letter-spacing: 0.48em) */
+.black-middle-rectangle.panel-expanded .panel-text .parameter-info-marker {
+    /* Move left by L's letter-spacing (0.48em) to stick to L */
     /* font-size is 34px, so 0.48em = 0.48 * 34px = 16.32px */
-    transform: translateX(calc(-0.48em - 3px)); /* Move left by T's letter-spacing plus original offset */
+    transform: translateX(calc(-0.48em - 3px)); /* Move left by L's letter-spacing plus original offset */
 }
 
 
@@ -792,7 +830,7 @@ body {
     width: 100%;
     height: 100%;
     position: relative;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* No transition - instant page switching */
     /* Ensure container maintains size even when hidden */
     min-width: 1px;
     min-height: 1px;
@@ -887,15 +925,15 @@ body {
     overflow: visible; /* Ensure text is visible */
 }
 
-/* White backing layer: blocks main text box when ABOUT is hovered */
-.canvas-text-box-about-backing {
-    position: fixed; /* Fixed to viewport - matches ABOUT overlay positioning */
-    left: 50px; /* Same as ABOUT overlay */
-    top: calc(100vh / 6 * 5 + 3px); /* Same as ABOUT overlay */
+/* White backing layer: blocks main text box when PANEL is hovered */
+.canvas-text-box-panel-backing {
+    position: fixed; /* Fixed to viewport - matches PANEL overlay positioning */
+    left: 50px; /* Same as PANEL overlay */
+    top: calc(100vh / 6 * 5 + 3px); /* Same as PANEL overlay */
     width: 1035px; /* Same width as main text box */
-    height: calc(100vh / 6); /* Same height as ABOUT overlay */
+    height: calc(100vh / 6); /* Same height as PANEL overlay */
     background-color: white; /* White background to block main text box */
-    z-index: 12; /* Above main text box (12) but below ABOUT text overlay (13) */
+    z-index: 12; /* Above main text box (12) but below PANEL text overlay (13) */
     pointer-events: none; /* Don't interfere with canvas interactions */
     /* Hidden by default */
     opacity: 0;
@@ -903,14 +941,14 @@ body {
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Show backing layer when ABOUT element is hovered (via class toggle) */
-.canvas-text-box-about-backing.visible {
+/* Show backing layer when PANEL element is hovered (via class toggle) */
+.canvas-text-box-panel-backing.visible {
     opacity: 1;
     visibility: visible;
 }
 
-/* ABOUT hover overlay: appears above main canvas text box on hover */
-.canvas-text-box-about-overlay {
+/* PANEL hover overlay: appears above main canvas text box on hover */
+.canvas-text-box-panel-overlay {
     position: fixed; /* Fixed to viewport - matches canvas-text-box positioning */
     left: 50px; /* Same as canvas-text-box */
     top: calc(100vh / 6 * 5 + 3px); /* Same as canvas-text-box */
@@ -930,8 +968,8 @@ body {
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Show overlay when ABOUT element is hovered (via class toggle) */
-.canvas-text-box-about-overlay.visible {
+/* Show overlay when PANEL element is hovered (via class toggle) */
+.canvas-text-box-panel-overlay.visible {
     opacity: 1;
     visibility: visible;
 }
@@ -955,7 +993,7 @@ body {
     font-size: 67px;
     line-height: 71px;
     font-weight: bold;
-    color: #E0E0E0; /* Same gray as line backgrounds in main text box */
+    color: #2C2C2C; /* Same black as UI rectangles */
     z-index: 11; /* Below main canvas text box (z-index: 12) but above canvas */
     pointer-events: auto; /* Enable hover interactions on letters */
     overflow: visible; /* Ensure text is visible */
@@ -968,7 +1006,7 @@ body {
     display: none;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* No transition - instant page switching */
     /* Ensure proper word wrapping - no word splitting */
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -1212,12 +1250,13 @@ body {
     display: none;
 }
 
-/* Change shape colors to gray for SHAPE & LETTER canvas */
+/* Change shape colors to match SHAPE & NUMBER canvas style */
 .canvas-text-box-letter-sound svg,
 .canvas-text-box-letter-sound .letter-shape svg,
 .canvas-text-box-letter-sound .letter-slot svg {
-    fill: #E0E0E0 !important; /* Same gray as line backgrounds in main text box */
-    stroke: #E0E0E0 !important; /* Same gray as line backgrounds in main text box */
+    fill: #fff !important; /* White fill to match shape & number canvas */
+    stroke: #2C2C2C !important; /* Same black as UI rectangles */
+    stroke-width: 2px !important; /* 2px stroke width */
 }
 
 /* Canvas instruction text for SOUND & SHAPE page */
@@ -1239,7 +1278,7 @@ body {
     display: none;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* No transition - instant page switching */
 }
 
 /* Show instruction text when SOUND & SHAPE is active */
@@ -1270,70 +1309,6 @@ h1 {
     font-weight: normal;
 }
 
-/* Shape & Color canvas controls */
-.shape-color-controls {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-    z-index: 14; /* Above canvas and other elements */
-    pointer-events: auto;
-    /* Hidden by default, shown only for Shape & Color screen */
-    display: none;
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.shape-color-controls.visible {
-    display: flex;
-    visibility: visible;
-    opacity: 1;
-}
-
-.shape-color-btn {
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    color: #2C2C2C;
-    background-color: white;
-    border: 1px solid #2C2C2C;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    white-space: nowrap;
-}
-
-.shape-color-btn:hover {
-    background-color: #2C2C2C;
-    color: white;
-}
-
-/* Container for circles on Shape & Color canvas */
-.shape-color-circles {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* Don't interfere with canvas interactions */
-    z-index: 13; /* Above canvas but below buttons */
-}
-
-/* Individual circle on Shape & Color canvas */
-.shape-color-circle {
-    position: absolute;
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background-color: #EB4781 !important;
-    pointer-events: none; /* Don't interfere with canvas interactions */
-    /* Positioned at center of canvas container */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
 
 /* Container for yellow circle on Letter + Letter page */
 .letter-letter-circle-container {
@@ -1347,7 +1322,7 @@ h1 {
     display: none;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* No transition - instant page switching */
 }
 
 .letter-letter-circle-container.visible {
@@ -1368,3 +1343,369 @@ h1 {
     transform: translate(-50%, -50%);
     pointer-events: none; /* Don't interfere with canvas interactions */
 }
+
+/* Container for white circle with black outline on Shape + Color page */
+.shape-color-circle-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    z-index: 1; /* Below UI elements (z-index: 2+), columns (z-index: 10+), and text boxes (z-index: 12+), but above canvas */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.shape-color-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* SVG container for lines on Shape + Color page */
+.shape-color-lines-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1; /* Below circles (which are at z-index: 2) */
+}
+
+/* Circle with blue gradient (deep blue to cyan) on Shape + Color page */
+.shape-color-circle {
+    position: absolute;
+    width: 135px;
+    height: 135px;
+    border-radius: 50%;
+    background: #ffffff; /* White fill by default */
+    border: 3px solid #2C2C2C; /* 3px black outline */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    transition: none; /* Transition controlled by JavaScript */
+}
+
+
+/* Orange square with black outline on Shape + Color page */
+.shape-color-square {
+    position: absolute;
+    width: 135px;
+    height: 135px;
+    background-color: #ffffff; /* White fill by default */
+    border: 3px solid #2C2C2C; /* 3px black outline */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    transition: none; /* Transition controlled by JavaScript */
+}
+
+
+/* Ellipse with purple-pink gradient on Shape + Color page */
+.shape-color-ellipse {
+    position: absolute;
+    width: 108px; /* Reduced by 20% from 135px (135 * 0.8 = 108) */
+    height: 72px; /* Reduced by 20% from 90px (90 * 0.8 = 72) */
+    border-radius: 50%;
+    background: #ffffff; /* White fill by default */
+    border: 3px solid #2C2C2C; /* 3px black outline */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    transition: none; /* Transition controlled by JavaScript */
+}
+
+
+/* White triangle with black outline on Shape + Color page */
+.shape-color-triangle {
+    position: absolute;
+    width: 67.5px; /* Reduced by 50% from 135px (135 * 0.5 = 67.5) */
+    height: 67.5px; /* Reduced by 50% from 135px (135 * 0.5 = 67.5) */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    cursor: pointer; /* Indicate interactivity */
+    overflow: visible !important; /* Allow stroke to extend beyond container */
+}
+
+/* Default white fill for all SVG shapes */
+.shape-color-triangle svg,
+.shape-color-pentagon svg,
+.shape-color-star svg {
+    overflow: visible !important; /* Allow stroke to extend beyond SVG viewport */
+}
+
+.shape-color-triangle svg path,
+.shape-color-pentagon svg path,
+.shape-color-star svg path {
+    fill: #ffffff; /* White fill by default */
+    stroke: #2C2C2C !important; /* Black stroke */
+    transition: none; /* Transition controlled by JavaScript */
+    /* Smooth line joins and caps for consistent outline at corners */
+    stroke-linejoin: round !important; /* Round joins for smooth corners */
+    stroke-linecap: round !important; /* Round caps for smooth line ends */
+    stroke-miterlimit: 10 !important; /* High miter limit for round joins */
+}
+
+/* Ensure all SVG shapes have consistent 3px stroke */
+.shape-color-triangle svg path {
+    stroke-width: 6 !important; /* 3px on screen: 3 / (67.5/135) = 3 / 0.5 = 6 */
+}
+
+.shape-color-pentagon svg path {
+    stroke-width: 3 !important; /* 3px on screen: 3 / (135/135) = 3 / 1 = 3 */
+}
+
+.shape-color-star svg path {
+    stroke-width: 4.286 !important; /* 3px on screen: 3 / (94.5/135) = 3 / 0.7 = 4.286 */
+}
+
+
+/* White pentagon with black outline on Shape + Color page */
+.shape-color-pentagon {
+    position: absolute;
+    width: 135px;
+    height: 135px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    cursor: pointer; /* Indicate interactivity */
+    overflow: visible !important; /* Allow stroke to extend beyond container */
+}
+
+/* Pentagon hover state - handled by JavaScript (gradient requires dynamic reference) */
+
+/* White star with black outline on Shape + Color page */
+.shape-color-star {
+    position: absolute;
+    width: 94.5px; /* Reduced by 30% from 135px (135 * 0.7 = 94.5) */
+    height: 94.5px; /* Reduced by 30% from 135px (135 * 0.7 = 94.5) */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* Enable hover interactions */
+    z-index: 2; /* Above lines (which are at z-index: 1) */
+    cursor: pointer; /* Indicate interactivity */
+    overflow: visible !important; /* Allow stroke to extend beyond container */
+}
+
+/* Star hover state - handled by JavaScript (gradient requires dynamic reference) */
+
+/* ==================
+   SHAPE & NUMBER CANVAS
+   ================== */
+.shape-number-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Same as p5-container */
+    /* No transition - instant page switching */
+}
+
+.shape-number-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.shape-number-container:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#shape-number-draw-surface {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #fff;
+    z-index: 11;
+}
+
+.shape-number-panel {
+    position: absolute;
+    right: 0px;
+    bottom: 40px;
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    box-sizing: border-box;
+    background: #2C2C2C;
+    padding: 10px;
+    z-index: 12; /* Above canvas */
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Slide-in animation: starts off-screen right */
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+/* Visible state: panel slides into position */
+.shape-number-panel.visible {
+    transform: translateX(0);
+}
+
+.shape-number-title {
+    font-size: 15px;
+    font-weight: normal;
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono NL', monospace;
+    color: #ffffff;
+    letter-spacing: 0.03em;
+    line-height: 0.8;
+}
+
+.shape-number-label {
+    font-size: 15px;
+    margin: 4px 0;
+    font-family: 'JetBrains Mono NL', monospace;
+    color: #ffffff;
+    letter-spacing: 0.03em;
+    line-height: 0.8;
+}
+
+.shape-number-value {
+    font-size: 15px;
+    margin-top: 4px;
+    color: #ffffff;
+    font-family: 'JetBrains Mono NL', monospace;
+    letter-spacing: 0.03em;
+    line-height: 0.8;
+}
+
+.shape-number-spacer {
+    height: 10px;
+}
+
+#shape-number-countSlider,
+#shape-number-sizeSlider {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    color: #ffffff;
+    letter-spacing: 0.03em;
+    line-height: 0.8;
+    background-color: transparent;
+    border: none;
+}
+
+/* Shape buttons container */
+.shape-number-shapes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.shape-number-shapes-row {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+
+.shape-number-shape-btn {
+    flex: 1;
+    margin: 0;
+    font-size: 20px;
+    font-family: 'JetBrains Mono NL', monospace;
+    letter-spacing: 0.03em;
+    line-height: 0.8;
+    text-transform: none;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+}
+
+/* Style for range sliders */
+#shape-number-countSlider,
+#shape-number-sizeSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 2px;
+    background: #ffffff;
+    outline: none;
+}
+
+#shape-number-countSlider::-webkit-slider-thumb,
+#shape-number-sizeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+#shape-number-countSlider::-moz-range-thumb,
+#shape-number-sizeSlider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    cursor: pointer;
+    border: none;
+    border-radius: 0;
+}
+
+/* ==================
+   SHAPE & EMOTION CANVAS
+   ================== */
+.shape-emotion-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Same as p5-container */
+    /* No transition - instant page switching */
+}
+
+.shape-emotion-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.shape-emotion-container:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#shape-emotion-draw-surface {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #fff;
+    z-index: 11;
+    cursor: crosshair; /* Indicate drawing capability */
+}
+
