@@ -149,9 +149,121 @@
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
         </div>
-        <!-- Container for yellow circle on Letter + Letter page -->
+        <!-- Container for concentric rings with letter A on Letter + Letter page -->
         <div class="letter-letter-circle-container" id="letter-letter-circle-container">
-            <div class="letter-letter-circle"></div>
+            <svg class="concentric-rings-svg" id="concentric-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
+                <defs>
+                    <!-- Clip paths for each ring (annular regions) -->
+                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <clipPath id="ring-clip-0">
+                        <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <clipPath id="ring-clip-1">
+                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <clipPath id="ring-clip-2">
+                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <clipPath id="ring-clip-3">
+                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <clipPath id="ring-clip-4">
+                        <circle cx="0" cy="0" r="60"/>
+                    </clipPath>
+                </defs>
+                
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <g class="ring-group" data-ring="0">
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                </g>
+                
+                <!-- Ring 1: circle r=240 -->
+                <g class="ring-group" data-ring="1">
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                </g>
+                
+                <!-- Ring 2 (middle): circle r=180 -->
+                <g class="ring-group" data-ring="2">
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                </g>
+                
+                <!-- Ring 3: circle r=120 -->
+                <g class="ring-group" data-ring="3">
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                </g>
+                
+                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <g class="ring-group" data-ring="4">
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                </g>
+            </svg>
+        </div>
+        <!-- Container for concentric rings with digit 5 on Number + Number page -->
+        <div class="number-number-circle-container" id="number-number-circle-container">
+            <svg class="concentric-rings-svg" id="number-number-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
+                <defs>
+                    <!-- Clip paths for each ring (annular regions) - same as letter version -->
+                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <clipPath id="number-ring-clip-0">
+                        <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <clipPath id="number-ring-clip-1">
+                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <clipPath id="number-ring-clip-2">
+                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <clipPath id="number-ring-clip-3">
+                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <clipPath id="number-ring-clip-4">
+                        <circle cx="0" cy="0" r="60"/>
+                    </clipPath>
+                </defs>
+                
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <g class="ring-group number-ring-group" data-ring="0">
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                </g>
+                
+                <!-- Ring 1: circle r=240 -->
+                <g class="ring-group number-ring-group" data-ring="1">
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                </g>
+                
+                <!-- Ring 2 (middle): circle r=180 -->
+                <g class="ring-group number-ring-group" data-ring="2">
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                </g>
+                
+                <!-- Ring 3: circle r=120 -->
+                <g class="ring-group number-ring-group" data-ring="3">
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                </g>
+                
+                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <g class="ring-group number-ring-group" data-ring="4">
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                </g>
+            </svg>
         </div>
         <!-- Container for white circle with black outline on Shape + Color page -->
         <div class="shape-color-circle-container" id="shape-color-circle-container">
@@ -195,6 +307,104 @@
                 <div class="sound-color-square" data-index="4" data-color="#EB4781"></div>
                 <div class="sound-color-square" data-index="5" data-color="#293990"></div>
             </div>
+        </div>
+        <!-- Container for Letter + Number circle (A-Z followed by 1-9) -->
+        <div class="letter-number-circle-container" id="letter-number-circle-container">
+            <!-- SVG for lines from center to each letter/number -->
+            <svg class="letter-number-lines-svg" id="letter-number-lines-svg">
+                <line class="letter-number-line" id="letter-number-line-0"></line>
+                <line class="letter-number-line" id="letter-number-line-1"></line>
+                <line class="letter-number-line" id="letter-number-line-2"></line>
+                <line class="letter-number-line" id="letter-number-line-3"></line>
+                <line class="letter-number-line" id="letter-number-line-4"></line>
+                <line class="letter-number-line" id="letter-number-line-5"></line>
+                <line class="letter-number-line" id="letter-number-line-6"></line>
+                <line class="letter-number-line" id="letter-number-line-7"></line>
+                <line class="letter-number-line" id="letter-number-line-8"></line>
+                <line class="letter-number-line" id="letter-number-line-9"></line>
+                <line class="letter-number-line" id="letter-number-line-10"></line>
+                <line class="letter-number-line" id="letter-number-line-11"></line>
+                <line class="letter-number-line" id="letter-number-line-12"></line>
+                <line class="letter-number-line" id="letter-number-line-13"></line>
+                <line class="letter-number-line" id="letter-number-line-14"></line>
+                <line class="letter-number-line" id="letter-number-line-15"></line>
+                <line class="letter-number-line" id="letter-number-line-16"></line>
+                <line class="letter-number-line" id="letter-number-line-17"></line>
+                <line class="letter-number-line" id="letter-number-line-18"></line>
+                <line class="letter-number-line" id="letter-number-line-19"></line>
+                <line class="letter-number-line" id="letter-number-line-20"></line>
+                <line class="letter-number-line" id="letter-number-line-21"></line>
+                <line class="letter-number-line" id="letter-number-line-22"></line>
+                <line class="letter-number-line" id="letter-number-line-23"></line>
+                <line class="letter-number-line" id="letter-number-line-24"></line>
+                <line class="letter-number-line" id="letter-number-line-25"></line>
+                <line class="letter-number-line" id="letter-number-line-26"></line>
+                <line class="letter-number-line" id="letter-number-line-27"></line>
+                <line class="letter-number-line" id="letter-number-line-28"></line>
+                <line class="letter-number-line" id="letter-number-line-29"></line>
+                <line class="letter-number-line" id="letter-number-line-30"></line>
+                <line class="letter-number-line" id="letter-number-line-31"></line>
+                <line class="letter-number-line" id="letter-number-line-32"></line>
+                <line class="letter-number-line" id="letter-number-line-33"></line>
+                <line class="letter-number-line" id="letter-number-line-34"></line>
+            </svg>
+            <!-- Letters A-Z (indices 0-25) -->
+            <div class="letter-number-item" data-index="0" data-type="letter">A</div>
+            <div class="letter-number-item" data-index="1" data-type="letter">B</div>
+            <div class="letter-number-item" data-index="2" data-type="letter">C</div>
+            <div class="letter-number-item" data-index="3" data-type="letter">D</div>
+            <div class="letter-number-item" data-index="4" data-type="letter">E</div>
+            <div class="letter-number-item" data-index="5" data-type="letter">F</div>
+            <div class="letter-number-item" data-index="6" data-type="letter">G</div>
+            <div class="letter-number-item" data-index="7" data-type="letter">H</div>
+            <div class="letter-number-item" data-index="8" data-type="letter">I</div>
+            <div class="letter-number-item" data-index="9" data-type="letter">J</div>
+            <div class="letter-number-item" data-index="10" data-type="letter">K</div>
+            <div class="letter-number-item" data-index="11" data-type="letter">L</div>
+            <div class="letter-number-item" data-index="12" data-type="letter">M</div>
+            <div class="letter-number-item" data-index="13" data-type="letter">N</div>
+            <div class="letter-number-item" data-index="14" data-type="letter">O</div>
+            <div class="letter-number-item" data-index="15" data-type="letter">P</div>
+            <div class="letter-number-item" data-index="16" data-type="letter">Q</div>
+            <div class="letter-number-item" data-index="17" data-type="letter">R</div>
+            <div class="letter-number-item" data-index="18" data-type="letter">S</div>
+            <div class="letter-number-item" data-index="19" data-type="letter">T</div>
+            <div class="letter-number-item" data-index="20" data-type="letter">U</div>
+            <div class="letter-number-item" data-index="21" data-type="letter">V</div>
+            <div class="letter-number-item" data-index="22" data-type="letter">W</div>
+            <div class="letter-number-item" data-index="23" data-type="letter">X</div>
+            <div class="letter-number-item" data-index="24" data-type="letter">Y</div>
+            <div class="letter-number-item" data-index="25" data-type="letter">Z</div>
+            <!-- Numbers 1-9 (indices 26-34) -->
+            <div class="letter-number-item" data-index="26" data-type="number">1</div>
+            <div class="letter-number-item" data-index="27" data-type="number">2</div>
+            <div class="letter-number-item" data-index="28" data-type="number">3</div>
+            <div class="letter-number-item" data-index="29" data-type="number">4</div>
+            <div class="letter-number-item" data-index="30" data-type="number">5</div>
+            <div class="letter-number-item" data-index="31" data-type="number">6</div>
+            <div class="letter-number-item" data-index="32" data-type="number">7</div>
+            <div class="letter-number-item" data-index="33" data-type="number">8</div>
+            <div class="letter-number-item" data-index="34" data-type="number">9</div>
+        </div>
+        <!-- Container for concentric gradient rings on Color + Color page -->
+        <div class="color-color-circle-container" id="color-color-circle-container">
+            <!-- Ring 0 (outermost): 600px diameter -->
+            <div class="color-color-ring" data-ring="0"></div>
+            <!-- Ring 1: 480px diameter -->
+            <div class="color-color-ring" data-ring="1"></div>
+            <!-- Ring 2 (middle): 360px diameter -->
+            <div class="color-color-ring" data-ring="2"></div>
+            <!-- Ring 3: 240px diameter -->
+            <div class="color-color-ring" data-ring="3"></div>
+            <!-- Ring 4 (innermost): 120px diameter -->
+            <div class="color-color-ring" data-ring="4"></div>
+        </div>
+        <!-- Container for sound wave visualization on Sound + Sound page -->
+        <div class="sound-sound-wave-container" id="sound-sound-wave-container">
+            <svg class="sound-wave-svg" id="sound-wave-svg" width="600" height="100" viewBox="0 0 600 100">
+                <path id="sound-wave-path" class="sound-wave-path"></path>
+            </svg>
+            <button class="sound-wave-mic-btn" id="sound-wave-mic-btn">[enable microphone]</button>
         </div>
     </div>
     <div class="line line-outer-left"></div>

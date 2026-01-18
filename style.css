@@ -1599,14 +1599,15 @@ h1 {
 }
 
 
-/* Container for yellow circle on Letter + Letter page */
+/* Container for concentric rings with letter A on Letter + Letter page */
 .letter-letter-circle-container {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* Don't interfere with canvas interactions */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 50px)); /* Centered with slight upward offset */
+    width: 620px;
+    height: 620px;
+    pointer-events: auto; /* Enable interactions with rings */
     z-index: 13; /* Above canvas but below buttons */
     display: none;
     visibility: hidden;
@@ -1620,17 +1621,53 @@ h1 {
     opacity: 1;
 }
 
-/* Yellow circle on Letter + Letter page */
-.letter-letter-circle {
+/* SVG container for concentric rings */
+.concentric-rings-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Ring group - contains circle and letter slice */
+.ring-group {
+    cursor: default;
+    pointer-events: none; /* No interaction needed - rings follow mouse automatically */
+}
+
+/* Ring circle styling */
+.ring-circle {
+    fill: white;
+    stroke: #2C2C2C;
+    stroke-width: 2px;
+    pointer-events: all; /* Allow clicking on the entire circle area */
+}
+
+/* Ring letter - the sliced portion of A or 5 */
+.ring-letter {
+    pointer-events: none; /* Don't interfere with ring dragging */
+    user-select: none;
+}
+
+/* Container for concentric rings with digit 5 on Number + Number page */
+.number-number-circle-container {
     position: absolute;
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background-color: #FAB01B;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none; /* Don't interfere with canvas interactions */
+    transform: translate(-50%, calc(-50% - 50px)); /* Centered with slight upward offset */
+    width: 620px;
+    height: 620px;
+    pointer-events: auto; /* Enable interactions with rings */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.number-number-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
 }
 
 /* Container for white circle with black outline on Shape + Color page */
@@ -2142,5 +2179,221 @@ h1 {
     stroke: #2C2C2C;
     stroke-width: 2px;
     fill: none;
+}
+
+/* ==================
+   SOUND + SOUND WAVE VISUALIZATION
+   ================== */
+.sound-sound-wave-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 80px)); /* Centered with upward offset like other elements */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 13; /* Above canvas but below buttons */
+    /* Container centers the SVG and button */
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.sound-sound-wave-container.visible {
+    display: flex;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* SVG container for the wave */
+.sound-wave-svg {
+    overflow: visible;
+}
+
+/* Wave path styling - 3px stroke width as requested */
+.sound-wave-path {
+    stroke: #2C2C2C;
+    stroke-width: 3px;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Microphone enable button */
+.sound-wave-mic-btn {
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    font-weight: normal;
+    letter-spacing: 0.03em;
+    color: #2C2C2C;
+    background: transparent;
+    border: none;
+    padding: 8px 0;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.sound-wave-mic-btn:hover {
+    opacity: 0.6;
+}
+
+.sound-wave-mic-btn.active {
+    color: #2C2C2C;
+    background: transparent;
+}
+
+.sound-wave-mic-btn.hidden {
+    display: none;
+}
+
+/* ==================
+   LETTER + NUMBER CIRCLE (A-Z followed by 1-9 arranged in a circle)
+   ================== */
+.letter-number-circle-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 80px)); /* Moved up by 80px */
+    width: 700px;
+    height: 700px;
+    /* Hidden by default - shown only on Letter + Number pages (2-3, 3-2) */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    /* No transition - instant page switching */
+}
+
+.letter-number-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* SVG container for lines from center to each letter/number */
+.letter-number-lines-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1; /* Below letters/numbers */
+    overflow: visible;
+}
+
+/* Line styling - same black as the site (#2C2C2C) */
+.letter-number-line {
+    stroke: #2C2C2C;
+    stroke-width: 2px;
+    fill: none;
+}
+
+/* Individual letter/number item */
+.letter-number-item {
+    position: absolute;
+    font-family: Helvetica, sans-serif;
+    font-size: 48px; /* 2x larger (was 24px) */
+    font-weight: bold;
+    color: #2C2C2C;
+    text-transform: uppercase;
+    /* Centered on its position */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px; /* 2x larger (was 40px) */
+    height: 80px; /* 2x larger (was 40px) */
+    /* Position will be set by JavaScript */
+    user-select: none;
+    pointer-events: auto;
+    z-index: 2; /* Above lines */
+    /* Smooth transition for font-size changes based on distance from center */
+    transition: font-size 0.1s ease-out;
+}
+
+/* ==================
+   COLOR + COLOR CONCENTRIC RINGS
+   ================== */
+.color-color-circle-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 90px)); /* Centered with upward offset */
+    width: 620px;
+    height: 620px;
+    pointer-events: auto; /* Enable interactions with rings */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.color-color-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Individual gradient ring */
+.color-color-ring {
+    position: absolute;
+    border-radius: 50%;
+    /* Smooth conic gradient with 6 colors from scrollbar rectangles - colors blend into each other */
+    background: conic-gradient(
+        from 0deg,
+        #EF4538 0deg,
+        #891951 60deg,
+        #FAB01B 120deg,
+        #007A6F 180deg,
+        #EB4781 240deg,
+        #293990 300deg,
+        #EF4538 360deg
+    );
+    border: 2px solid #2C2C2C;
+    /* Centered in container */
+    top: 50%;
+    left: 50%;
+    transform-origin: center center;
+    pointer-events: none; /* Don't interfere with other rings */
+}
+
+/* Ring sizes: 600px, 480px, 360px, 240px, 120px (decreasing by 120px each) */
+.color-color-ring[data-ring="0"] {
+    width: 600px;
+    height: 600px;
+    margin-top: -300px;
+    margin-left: -300px;
+}
+
+.color-color-ring[data-ring="1"] {
+    width: 480px;
+    height: 480px;
+    margin-top: -240px;
+    margin-left: -240px;
+}
+
+.color-color-ring[data-ring="2"] {
+    width: 360px;
+    height: 360px;
+    margin-top: -180px;
+    margin-left: -180px;
+}
+
+.color-color-ring[data-ring="3"] {
+    width: 240px;
+    height: 240px;
+    margin-top: -120px;
+    margin-left: -120px;
+}
+
+.color-color-ring[data-ring="4"] {
+    width: 120px;
+    height: 120px;
+    margin-top: -60px;
+    margin-left: -60px;
 }
 

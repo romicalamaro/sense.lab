@@ -30,6 +30,7 @@ let hasUserInteracted = false; // Track if user has started scrolling (prevents 
 let initialInstructionTextShown = false; // Track if initial instruction text has been shown after demo
 let isProgrammaticScroll = false; // Flag to track programmatic scrolls (should not trigger interaction)
 let isDemoActive = false; // Flag to track demo/programmatic animation (prevents START text change during demo)
+let demoJustEnded = false; // Grace period flag - prevents START from triggering immediately after demo ends
 // Store timeout and animation frame IDs for demo cancellation
 let demoTimeouts = []; // Array to store all setTimeout IDs from demo
 let demoAnimationFrames = []; // Array to store all requestAnimationFrame IDs from demo
@@ -87,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Letter + Letter circle visibility
     updateLetterLetterCircle(initialPageId);
     
+    // Initialize Number + Number circle visibility
+    updateNumberNumberCircle(initialPageId);
+    
     // Initialize Shape + Color circle visibility
     updateShapeColorCircle(initialPageId);
     
@@ -95,6 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Sound + Color squares visibility
     updateSoundColorSquares(initialPageId);
+    
+    // Initialize Sound + Sound wave visualization visibility
+    updateSoundSoundWave(initialPageId);
+    
+    // Initialize Letter + Number circle visibility
+    updateLetterNumberCircle(initialPageId);
+    
+    // Initialize Color + Color circle visibility
+    updateColorColorCircle(initialPageId);
     
     // Initialize Shape & Emotion canvas visibility
     updateShapeEmotionCanvasVisibility(initialPageId);
@@ -420,7 +433,8 @@ function initializeColumn(column, side) {
         // Only count real user scrolls, not programmatic ones
         // CRITICAL: Only set hasScrolledScrollbar AFTER initial instruction text has been shown
         // This ensures START only appears on scroll AFTER the 3 intro sentences are visible
-        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown) {
+        // CRITICAL: Also require userInteracted and check demoJustEnded grace period
+        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown && userInteracted && !demoJustEnded) {
             hasScrolledScrollbar = true;
         }
         
@@ -430,7 +444,9 @@ function initializeColumn(column, side) {
         // 2. !isDemoActive (demo has ended)
         // 3. !introTextChanged (hasn't been changed yet)
         // 4. initialInstructionTextShown === true (initial text has been shown after demo)
-        if (hasScrolledScrollbar && !isDemoActive && !introTextChanged && initialInstructionTextShown && !isProgrammaticScroll) {
+        // 5. userInteracted === true (real user interaction via wheel/touch/pointer, not scroll-snap)
+        // 6. !demoJustEnded (grace period after demo has passed)
+        if (hasScrolledScrollbar && !isDemoActive && !introTextChanged && initialInstructionTextShown && !isProgrammaticScroll && userInteracted && !demoJustEnded) {
             // First user scroll detected - immediately switch to START
             
             // Mark that intro text has been changed
@@ -491,6 +507,9 @@ function initializeColumn(column, side) {
         
         // Recenter into middle set if we've drifted too far
         if (scrollTop < topBoundary) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:505',message:'Infinite scroll JUMP UP triggered',data:{side,scrollTop,topBoundary,isDemoActive,isProgrammaticScroll},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
             // Scrolled too far up: jump forward by one set to recenter in middle
             isAdjusting = true;
             isProgrammaticScroll = true; // Mark as programmatic
@@ -501,6 +520,9 @@ function initializeColumn(column, side) {
             // Update selected indices after scroll position changes
             updateSelectedIndices();
         } else if (scrollTop > bottomBoundary) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:515',message:'Infinite scroll JUMP DOWN triggered',data:{side,scrollTop,bottomBoundary,isDemoActive,isProgrammaticScroll},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
             // Scrolled too far down: jump backward by one set to recenter in middle
             isAdjusting = true;
             isProgrammaticScroll = true; // Mark as programmatic
@@ -572,7 +594,8 @@ function initializeColumn(column, side) {
             userInteracted = true;
             
             // Only show START button if initial instruction text has been shown after demo
-            if (!introTextChanged && initialInstructionTextShown && !isDemoActive) {
+            // Also check demoJustEnded to prevent triggering during grace period
+            if (!introTextChanged && initialInstructionTextShown && !isDemoActive && !demoJustEnded) {
                 introTextChanged = true;
                 introReady = true;
                 setupStartButton();
@@ -629,11 +652,12 @@ function initializeColumn(column, side) {
         // Only count real user scrolls, not programmatic ones
         // CRITICAL: Only set hasScrolledScrollbar AFTER initial instruction text has been shown
         // This ensures START only appears on scroll AFTER the 3 intro sentences are visible
-        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown) {
+        if (!hasScrolledScrollbar && !isDemoActive && !isInitializing && !isProgrammaticScroll && initialInstructionTextShown && !demoJustEnded) {
             hasScrolledScrollbar = true;
             
             // Only show START button if initial instruction text has been shown after demo
-            if (!introTextChanged && initialInstructionTextShown && !isDemoActive) {
+            // Also check demoJustEnded to prevent triggering during grace period
+            if (!introTextChanged && initialInstructionTextShown && !isDemoActive && !demoJustEnded) {
                 introTextChanged = true;
                 introReady = true;
                 setupStartButton();
@@ -776,7 +800,10 @@ const canvasTextBoxContent = {
     '2-1': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
     
     // 15. Emotion + Number (רגש + ספרות) - emotion=4, number=3
-    '4-3': '"Whenever I feel a strong emotion, a number pops into my head. Pure joy is always the number 7. Anxiety is a constant, flickering 9. When I\'m bored, I feel like the number 0 is expanding to fill the room. It\'s not that I\'m counting, it\'s that the feeling itself has a numerical value. I can describe my day to my partner by saying \'I feel like a 4 today,\' and for me, that perfectly describes a specific type of dull, heavy sadness."'
+    '4-3': '"Whenever I feel a strong emotion, a number pops into my head. Pure joy is always the number 7. Anxiety is a constant, flickering 9. When I\'m bored, I feel like the number 0 is expanding to fill the room. It\'s not that I\'m counting, it\'s that the feeling itself has a numerical value. I can describe my day to my partner by saying \'I feel like a 4 today,\' and for me, that perfectly describes a specific type of dull, heavy sadness."',
+    
+    // 16. Color + Color (צבע + צבע) - color=5, color=5
+    '5-5': '"For me, colors are never static or isolated. Every color I see radiates its essence onto every other color nearby. When I look at a simple rainbow, it\'s not six or seven distinct bands—it\'s a living conversation. The red bleeds into the orange, the orange whispers to the yellow, the yellow embraces the green. Each hue influences and transforms its neighbors, creating an infinite dance of chromatic relationships that never stops moving in my mind."'
 };
 
 // Function to get text content for a specific page ID
@@ -1712,8 +1739,190 @@ function updateLetterLetterCircle(pageId) {
     
     if (isLetterLetterPage) {
         circleContainer.classList.add('visible');
+        // Initialize ring rotation functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeConcentricRings();
+        });
     } else {
         circleContainer.classList.remove('visible');
+        // Reset ring rotations when leaving the page
+        resetConcentricRings();
+    }
+}
+
+// ==================
+// Concentric Rings - Rotation State and Functions
+// ==================
+
+// Store rotation angles for each ring (in degrees)
+let ringRotations = [0, 0, 0, 0, 0];
+// Flag to check if rings are initialized
+let ringsInitialized = false;
+
+// Get the center point of the SVG in page coordinates
+function getRingsCenterPoint() {
+    const svg = document.getElementById('concentric-rings-svg');
+    if (!svg) return { x: 0, y: 0 };
+    
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Calculate angle from center to point (in degrees)
+function calculateAngle(centerX, centerY, pointX, pointY) {
+    const dx = pointX - centerX;
+    const dy = pointY - centerY;
+    // atan2 returns radians, convert to degrees
+    // Note: atan2(y, x) gives angle from positive X axis
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+}
+
+// Apply rotation to a ring group using SVG transform attribute
+// This ensures rotation happens around the SVG center point (0,0)
+function applyRingRotation(ringIndex, angle) {
+    const ringGroup = document.querySelector(`.ring-group[data-ring="${ringIndex}"]`);
+    if (ringGroup) {
+        // Use SVG's native transform attribute with explicit center point (0,0)
+        // This is the center of our viewBox and where all circles are centered
+        ringGroup.setAttribute('transform', `rotate(${angle}, 0, 0)`);
+    }
+}
+
+// Rotation multipliers for each ring (different speeds create interesting effect)
+// Ring 0 (outer) rotates slowest, Ring 4 (inner) rotates fastest
+const ringMultipliers = [0.2, 0.4, 0.6, 0.8, 1.0];
+
+// Handle mouse move - all rings rotate based on mouse position
+function handleRingMouseMove(e) {
+    // Only work when rings container is visible
+    const container = document.getElementById('letter-letter-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Apply rotation to each ring with its own multiplier
+    for (let i = 0; i < 5; i++) {
+        const rotation = mouseAngle * ringMultipliers[i];
+        ringRotations[i] = rotation;
+        applyRingRotation(i, rotation);
+    }
+}
+
+// Initialize the concentric rings interaction
+function initializeConcentricRings() {
+    if (ringsInitialized) return;
+    
+    const svg = document.getElementById('concentric-rings-svg');
+    if (!svg) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleRingMouseMove);
+    
+    ringsInitialized = true;
+}
+
+// Reset all ring rotations to 0
+function resetConcentricRings() {
+    ringRotations = [0, 0, 0, 0, 0];
+    activeRingIndex = null;
+    
+    // Apply reset rotations to all rings (letter-letter)
+    for (let i = 0; i < 5; i++) {
+        applyRingRotation(i, 0);
+    }
+}
+
+// ==================
+// Number + Number Concentric Rings State
+// ==================
+let numberRingRotations = [0, 0, 0, 0, 0];
+let numberRingsInitialized = false;
+
+// Function to update Number + Number circle visibility
+function updateNumberNumberCircle(pageId) {
+    const circleContainer = document.getElementById('number-number-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Number + Number page (pageId "3-3")
+    // Parameter indices: 3=number
+    const isNumberNumberPage = pageId === '3-3';
+    
+    if (isNumberNumberPage) {
+        circleContainer.classList.add('visible');
+        // Initialize ring rotation functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeNumberRings();
+        });
+    } else {
+        circleContainer.classList.remove('visible');
+        // Reset ring rotations when leaving the page
+        resetNumberRings();
+    }
+}
+
+// Get the center point of the Number rings SVG in page coordinates
+function getNumberRingsCenterPoint() {
+    const svg = document.getElementById('number-number-rings-svg');
+    if (!svg) return { x: 0, y: 0 };
+    
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Apply rotation to a number ring group
+function applyNumberRingRotation(ringIndex, angle) {
+    const ringGroup = document.querySelector(`#number-number-rings-svg .number-ring-group[data-ring="${ringIndex}"]`);
+    if (ringGroup) {
+        ringGroup.setAttribute('transform', `rotate(${angle}, 0, 0)`);
+    }
+}
+
+// Handle mouse move for number rings
+function handleNumberRingMouseMove(e) {
+    // Only work when number rings container is visible
+    const container = document.getElementById('number-number-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getNumberRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Apply rotation to each ring with its own multiplier
+    for (let i = 0; i < 5; i++) {
+        const rotation = mouseAngle * ringMultipliers[i];
+        numberRingRotations[i] = rotation;
+        applyNumberRingRotation(i, rotation);
+    }
+}
+
+// Initialize the number concentric rings interaction
+function initializeNumberRings() {
+    if (numberRingsInitialized) return;
+    
+    const svg = document.getElementById('number-number-rings-svg');
+    if (!svg) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleNumberRingMouseMove);
+    
+    numberRingsInitialized = true;
+}
+
+// Reset all number ring rotations to 0
+function resetNumberRings() {
+    numberRingRotations = [0, 0, 0, 0, 0];
+    
+    // Apply reset rotations to all number rings
+    for (let i = 0; i < 5; i++) {
+        applyNumberRingRotation(i, 0);
     }
 }
 
@@ -1761,6 +1970,721 @@ function updateSoundColorSquares(pageId) {
         squaresContainer.classList.remove('visible');
         // Stop all instrument sounds when leaving the page
         stopAllInstrumentLoops();
+    }
+}
+
+// ==================
+// Function to update Sound + Sound wave visualization visibility
+function updateSoundSoundWave(pageId) {
+    const waveContainer = document.getElementById('sound-sound-wave-container');
+    if (!waveContainer) return;
+    
+    // Show wave only for Sound + Sound pages (pageId "1-1")
+    // Parameter indices: 1=sound
+    const isSoundSoundPage = pageId === '1-1';
+    
+    if (isSoundSoundPage) {
+        waveContainer.classList.add('visible');
+        // Initialize the wave visualization
+        requestAnimationFrame(() => {
+            initializeSoundSoundWave();
+        });
+    } else {
+        waveContainer.classList.remove('visible');
+        // Stop the wave animation and release microphone when leaving the page
+        stopSoundSoundWave();
+    }
+}
+
+// ==================
+// SOUND + SOUND Wave Visualization State
+// ==================
+let soundSoundAudioCtx = null;       // AudioContext for microphone
+let soundSoundAnalyser = null;       // AnalyserNode for frequency analysis
+let soundSoundDataArray = null;      // Uint8Array to hold waveform data
+let soundSoundAnimationId = null;    // requestAnimationFrame ID
+let soundSoundMicActive = false;     // Whether microphone is active
+let soundSoundMicStream = null;      // MediaStream from microphone
+let soundSoundInitialized = false;   // Whether the wave has been initialized
+
+// Wave visualization constants
+const SOUND_WAVE_WIDTH = 600;        // Width of the wave in pixels
+const SOUND_WAVE_HEIGHT = 100;       // Height of the SVG container
+const SOUND_WAVE_POINTS = 50;        // Number of points to sample for the wave
+const SOUND_WAVE_SMOOTHING = 0.3;    // Smoothing factor for the analyser (lower = more responsive)
+const SOUND_WAVE_SENSITIVITY = 4.0;  // Sensitivity multiplier for quiet sounds (higher = more sensitive)
+
+// Initialize the Sound + Sound wave visualization
+function initializeSoundSoundWave() {
+    if (soundSoundInitialized) return;
+    soundSoundInitialized = true;
+    
+    const micButton = document.getElementById('sound-wave-mic-btn');
+    const wavePath = document.getElementById('sound-wave-path');
+    
+    if (!micButton || !wavePath) return;
+    
+    // Draw initial flat line
+    drawFlatWaveLine();
+    
+    // Set up click handler for microphone button
+    micButton.addEventListener('click', handleMicButtonClick);
+}
+
+// Handle microphone button click
+async function handleMicButtonClick() {
+    const micButton = document.getElementById('sound-wave-mic-btn');
+    
+    if (soundSoundMicActive) {
+        // If already active, stop the microphone
+        stopSoundSoundMicrophone();
+        micButton.textContent = '[enable microphone]';
+        micButton.classList.remove('active');
+    } else {
+        // Request microphone access
+        try {
+            await initializeSoundSoundMicrophone();
+            micButton.textContent = '[disable microphone]';
+            micButton.classList.add('active');
+        } catch (error) {
+            console.warn('Microphone access denied:', error);
+            micButton.textContent = '[microphone access denied]';
+            setTimeout(() => {
+                micButton.textContent = '[enable microphone]';
+            }, 2000);
+        }
+    }
+}
+
+// Initialize microphone and Web Audio API
+async function initializeSoundSoundMicrophone() {
+    // Request microphone access
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    soundSoundMicStream = stream;
+    
+    // Create AudioContext
+    soundSoundAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Resume AudioContext if suspended (required by some browsers)
+    if (soundSoundAudioCtx.state === 'suspended') {
+        await soundSoundAudioCtx.resume();
+    }
+    
+    // Create analyser node
+    soundSoundAnalyser = soundSoundAudioCtx.createAnalyser();
+    soundSoundAnalyser.fftSize = 256; // Small FFT size for quick response
+    soundSoundAnalyser.smoothingTimeConstant = SOUND_WAVE_SMOOTHING;
+    
+    // Create buffer for time domain data
+    const bufferLength = soundSoundAnalyser.frequencyBinCount;
+    soundSoundDataArray = new Uint8Array(bufferLength);
+    
+    // Create gain node to boost microphone signal for better sensitivity
+    const gainNode = soundSoundAudioCtx.createGain();
+    gainNode.gain.value = 2.0; // Boost signal by 2x for better sensitivity to quiet sounds
+    
+    // Connect microphone -> gain -> analyser
+    const source = soundSoundAudioCtx.createMediaStreamSource(stream);
+    source.connect(gainNode);
+    gainNode.connect(soundSoundAnalyser);
+    // Don't connect to destination - we don't want to hear the microphone through speakers
+    
+    soundSoundMicActive = true;
+    
+    // Start the animation loop
+    drawSoundWave();
+}
+
+// Stop microphone and clean up
+function stopSoundSoundMicrophone() {
+    soundSoundMicActive = false;
+    
+    // Stop animation
+    if (soundSoundAnimationId) {
+        cancelAnimationFrame(soundSoundAnimationId);
+        soundSoundAnimationId = null;
+    }
+    
+    // Stop microphone stream
+    if (soundSoundMicStream) {
+        soundSoundMicStream.getTracks().forEach(track => track.stop());
+        soundSoundMicStream = null;
+    }
+    
+    // Close AudioContext
+    if (soundSoundAudioCtx) {
+        soundSoundAudioCtx.close();
+        soundSoundAudioCtx = null;
+    }
+    
+    soundSoundAnalyser = null;
+    soundSoundDataArray = null;
+    
+    // Draw flat line when microphone is stopped
+    drawFlatWaveLine();
+}
+
+// Stop the wave visualization completely (when leaving the page)
+function stopSoundSoundWave() {
+    stopSoundSoundMicrophone();
+    soundSoundInitialized = false;
+    
+    // Reset button state
+    const micButton = document.getElementById('sound-wave-mic-btn');
+    if (micButton) {
+        micButton.textContent = '[enable microphone]';
+        micButton.classList.remove('active');
+    }
+}
+
+// Draw a flat horizontal line (when no audio)
+function drawFlatWaveLine() {
+    const wavePath = document.getElementById('sound-wave-path');
+    if (!wavePath) return;
+    
+    const centerY = SOUND_WAVE_HEIGHT / 2;
+    wavePath.setAttribute('d', `M 0 ${centerY} L ${SOUND_WAVE_WIDTH} ${centerY}`);
+}
+
+// Animation loop to draw the sound wave
+function drawSoundWave() {
+    if (!soundSoundMicActive || !soundSoundAnalyser || !soundSoundDataArray) {
+        return;
+    }
+    
+    // Get time domain data (waveform)
+    soundSoundAnalyser.getByteTimeDomainData(soundSoundDataArray);
+    
+    const wavePath = document.getElementById('sound-wave-path');
+    if (!wavePath) return;
+    
+    // Calculate points for the wave
+    const points = [];
+    const sliceWidth = SOUND_WAVE_WIDTH / (SOUND_WAVE_POINTS - 1);
+    const bufferLength = soundSoundDataArray.length;
+    
+    for (let i = 0; i < SOUND_WAVE_POINTS; i++) {
+        const x = i * sliceWidth;
+        
+        // Sample from the data array
+        const dataIndex = Math.floor((i / SOUND_WAVE_POINTS) * bufferLength);
+        const value = soundSoundDataArray[dataIndex];
+        
+        // Convert from 0-255 to wave amplitude
+        // 128 is the center (silence), values deviate from there
+        const normalizedValue = (value - 128) / 128; // -1 to 1
+        
+        // Scale to our wave height with sensitivity boost for quiet sounds
+        // Clamp to prevent wave from going outside the SVG bounds
+        const rawAmplitude = normalizedValue * (SOUND_WAVE_HEIGHT / 2) * SOUND_WAVE_SENSITIVITY;
+        const amplitude = Math.max(-SOUND_WAVE_HEIGHT / 2 + 5, Math.min(SOUND_WAVE_HEIGHT / 2 - 5, rawAmplitude));
+        const y = (SOUND_WAVE_HEIGHT / 2) + amplitude;
+        
+        points.push({ x, y });
+    }
+    
+    // Create a smooth curve using quadratic bezier curves
+    let pathData = `M ${points[0].x} ${points[0].y}`;
+    
+    for (let i = 0; i < points.length - 1; i++) {
+        const current = points[i];
+        const next = points[i + 1];
+        
+        // Control point is the midpoint
+        const cpX = (current.x + next.x) / 2;
+        const cpY = (current.y + next.y) / 2;
+        
+        if (i === 0) {
+            // First segment - just line to control point
+            pathData += ` L ${cpX} ${cpY}`;
+        } else {
+            // Quadratic bezier to the midpoint
+            pathData += ` Q ${current.x} ${current.y} ${cpX} ${cpY}`;
+        }
+    }
+    
+    // Final segment to the last point
+    const lastPoint = points[points.length - 1];
+    const secondLastPoint = points[points.length - 2];
+    pathData += ` Q ${secondLastPoint.x} ${secondLastPoint.y} ${lastPoint.x} ${lastPoint.y}`;
+    
+    wavePath.setAttribute('d', pathData);
+    
+    // Continue animation
+    soundSoundAnimationId = requestAnimationFrame(drawSoundWave);
+}
+
+// ==================
+// Function to update Letter + Number circle visibility
+function updateLetterNumberCircle(pageId) {
+    const circleContainer = document.getElementById('letter-number-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Letter + Number pages (pageId "2-3" or "3-2")
+    // Parameter indices: 2=letter, 3=number
+    const isLetterNumberPage = pageId === '2-3' || pageId === '3-2';
+    
+    if (isLetterNumberPage) {
+        circleContainer.classList.add('visible');
+        // Initialize circle positioning and interactions when page becomes visible
+        requestAnimationFrame(() => {
+            initializeLetterNumberCircle();
+        });
+    } else {
+        circleContainer.classList.remove('visible');
+        // Stop the animation loop when leaving the page
+        stopLetterNumberAnimation();
+    }
+}
+
+// ==================
+// LETTER + NUMBER Circle State
+// ==================
+const LETTER_NUMBER_TOTAL_ITEMS = 35; // A-Z (26) + 1-9 (9)
+const LETTER_NUMBER_RADIUS = 280; // Radius of the circle in pixels
+const LETTER_NUMBER_ROTATION_SPEED = 0.0005; // Radians per frame (slow rotation)
+const LETTER_NUMBER_REPULSION_RADIUS = 200; // Distance at which repulsion starts (increased for larger items)
+const LETTER_NUMBER_MAX_DISPLACEMENT = 450; // Maximum displacement in pixels (increased for more movement)
+const LETTER_NUMBER_RETURN_SPEED = 0.0008; // How fast elements return to original position (very slow)
+
+let letterNumberRotationOffset = 0; // Current rotation angle
+let letterNumberAnimationId = null; // requestAnimationFrame ID
+let letterNumberDisplacements = null; // Array of {x, y} displacements for each item
+let letterNumberMousePosition = { x: 0, y: 0 }; // Current mouse position relative to container center
+let letterNumberInitialized = false;
+
+// Initialize the Letter + Number circle
+function initializeLetterNumberCircle() {
+    const container = document.getElementById('letter-number-circle-container');
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!container) return;
+    
+    // Initialize displacements array (persistent - elements stay displaced)
+    // Start with items pushed to their boundary edges (maximum distance from center)
+    if (!letterNumberDisplacements) {
+        letterNumberDisplacements = [];
+        const centerX = 350;
+        const centerY = 350;
+        const minY = 50;
+        const maxY = 630;
+        const minX = -350;
+        const maxX = 1050;
+        
+        for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
+            // Calculate base position on circle
+            const angle = (i / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI;
+            const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
+            const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
+            
+            // Calculate direction from center (unit vector)
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+            
+            // Find how far we can push in this direction before hitting a boundary
+            // We need to find the displacement that puts the item at the edge
+            let maxDisplacement = LETTER_NUMBER_MAX_DISPLACEMENT;
+            
+            // Check each boundary and find the limiting one
+            if (dirX > 0.01) {
+                // Moving right, check right boundary
+                const toRight = (maxX - baseX) / dirX;
+                maxDisplacement = Math.min(maxDisplacement, toRight);
+            } else if (dirX < -0.01) {
+                // Moving left, check left boundary
+                const toLeft = (minX - baseX) / dirX;
+                maxDisplacement = Math.min(maxDisplacement, toLeft);
+            }
+            
+            if (dirY > 0.01) {
+                // Moving down, check bottom boundary
+                const toBottom = (maxY - baseY) / dirY;
+                maxDisplacement = Math.min(maxDisplacement, toBottom);
+            } else if (dirY < -0.01) {
+                // Moving up, check top boundary
+                const toTop = (minY - baseY) / dirY;
+                maxDisplacement = Math.min(maxDisplacement, toTop);
+            }
+            
+            // Ensure positive displacement and apply it
+            maxDisplacement = Math.max(0, maxDisplacement);
+            
+            letterNumberDisplacements.push({
+                x: dirX * maxDisplacement,
+                y: dirY * maxDisplacement
+            });
+        }
+    }
+    
+    // Set up mouse move listener on canvas-container (larger area for better tracking)
+    if (!letterNumberInitialized && canvasContainer) {
+        canvasContainer.addEventListener('mousemove', handleLetterNumberMouseMove);
+        canvasContainer.addEventListener('mouseleave', handleLetterNumberMouseLeave);
+        letterNumberInitialized = true;
+    }
+    
+    // Position all items initially
+    updateLetterNumberPositions();
+    
+    // Start the animation loop
+    startLetterNumberAnimation();
+}
+
+// Handle mouse movement for repulsion effect
+function handleLetterNumberMouseMove(e) {
+    const container = document.getElementById('letter-number-circle-container');
+    if (!container) return;
+    
+    // Check if we're on the Letter + Number page
+    if (!container.classList.contains('visible')) return;
+    
+    // Get the actual rendered position of the circle container
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    // Mouse position relative to container center (in screen coordinates)
+    letterNumberMousePosition.x = e.clientX - centerX;
+    letterNumberMousePosition.y = e.clientY - centerY;
+}
+
+// Handle mouse leaving the canvas area
+function handleLetterNumberMouseLeave() {
+    // Set mouse position far away so it doesn't affect elements
+    letterNumberMousePosition.x = 10000;
+    letterNumberMousePosition.y = 10000;
+}
+
+// Update positions of all letter/number items
+function updateLetterNumberPositions() {
+    const container = document.getElementById('letter-number-circle-container');
+    if (!container) return;
+    
+    const items = container.querySelectorAll('.letter-number-item');
+    const centerX = 350; // Container is 700x700, center at 350
+    const centerY = 350;
+    
+    // Boundary constraints (in container coordinates)
+    // The container is moved up by 80px, so we need to limit how high elements can go
+    // Expanded boundaries to allow more movement away from center
+    const minY = 50; // Top boundary (expanded by 30px)
+    const maxY = 630; // Bottom boundary (expanded by 30px)
+    const minX = -350;  // Expanded left boundary
+    const maxX = 1050; // Expanded right boundary
+    
+    items.forEach((item, index) => {
+        // Calculate base position on circle
+        const angle = (index / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI + letterNumberRotationOffset;
+        const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
+        const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
+        
+        // Apply persistent displacement
+        const displacement = letterNumberDisplacements[index];
+        let finalX = baseX + displacement.x;
+        let finalY = baseY + displacement.y;
+        
+        // Clamp to boundaries (prevent going above UI/gradient header)
+        finalX = Math.max(minX, Math.min(maxX, finalX));
+        finalY = Math.max(minY, Math.min(maxY, finalY));
+        
+        // Calculate distance from center for dynamic font sizing
+        const distanceFromCenter = Math.sqrt((finalX - centerX) ** 2 + (finalY - centerY) ** 2);
+        
+        // Map distance to font size (closer = smaller, farther = larger)
+        // Using linear interpolation: minSize at center, scaling up with distance
+        const MIN_FONT_SIZE = 16;
+        const BASE_FONT_SIZE = 48;
+        const MAX_FONT_SIZE = 96;
+        const BASE_DISTANCE = 280; // The default circle radius
+        const MAX_DISTANCE = 500;  // Maximum expected distance
+        
+        let fontSize;
+        if (distanceFromCenter <= BASE_DISTANCE) {
+            // Scale from MIN to BASE as distance goes from 0 to BASE_DISTANCE
+            const ratio = distanceFromCenter / BASE_DISTANCE;
+            fontSize = MIN_FONT_SIZE + ratio * (BASE_FONT_SIZE - MIN_FONT_SIZE);
+        } else {
+            // Scale from BASE to MAX as distance goes beyond BASE_DISTANCE
+            const ratio = Math.min((distanceFromCenter - BASE_DISTANCE) / (MAX_DISTANCE - BASE_DISTANCE), 1);
+            fontSize = BASE_FONT_SIZE + ratio * (MAX_FONT_SIZE - BASE_FONT_SIZE);
+        }
+        
+        // Apply dynamic font size
+        item.style.fontSize = `${fontSize}px`;
+        
+        // Position the item (centered on its position)
+        item.style.left = `${finalX - 40}px`; // 40 = half of item width (80px)
+        item.style.top = `${finalY - 40}px`;  // 40 = half of item height (80px)
+        
+        // Update the line from center to this item's inner edge
+        updateLetterNumberLine(index, finalX, finalY, centerX, centerY);
+    });
+}
+
+// Update a single line from center to the inner edge of an item
+function updateLetterNumberLine(index, itemX, itemY, centerX, centerY) {
+    const line = document.getElementById(`letter-number-line-${index}`);
+    if (!line) return;
+    
+    // Calculate direction from center to item
+    const dx = itemX - centerX;
+    const dy = itemY - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance === 0) return;
+    
+    // Normalize direction
+    const dirX = dx / distance;
+    const dirY = dy / distance;
+    
+    // Inner edge of item (closer to center) - offset by ~40px (half of 80px item size)
+    const innerEdgeX = itemX - dirX * 40;
+    const innerEdgeY = itemY - dirY * 40;
+    
+    // Set line coordinates (from center to inner edge of item)
+    line.setAttribute('x1', centerX);
+    line.setAttribute('y1', centerY);
+    line.setAttribute('x2', innerEdgeX);
+    line.setAttribute('y2', innerEdgeY);
+}
+
+// Calculate and apply repulsion from mouse
+function applyLetterNumberRepulsion() {
+    const container = document.getElementById('letter-number-circle-container');
+    if (!container) return;
+    
+    const centerX = 350;
+    const centerY = 350;
+    
+    // Boundary constraints (same as in updateLetterNumberPositions)
+    const minY = 50;
+    const maxY = 630;
+    const minX = -350;
+    const maxX = 1050;
+    
+    for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
+        // Calculate current base position on circle
+        const angle = (i / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI + letterNumberRotationOffset;
+        const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
+        const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
+        
+        // Current position with displacement
+        const currentX = baseX + letterNumberDisplacements[i].x;
+        const currentY = baseY + letterNumberDisplacements[i].y;
+        
+        // Calculate distance from mouse (mouse position is relative to center)
+        const mouseAbsX = centerX + letterNumberMousePosition.x;
+        const mouseAbsY = centerY + letterNumberMousePosition.y;
+        
+        const dx = currentX - mouseAbsX;
+        const dy = currentY - mouseAbsY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Apply repulsion if within range
+        if (distance < LETTER_NUMBER_REPULSION_RADIUS && distance > 0) {
+            // Calculate repulsion force (stronger when closer)
+            const force = (LETTER_NUMBER_REPULSION_RADIUS - distance) / LETTER_NUMBER_REPULSION_RADIUS;
+            const repulsionStrength = force * 3; // Multiplier for responsiveness
+            
+            // Push away from mouse
+            let pushX = (dx / distance) * repulsionStrength;
+            let pushY = (dy / distance) * repulsionStrength;
+            
+            // Check if pushing would exceed boundaries, if so limit the push
+            const newX = baseX + letterNumberDisplacements[i].x + pushX;
+            const newY = baseY + letterNumberDisplacements[i].y + pushY;
+            
+            // Don't push upward if already at top boundary
+            if (newY < minY && pushY < 0) pushY = 0;
+            // Don't push downward if already at bottom boundary
+            if (newY > maxY && pushY > 0) pushY = 0;
+            // Don't push left if already at left boundary
+            if (newX < minX && pushX < 0) pushX = 0;
+            // Don't push right if already at right boundary
+            if (newX > maxX && pushX > 0) pushX = 0;
+            
+            // Apply to displacement (cumulative - stays displaced)
+            letterNumberDisplacements[i].x += pushX;
+            letterNumberDisplacements[i].y += pushY;
+            
+            // Clamp displacement to maximum
+            const dispMag = Math.sqrt(
+                letterNumberDisplacements[i].x * letterNumberDisplacements[i].x +
+                letterNumberDisplacements[i].y * letterNumberDisplacements[i].y
+            );
+            if (dispMag > LETTER_NUMBER_MAX_DISPLACEMENT) {
+                const scale = LETTER_NUMBER_MAX_DISPLACEMENT / dispMag;
+                letterNumberDisplacements[i].x *= scale;
+                letterNumberDisplacements[i].y *= scale;
+            }
+        }
+    }
+}
+
+// Slowly return elements to their original position (when not being pushed by mouse)
+function applyLetterNumberReturnToOrigin() {
+    if (!letterNumberDisplacements) return;
+    
+    const centerX = 350;
+    const centerY = 350;
+    
+    for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
+        // Calculate current base position on circle
+        const angle = (i / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI + letterNumberRotationOffset;
+        const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
+        const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
+        
+        // Current position with displacement
+        const currentX = baseX + letterNumberDisplacements[i].x;
+        const currentY = baseY + letterNumberDisplacements[i].y;
+        
+        // Check distance from mouse
+        const mouseAbsX = centerX + letterNumberMousePosition.x;
+        const mouseAbsY = centerY + letterNumberMousePosition.y;
+        const dx = currentX - mouseAbsX;
+        const dy = currentY - mouseAbsY;
+        const distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
+        
+        // Only return to origin if mouse is far enough away
+        if (distanceFromMouse > LETTER_NUMBER_REPULSION_RADIUS) {
+            // Slowly reduce displacement (move toward 0)
+            letterNumberDisplacements[i].x *= (1 - LETTER_NUMBER_RETURN_SPEED);
+            letterNumberDisplacements[i].y *= (1 - LETTER_NUMBER_RETURN_SPEED);
+            
+            // Snap to zero if very small (avoid floating point drift)
+            if (Math.abs(letterNumberDisplacements[i].x) < 0.1) {
+                letterNumberDisplacements[i].x = 0;
+            }
+            if (Math.abs(letterNumberDisplacements[i].y) < 0.1) {
+                letterNumberDisplacements[i].y = 0;
+            }
+        }
+    }
+}
+
+// Animation loop
+function animateLetterNumberCircle() {
+    // Update rotation
+    letterNumberRotationOffset += LETTER_NUMBER_ROTATION_SPEED;
+    
+    // Apply repulsion effect
+    applyLetterNumberRepulsion();
+    
+    // Return to origin disabled - elements stay in place after being pushed
+    // applyLetterNumberReturnToOrigin();
+    
+    // Update visual positions
+    updateLetterNumberPositions();
+    
+    // Continue animation
+    letterNumberAnimationId = requestAnimationFrame(animateLetterNumberCircle);
+}
+
+// Start the animation
+function startLetterNumberAnimation() {
+    if (letterNumberAnimationId !== null) return; // Already running
+    letterNumberAnimationId = requestAnimationFrame(animateLetterNumberCircle);
+}
+
+// Stop the animation
+function stopLetterNumberAnimation() {
+    if (letterNumberAnimationId !== null) {
+        cancelAnimationFrame(letterNumberAnimationId);
+        letterNumberAnimationId = null;
+    }
+}
+
+// ==================
+// COLOR + COLOR Concentric Rings State
+// ==================
+let colorColorRingRotations = [0, 0, 0, 0, 0];
+let colorColorRingsInitialized = false;
+
+// Function to update Color + Color circle visibility
+function updateColorColorCircle(pageId) {
+    const circleContainer = document.getElementById('color-color-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Color + Color page (pageId "5-5")
+    // Parameter indices: 5=color
+    const isColorColorPage = pageId === '5-5';
+    
+    if (isColorColorPage) {
+        circleContainer.classList.add('visible');
+        // Initialize ring rotation functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeColorColorRings();
+        });
+    } else {
+        circleContainer.classList.remove('visible');
+        // Reset ring rotations when leaving the page
+        resetColorColorRings();
+    }
+}
+
+// Get the center point of the Color + Color rings container in page coordinates
+function getColorColorRingsCenterPoint() {
+    const container = document.getElementById('color-color-circle-container');
+    if (!container) return { x: 0, y: 0 };
+    
+    const rect = container.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Apply rotation to a color ring using CSS transform
+function applyColorColorRingRotation(ringIndex, angle) {
+    const ring = document.querySelector(`.color-color-ring[data-ring="${ringIndex}"]`);
+    if (ring) {
+        // Apply rotation while preserving the centering transform
+        ring.style.transform = `rotate(${angle}deg)`;
+    }
+}
+
+// Rotation multipliers for each ring
+// Even rings (0, 2, 4) rotate clockwise, odd rings (1, 3) rotate counterclockwise
+// Ring 0 (outer) rotates slowest, Ring 4 (inner) rotates fastest
+const colorColorRingMultipliers = [0.2, -0.4, 0.6, -0.8, 1.0];
+
+// Handle mouse move - all rings rotate based on mouse position
+function handleColorColorRingMouseMove(e) {
+    // Only work when color rings container is visible
+    const container = document.getElementById('color-color-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getColorColorRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Apply rotation to each ring with its own multiplier
+    for (let i = 0; i < 5; i++) {
+        const rotation = mouseAngle * colorColorRingMultipliers[i];
+        colorColorRingRotations[i] = rotation;
+        applyColorColorRingRotation(i, rotation);
+    }
+}
+
+// Initialize the color concentric rings interaction
+function initializeColorColorRings() {
+    if (colorColorRingsInitialized) return;
+    
+    const container = document.getElementById('color-color-circle-container');
+    if (!container) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleColorColorRingMouseMove);
+    
+    colorColorRingsInitialized = true;
+}
+
+// Reset all color ring rotations to 0
+function resetColorColorRings() {
+    colorColorRingRotations = [0, 0, 0, 0, 0];
+    
+    // Apply reset rotations to all rings
+    for (let i = 0; i < 5; i++) {
+        applyColorColorRingRotation(i, 0);
     }
 }
 
@@ -3620,6 +4544,9 @@ function updateActivePage(pageId, reason) {
     // Update Letter + Letter circle visibility
     updateLetterLetterCircle(pageId);
     
+    // Update Number + Number circle visibility
+    updateNumberNumberCircle(pageId);
+    
     // Update Shape + Color circle visibility
     updateShapeColorCircle(pageId);
     
@@ -3628,6 +4555,15 @@ function updateActivePage(pageId, reason) {
     
     // Update Sound + Color squares visibility
     updateSoundColorSquares(pageId);
+    
+    // Update Sound + Sound wave visualization visibility
+    updateSoundSoundWave(pageId);
+    
+    // Update Letter + Number circle visibility
+    updateLetterNumberCircle(pageId);
+    
+    // Update Color + Color circle visibility
+    updateColorColorCircle(pageId);
     
     // Update Shape & Number canvas visibility
     updateShapeNumberCanvasVisibility(pageId);
@@ -4804,7 +5740,7 @@ function updateShapeEmotionCanvasVisibility(pageId) {
 // ==================
 // P5 CELL 01 SKETCH FACTORY
 // ==================
-// Interactive drawing sketch with shape stamps and sound
+// Interactive drawing sketch with draggable shape stamps and sound
 function createP5Cell01Sketch(containerElement, containerWidth, containerHeight, p5SketchActive, cellId, stateStorage) {
     return function(p) {
         // Verify p is valid
@@ -4822,13 +5758,15 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
         // ==================
         // CONFIG
         // ==================
-        let shapeSize = 26;        // בסיס לעיגול
-        let stepDist = 14;         // מרחק בין חותמות
-        let outlinePx = 3;         // עובי קו מתאר
-        let easing = 0.25;         // קינטיות
-
-        // shape modes: 0=circle, 1=square, 2=triangle
-        let currentShape = 0;
+        let shapeSize = 26;        // Base size for shapes (trail stamps)
+        let stepDist = 14;         // Distance between stamps
+        let outlinePx = 3;         // Stroke weight
+        let easing = 0.25;         // Smoothing factor
+        
+        // Draggable shape config
+        const DRAGGABLE_SHAPE_SIZE = 40;  // Size of draggable shapes on canvas
+        const SHAPE_SPACING = 70;          // Vertical spacing between shapes
+        const SHAPE_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
 
         // colors
         const bgHex = "#E0E0E0";
@@ -4849,11 +5787,15 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
         let isReplaying = false;
         let replayIndex = 0;
 
+        // Draggable shapes state
+        // Each shape has: { x, y, shapeType (0-5) }
+        let shapePositions = [];
+        let draggedShapeIndex = -1;  // -1 means no shape is being dragged
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
         // UI
-        let panel, toggleButton;
-        let circleBtn, squareBtn, triangleBtn;
-        let ellipseBtn, starBtn, pentagonBtn;
-        let playButton, stopButton, resetButton;
+        let playStopButton = null;
 
         // ==================
         // SOUND (Web Audio, no p5.sound)
@@ -5103,25 +6045,25 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
             if (w <= 0) w = Math.max(1, containerW || 400);
             if (h <= 0) h = Math.max(1, containerH || 300);
             
-        // Create canvas matching container size (not fullscreen)
-        cnv = p.createCanvas(w, h);
-        // Attach canvas to the container element
-        cnv.parent(container);
-        
-        // Ensure canvas is visible and properly styled
-        if (cnv && cnv.elt) {
-            cnv.elt.style.display = 'block';
-            cnv.elt.style.visibility = 'visible';
-            cnv.elt.style.opacity = '1';
-            cnv.elt.style.position = 'absolute';
-            cnv.elt.style.top = '0';
-            cnv.elt.style.left = '0';
-            cnv.elt.style.zIndex = '11';
-            cnv.elt.style.pointerEvents = 'auto';
-            // Ensure canvas doesn't get clipped
-            cnv.elt.style.maxWidth = '100%';
-            cnv.elt.style.maxHeight = '100%';
-        }
+            // Create canvas matching container size (not fullscreen)
+            cnv = p.createCanvas(w, h);
+            // Attach canvas to the container element
+            cnv.parent(container);
+            
+            // Ensure canvas is visible and properly styled
+            if (cnv && cnv.elt) {
+                cnv.elt.style.display = 'block';
+                cnv.elt.style.visibility = 'visible';
+                cnv.elt.style.opacity = '1';
+                cnv.elt.style.position = 'absolute';
+                cnv.elt.style.top = '0';
+                cnv.elt.style.left = '0';
+                cnv.elt.style.zIndex = '11';
+                cnv.elt.style.pointerEvents = 'auto';
+                // Ensure canvas doesn't get clipped
+                cnv.elt.style.maxWidth = '100%';
+                cnv.elt.style.maxHeight = '100%';
+            }
             
             // Store reference for resizing (already set globally, but ensure it's set)
             if (!p5Instance) {
@@ -5133,11 +6075,39 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
 
             paintBackground();
             
+            // Initialize draggable shape positions in centered vertical column
+            initializeShapePositions();
+            
             // Restore saved state if available (after creating brushLayer)
             restoreState();
             
             createUI();
         };
+        
+        // ==================
+        // INITIALIZE DRAGGABLE SHAPES
+        // ==================
+        function initializeShapePositions() {
+            shapePositions = [];
+            
+            // Calculate center X position (exact center of canvas - on the divider line)
+            const centerX = p.width / 2;  // Exact center
+            
+            // Calculate total height of all shapes
+            const totalHeight = (SHAPE_TYPES.length - 1) * SHAPE_SPACING;
+            
+            // Calculate starting Y position to center the column vertically
+            const startY = (p.height - totalHeight) / 2;
+            
+            // Create shape positions: circle, square, triangle, ellipse, star, pentagon
+            for (let i = 0; i < SHAPE_TYPES.length; i++) {
+                shapePositions.push({
+                    x: centerX,
+                    y: startY + i * SHAPE_SPACING,
+                    shapeType: i
+                });
+            }
+        }
 
         // ==================
         // DRAW
@@ -5151,68 +6121,174 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
             if (isReplaying) {
                 replayDrawing();
                 p.image(brushLayer, 0, 0);
-                drawDivider();
+                // Draw draggable shapes on top during replay
+                drawDraggableShapes();
                 return;
             }
 
-            let isDrawingNow = p.mouseIsPressed && p.mouseX < p.width / 2;
-
-            if (isDrawingNow) {
-                if (!drawing) {
-                    brushX = p.mouseX;
-                    brushY = p.mouseY;
-                    prevX = brushX;
-                    prevY = brushY;
-                    drawing = true;
-                    // Hide instruction text when user starts drawing
-                    hideSoundShapeInstructionText();
-                    return;
+            // Handle shape dragging
+            if (draggedShapeIndex >= 0 && p.mouseIsPressed) {
+                const shape = shapePositions[draggedShapeIndex];
+                const newX = p.mouseX - dragOffsetX;
+                const newY = p.mouseY - dragOffsetY;
+                
+                // Apply easing for smooth movement
+                const targetX = shape.x + (newX - shape.x) * easing;
+                const targetY = shape.y + (newY - shape.y) * easing;
+                
+                // Calculate movement for stamping
+                const dx = targetX - shape.x;
+                const dy = targetY - shape.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Only stamp if moved enough distance
+                if (dist > 2) {
+                    // Stamp trail on left side (skipEnds=true so we don't draw at start/end where draggable shape is)
+                    // Use DRAGGABLE_SHAPE_SIZE for consistent size with the draggable shapes
+                    stampShapeWithType(shape.x, shape.y, targetX, targetY, true, shape.shapeType, true, DRAGGABLE_SHAPE_SIZE);
+                    
+                    // Mirror stamp on right side (skipEnds=true since mirrored draggable shape is there too)
+                    stampShapeWithType(p.width - shape.x, shape.y, p.width - targetX, targetY, false, shape.shapeType, true, DRAGGABLE_SHAPE_SIZE);
                 }
-
-                brushX += (p.mouseX - brushX) * easing;
-                brushY += (p.mouseY - brushY) * easing;
-
-                // שמאל: ציור + הקלטה
-                stampShape(prevX, prevY, brushX, brushY, true);
-
-                // ימין: מראה בלבד
-                stampShape(p.width - prevX, prevY, p.width - brushX, brushY, false);
-
-                prevX = brushX;
-                prevY = brushY;
-            } else {
-                drawing = false;
+                
+                // Update shape position
+                shape.x = targetX;
+                shape.y = targetY;
             }
 
             p.image(brushLayer, 0, 0);
-            drawDivider();
+            
+            // Draw draggable shapes on top of everything
+            drawDraggableShapes();
         };
+        
+        // ==================
+        // DRAW DRAGGABLE SHAPES
+        // ==================
+        function drawDraggableShapes() {
+            for (let i = 0; i < shapePositions.length; i++) {
+                const shape = shapePositions[i];
+                const isBeingDragged = (i === draggedShapeIndex);
+                
+                // Draw shape on left side
+                drawDraggableShape(p, shape.x, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+                
+                // Draw mirrored shape on right side (same size)
+                const mirroredX = p.width - shape.x;
+                drawDraggableShape(p, mirroredX, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+            }
+        }
+        
+        // Draw a single draggable shape (larger, with hover effect)
+        function drawDraggableShape(g, x, y, baseS, shapeType, isBeingDragged) {
+            let mult = 1.0;
+            if (shapeType === 1) mult = 1.3; // Square
+            if (shapeType === 2) mult = 1.5; // Triangle
+            if (shapeType === 3) mult = 1.4; // Ellipse
+            if (shapeType === 4) mult = 1.2; // Star
+            if (shapeType === 5) mult = 1.3; // Pentagon
+
+            let s = baseS * mult;
+            
+            // Scale up when being dragged
+            if (isBeingDragged) {
+                s *= 1.1;
+            }
+
+            g.push();
+            g.translate(x, y);
+            g.fill(fillHex);
+            g.stroke(strokeHex);
+            g.strokeWeight(outlinePx);
+
+            if (shapeType === 0) {
+                // Circle
+                g.circle(0, 0, s);
+            } else if (shapeType === 1) {
+                // Square
+                g.rectMode(p.CENTER);
+                g.rect(0, 0, s, s);
+            } else if (shapeType === 2) {
+                // Triangle
+                let h = s * 0.9;
+                g.triangle(
+                    0, -h / 2,
+                    -h / 2, h / 2,
+                    h / 2, h / 2
+                );
+            } else if (shapeType === 3) {
+                // Ellipse
+                g.ellipse(0, 0, s * 1.5, s * 0.9);
+            } else if (shapeType === 4) {
+                // Star (5-pointed)
+                g.beginShape();
+                for (let i = 0; i < 10; i++) {
+                    let angle = (i * g.PI) / 5 - g.PI / 2;
+                    let r = (i % 2 === 0) ? s / 2 : s / 4;
+                    let px = g.cos(angle) * r;
+                    let py = g.sin(angle) * r;
+                    g.vertex(px, py);
+                }
+                g.endShape(g.CLOSE);
+            } else if (shapeType === 5) {
+                // Pentagon
+                g.beginShape();
+                for (let i = 0; i < 5; i++) {
+                    let angle = (i * g.TWO_PI) / 5 - g.PI / 2;
+                    let px = g.cos(angle) * (s / 2);
+                    let py = g.sin(angle) * (s / 2);
+                    g.vertex(px, py);
+                }
+                g.endShape(g.CLOSE);
+            }
+
+            g.pop();
+        }
 
         // ==================
         // BRUSH STAMP
         // ==================
-        function stampShape(x1, y1, x2, y2, recordIt) {
+        // Stamp shape with explicit shape type (for draggable shapes)
+        // skipEnds: if true, don't draw at start or end positions (because draggable shape was/will be there)
+        // customSize: optional custom size for the stamps (defaults to shapeSize)
+        function stampShapeWithType(x1, y1, x2, y2, recordIt, shapeType, skipEnds = false, customSize = null) {
             let dx = x2 - x1;
             let dy = y2 - y1;
             let distSeg = p.sqrt(dx * dx + dy * dy);
             if (distSeg === 0) return;
 
             let steps = p.max(1, p.floor(distSeg / stepDist));
+            
+            // If skipEnds is true, skip first and last positions (draggable shape handles those)
+            let startStep = skipEnds ? 1 : 0;
+            let endStep = skipEnds ? steps - 1 : steps;
+            
+            // Make sure we have steps to draw
+            if (startStep > endStep) {
+                // Not enough distance for intermediate stamps, just record and trigger sound
+                if (recordIt) {
+                    triggerSound(x2, y2, shapeType);
+                }
+                return;
+            }
+            
+            // Use custom size if provided, otherwise use default shapeSize
+            const stampSize = customSize !== null ? customSize : shapeSize;
 
-            for (let i = 0; i <= steps; i++) {
+            for (let i = startStep; i <= endStep; i++) {
                 let f = i / steps;
                 let x = p.lerp(x1, x2, f);
                 let y = p.lerp(y1, y2, f);
 
-                drawShape(brushLayer, x, y, shapeSize, currentShape);
+                drawShape(brushLayer, x, y, stampSize, shapeType);
 
                 if (recordIt) {
-                    recordedPoints.push({ x, y, shape: currentShape });
+                    recordedPoints.push({ x, y, shape: shapeType });
                 }
             }
 
-            // סאונד רק בציור המקורי (לא במראה)
-            if (recordIt) triggerSound(x2, y2, currentShape);
+            // Sound only on original drawing (not mirror)
+            if (recordIt) triggerSound(x2, y2, shapeType);
         }
 
         // ==================
@@ -5310,346 +6386,80 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
         // UI
         // ==================
         function createUI() {
-            // Create toggle button as DOM element, positioned absolutely in container
-            toggleButton = document.createElement("button");
-            toggleButton.textContent = "▾";
-            toggleButton.style.position = "absolute";
-            toggleButton.style.right = "10px";
-            toggleButton.style.top = "10px";
-            toggleButton.style.width = "24px";
-            toggleButton.style.height = "24px";
-            toggleButton.style.fontFamily = "'JetBrains Mono NL', monospace";
-            toggleButton.style.fontSize = "15px";
-            toggleButton.style.letterSpacing = "0.03em";
-            toggleButton.style.lineHeight = "0.8";
-            toggleButton.style.borderRadius = "0";
-            toggleButton.style.border = "none";
-            toggleButton.style.background = "transparent";
-            toggleButton.style.color = "#ffffff";
-            toggleButton.style.cursor = "pointer";
-            toggleButton.style.zIndex = "1000";
-            container.appendChild(toggleButton);
-
-            toggleButton.addEventListener("click", () => {
-                let hidden = panel.style.display === "none";
-                panel.style.display = hidden ? "block" : "none";
-                toggleButton.textContent = hidden ? "▾" : "▸";
-            });
-
-            // Create panel as DOM element, positioned absolutely in container
-            panel = document.createElement("div");
-            panel.style.position = "absolute";
-            panel.style.right = "0px";
-            panel.style.bottom = "40px"; // Position so bottom edge touches top of parameter text (40px height)
-            panel.style.width = "auto";
-            panel.style.paddingRight = "10px";
-            panel.style.paddingTop = "10px";
-            panel.style.paddingBottom = "10px";
-            panel.style.paddingLeft = "10px";
-            panel.style.display = "flex";
-            panel.style.flexDirection = "row";
-            panel.style.gap = "10px";
-            panel.style.alignItems = "flex-start";
-            panel.style.background = "#2C2C2C";
-            panel.style.borderRadius = "0";
-            panel.style.zIndex = "1000";
-            // Slide-in animation: start off-screen right
-            panel.style.transform = "translateX(100%)";
-            panel.style.transition = "transform 0.3s ease";
-            container.appendChild(panel);
+            // Create simple play/stop toggle button at bottom right
+            playStopButton = document.createElement("button");
+            playStopButton.textContent = "[play]";
+            playStopButton.style.position = "absolute";
+            playStopButton.style.right = "10px";
+            playStopButton.style.bottom = "50px"; // Above the parameter text area
+            playStopButton.style.padding = "8px 12px";
+            playStopButton.style.fontFamily = "'JetBrains Mono NL', monospace";
+            playStopButton.style.fontSize = "15px";
+            playStopButton.style.letterSpacing = "0.03em";
+            playStopButton.style.lineHeight = "1";
+            playStopButton.style.borderRadius = "0";
+            playStopButton.style.border = "none";
+            playStopButton.style.background = "#2C2C2C";
+            playStopButton.style.color = "#ffffff";
+            playStopButton.style.cursor = "pointer";
+            playStopButton.style.zIndex = "1000";
+            // Slide-in animation
+            playStopButton.style.transform = "translateX(100%)";
+            playStopButton.style.transition = "transform 0.3s ease";
+            container.appendChild(playStopButton);
             
             // Trigger slide-in animation after a brief delay
             setTimeout(() => {
-                panel.style.transform = "translateX(0)";
+                playStopButton.style.transform = "translateX(0)";
             }, 50);
-            
-            // Create columns container - 2 columns for 6 shapes (3 per column)
-            const leftColumn = document.createElement("div");
-            leftColumn.style.display = "flex";
-            leftColumn.style.flexDirection = "column";
-            leftColumn.style.alignItems = "center";
-            
-            const rightColumn = document.createElement("div");
-            rightColumn.style.display = "flex";
-            rightColumn.style.flexDirection = "column";
-            rightColumn.style.alignItems = "center";
-            
-            panel.appendChild(leftColumn);
-            panel.appendChild(rightColumn);
 
-            // Create shape buttons - Left column
-            circleBtn = document.createElement("button");
-            circleBtn.dataset.shapeType = "circle";
-            circleBtn.dataset.shapeIndex = "0";
-            circleBtn.appendChild(createShapeSVG("circle", false));
-            
-            squareBtn = document.createElement("button");
-            squareBtn.dataset.shapeType = "square";
-            squareBtn.dataset.shapeIndex = "1";
-            squareBtn.appendChild(createShapeSVG("square", false));
-            
-            triangleBtn = document.createElement("button");
-            triangleBtn.dataset.shapeType = "triangle";
-            triangleBtn.dataset.shapeIndex = "2";
-            triangleBtn.appendChild(createShapeSVG("triangle", false));
+            playStopButton.addEventListener("click", () => {
+                if (isReplaying) {
+                    // Stop playback
+                    isReplaying = false;
+                    playStopButton.textContent = "[play]";
+                } else {
+                    // Start playback
+                    if (!recordedPoints.length) return;
 
-            leftColumn.appendChild(circleBtn);
-            leftColumn.appendChild(squareBtn);
-            leftColumn.appendChild(triangleBtn);
+                    // Start audio safely
+                    ensureAudio();
 
-            styleShapeBtn(circleBtn);
-            styleShapeBtn(squareBtn);
-            styleShapeBtn(triangleBtn);
-
-            circleBtn.addEventListener("click", () => setShape(0));
-            squareBtn.addEventListener("click", () => setShape(1));
-            triangleBtn.addEventListener("click", () => setShape(2));
-            
-            // Create shape buttons - Right column
-            ellipseBtn = document.createElement("button");
-            ellipseBtn.dataset.shapeType = "ellipse";
-            ellipseBtn.dataset.shapeIndex = "3";
-            ellipseBtn.appendChild(createShapeSVG("ellipse", false));
-            
-            starBtn = document.createElement("button");
-            starBtn.dataset.shapeType = "star";
-            starBtn.dataset.shapeIndex = "4";
-            starBtn.appendChild(createShapeSVG("star", false));
-            
-            pentagonBtn = document.createElement("button");
-            pentagonBtn.dataset.shapeType = "pentagon";
-            pentagonBtn.dataset.shapeIndex = "5";
-            pentagonBtn.appendChild(createShapeSVG("pentagon", false));
-            
-            rightColumn.appendChild(ellipseBtn);
-            rightColumn.appendChild(starBtn);
-            rightColumn.appendChild(pentagonBtn);
-            
-            styleShapeBtn(ellipseBtn);
-            styleShapeBtn(starBtn);
-            styleShapeBtn(pentagonBtn);
-            
-            ellipseBtn.addEventListener("click", () => setShape(3));
-            starBtn.addEventListener("click", () => setShape(4));
-            pentagonBtn.addEventListener("click", () => setShape(5));
-            
-            highlightShape(circleBtn);
-
-            // Create control buttons as DOM elements
-            playButton = document.createElement("button");
-            playButton.textContent = "[play]";
-            stopButton = document.createElement("button");
-            stopButton.textContent = "[stop]";
-            resetButton = document.createElement("button");
-            resetButton.textContent = "[reset]";
-
-            // Create control buttons container
-            const controlsColumn = document.createElement("div");
-            controlsColumn.style.display = "flex";
-            controlsColumn.style.flexDirection = "column";
-            controlsColumn.style.alignItems = "flex-end";
-            controlsColumn.style.marginLeft = "10px";
-            
-            controlsColumn.appendChild(playButton);
-            controlsColumn.appendChild(stopButton);
-            controlsColumn.appendChild(resetButton);
-            
-            panel.appendChild(controlsColumn);
-
-            stylePanelButton(playButton);
-            stylePanelButton(stopButton);
-            stylePanelButton(resetButton);
-
-            playButton.addEventListener("click", () => {
-                if (!recordedPoints.length) return;
-
-                // Start audio safely (no p5.sound)
-                ensureAudio();
-
-                clearVisualOnly();   // לא מוחק recordedPoints
-                replayIndex = 0;
-                lastSoundTime = 0;
-                isReplaying = true;
+                    clearVisualOnly();
+                    replayIndex = 0;
+                    lastSoundTime = 0;
+                    isReplaying = true;
+                    playStopButton.textContent = "[stop]";
+                }
             });
-
-            stopButton.addEventListener("click", () => {
-                isReplaying = false;
-            });
-
-            resetButton.addEventListener("click", resetCanvas);
-        }
-
-        function styleShapeBtn(btn) {
-            btn.style.width = "100%";
-            btn.style.margin = "4px 0";
-            btn.style.fontSize = "20px";
-            btn.style.fontFamily = "'JetBrains Mono NL', monospace";
-            btn.style.letterSpacing = "0.03em";
-            btn.style.lineHeight = "0.8";
-            btn.style.textTransform = "none";
-            btn.style.borderRadius = "0";
-            btn.style.border = "none";
-            btn.style.background = "transparent";
-            btn.style.color = "#ffffff";
-            btn.style.cursor = "pointer";
-            btn.style.textAlign = "center";
-            btn.style.display = "flex";
-            btn.style.alignItems = "center";
-            btn.style.justifyContent = "center";
         }
         
-        // Function to create SVG shape for panel buttons
-        function createShapeSVG(shapeType, isSelected, size = 20) {
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("width", size);
-            svg.setAttribute("height", size);
-            svg.setAttribute("viewBox", `-${size/2} -${size/2} ${size} ${size}`);
-            svg.style.display = "block";
-            
-            const fillColor = isSelected ? "#ffffff" : "none";
-            const strokeColor = "#ffffff";
-            const strokeWidth = 2;
-            
-            if (shapeType === "circle") {
-                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                circle.setAttribute("cx", "0");
-                circle.setAttribute("cy", "0");
-                circle.setAttribute("r", size * 0.4);
-                circle.setAttribute("fill", fillColor);
-                circle.setAttribute("stroke", strokeColor);
-                circle.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(circle);
-            } else if (shapeType === "square") {
-                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                const s = size * 0.5;
-                rect.setAttribute("x", -s/2);
-                rect.setAttribute("y", -s/2);
-                rect.setAttribute("width", s);
-                rect.setAttribute("height", s);
-                rect.setAttribute("fill", fillColor);
-                rect.setAttribute("stroke", strokeColor);
-                rect.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(rect);
-            } else if (shapeType === "triangle") {
-                const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                const h = size * 0.45;
-                const points = `0,${-h/2} ${-h/2},${h/2} ${h/2},${h/2}`;
-                polygon.setAttribute("points", points);
-                polygon.setAttribute("fill", fillColor);
-                polygon.setAttribute("stroke", strokeColor);
-                polygon.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(polygon);
-            } else if (shapeType === "ellipse") {
-                const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-                ellipse.setAttribute("cx", "0");
-                ellipse.setAttribute("cy", "0");
-                ellipse.setAttribute("rx", size * 0.5);
-                ellipse.setAttribute("ry", size * 0.3);
-                ellipse.setAttribute("fill", fillColor);
-                ellipse.setAttribute("stroke", strokeColor);
-                ellipse.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(ellipse);
-            } else if (shapeType === "star") {
-                const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                let points = "";
-                for (let i = 0; i < 10; i++) {
-                    const angle = (i * Math.PI) / 5 - Math.PI / 2;
-                    const r = (i % 2 === 0) ? size * 0.4 : size * 0.2;
-                    const x = Math.cos(angle) * r;
-                    const y = Math.sin(angle) * r;
-                    points += `${x},${y} `;
+        // ==================
+        // SHAPE HIT DETECTION
+        // ==================
+        function getShapeAtPosition(mx, my) {
+            // Check shapes in reverse order (topmost first)
+            for (let i = shapePositions.length - 1; i >= 0; i--) {
+                const shape = shapePositions[i];
+                const hitRadius = DRAGGABLE_SHAPE_SIZE * 0.7; // Generous hit area
+                
+                const dx = mx - shape.x;
+                const dy = my - shape.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < hitRadius) {
+                    return i;
                 }
-                polygon.setAttribute("points", points.trim());
-                polygon.setAttribute("fill", fillColor);
-                polygon.setAttribute("stroke", strokeColor);
-                polygon.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(polygon);
-            } else if (shapeType === "pentagon") {
-                const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                let points = "";
-                for (let i = 0; i < 5; i++) {
-                    const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
-                    const r = size * 0.4;
-                    const x = Math.cos(angle) * r;
-                    const y = Math.sin(angle) * r;
-                    points += `${x},${y} `;
-                }
-                polygon.setAttribute("points", points.trim());
-                polygon.setAttribute("fill", fillColor);
-                polygon.setAttribute("stroke", strokeColor);
-                polygon.setAttribute("stroke-width", strokeWidth);
-                svg.appendChild(polygon);
             }
-            
-            return svg;
-        }
-
-        function stylePanelButton(btn) {
-            btn.style.width = "auto";
-            btn.style.margin = "4px 0";
-            btn.style.padding = "6px 8px";
-            btn.style.fontFamily = "'JetBrains Mono NL', monospace";
-            btn.style.fontSize = "15px";
-            btn.style.letterSpacing = "0.03em";
-            btn.style.lineHeight = "0.8";
-            btn.style.textTransform = "none";
-            btn.style.borderRadius = "0";
-            btn.style.border = "none";
-            btn.style.background = "transparent";
-            btn.style.color = "#ffffff";
-            btn.style.cursor = "pointer";
-            btn.style.fontWeight = "normal";
-        }
-
-        function setShape(i) {
-            currentShape = i;
-            const allShapeButtons = [circleBtn, squareBtn, triangleBtn, ellipseBtn, starBtn, pentagonBtn];
-            if (i >= 0 && i < allShapeButtons.length) {
-                highlightShape(allShapeButtons[i]);
-            }
-        }
-
-        function highlightShape(btn) {
-            // Set all buttons to unselected state (outline only)
-            const allShapeButtons = [circleBtn, squareBtn, triangleBtn, ellipseBtn, starBtn, pentagonBtn];
-            allShapeButtons.forEach(b => {
-                if (!b) return;
-                b.style.outline = "none";
-                b.style.opacity = "1";
-                const shapeType = b.dataset.shapeType;
-                // Remove existing SVG and create new one with unselected state
-                const existingSVG = b.querySelector("svg");
-                if (existingSVG) {
-                    b.removeChild(existingSVG);
-                }
-                b.appendChild(createShapeSVG(shapeType, false));
-            });
-            // Set selected button to filled state
-            const shapeType = btn.dataset.shapeType;
-            const existingSVG = btn.querySelector("svg");
-            if (existingSVG) {
-                btn.removeChild(existingSVG);
-            }
-            btn.appendChild(createShapeSVG(shapeType, true));
+            return -1;
         }
 
         // ==================
-        // BACKGROUND & DIVIDER
+        // BACKGROUND
         // ==================
         function paintBackground() {
             // Background removed - canvas is transparent to show page background
-            // Only draw the divider line
-            if (p) {
-                drawDivider();
-            }
-        }
-
-        function drawDivider() {
-            p.push();
-            p.stroke(255);
-            p.strokeWeight(3);
-            p.line(p.width / 2, 0, p.width / 2, p.height);
-            p.pop();
+            // No divider line - shapes are mirrored seamlessly
         }
 
         // ==================
@@ -5683,21 +6493,50 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
             isReplaying = false;
             replayIndex = 0;
             
-            // Reset drawing state to allow new drawing after reset
+            // Reset drawing state
             drawing = false;
             brushX = undefined;
             brushY = undefined;
             prevX = undefined;
             prevY = undefined;
+            
+            // Reset draggable shapes to initial positions
+            initializeShapePositions();
+            
+            // Reset play/stop button text
+            if (playStopButton) {
+                playStopButton.textContent = "[play]";
+            }
         }
 
         p.keyPressed = function() {
             if (p.key === "c" || p.key === "C") resetCanvas();
         };
 
-        // Mouse press handler to ensure audio on first user gesture
+        // Mouse press handler - detect shape clicks and start dragging
         p.mousePressed = function() {
             ensureAudio();
+            
+            // Check if clicking on a draggable shape
+            const shapeIndex = getShapeAtPosition(p.mouseX, p.mouseY);
+            if (shapeIndex >= 0) {
+                draggedShapeIndex = shapeIndex;
+                const shape = shapePositions[shapeIndex];
+                dragOffsetX = p.mouseX - shape.x;
+                dragOffsetY = p.mouseY - shape.y;
+                
+                // Hide instruction text when user starts interacting
+                hideSoundShapeInstructionText();
+            }
+        };
+        
+        // Mouse release handler - stop dragging
+        p.mouseReleased = function() {
+            if (draggedShapeIndex >= 0) {
+                // Save state after drawing
+                saveState();
+            }
+            draggedShapeIndex = -1;
         };
         
         // Window resize handler - resize to container size
@@ -5734,9 +6573,9 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
                 brushLayer.clear();
                 paintBackground();
             }
-
-            // Panel positions are now CSS-based (right-aligned in container)
-            // No need to update positions - they stay aligned automatically
+            
+            // Reinitialize shape positions for new canvas size
+            initializeShapePositions();
         };
     };
 }
@@ -7191,6 +8030,11 @@ function skipDemo() {
 // Shared function to set up START button click handler
 // This ensures consistent behavior whether START appears in initial intro or after returning via logo click
 function setupStartButton() {
+    // #region agent log
+    const stack = new Error().stack;
+    fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8026',message:'setupStartButton CALLED',data:{isDemoActive,introTextChanged,initialInstructionTextShown,userInteracted,hasScrolledScrollbar,isProgrammaticScroll,stack:stack.split('\n').slice(0,5).join(' | ')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'start-trigger'})}).catch(()=>{});
+    // #endregion
+    
     const introText = document.getElementById('gradient-intro-text');
     if (!introText) {
         console.warn('START button setup: intro text element not found');
@@ -7784,16 +8628,32 @@ function checkAndUpdateIntroText() {
 }
 
 // ==================
-// SIMPLE DEMO SCROLL FUNCTION
+// SMOOTH DEMO SCROLL FUNCTION
 // ==================
 
-// Function to programmatically scroll a column
-// Only changes scrollTop - gradients update automatically via scroll handler
-// Uses discrete scroll gestures: scroll → pause → scroll (like real user wheel gestures)
+// Function to programmatically scroll a column with smooth continuous motion
+// Uses a single fluid animation with strong ease-out (like a spinning wheel slowing down)
 // scrollDistance: positive = down, negative = up (in number of items)
+// Now supports infinite scrolling by wrapping position when hitting boundaries
 function scrollColumnProgrammatically(column, duration, scrollDistance) {
     const itemHeight = window.innerHeight / 6;
+    const singleSetHeight = 6 * itemHeight; // Height of one complete color set
     const startScrollTop = column.scrollTop;
+    const totalScrollDistance = itemHeight * scrollDistance; // Total pixels to scroll
+    const startTime = Date.now();
+    const columnId = column.classList.contains('left-column') ? 'left' : 'right';
+    
+    // Boundaries for wrapping (same as infinite scroll logic)
+    const topBoundary = singleSetHeight * 0.5;
+    const bottomBoundary = singleSetHeight * 1.5;
+    
+    // Track cumulative scroll for wrapping
+    let currentBase = startScrollTop;
+    let lastEase = 0;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8620',message:'scrollColumnProgrammatically START',data:{columnId,startScrollTop,totalScrollDistance,scrollDistance,duration,itemHeight,singleSetHeight,topBoundary,bottomBoundary},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
+    // #endregion
     
     // Set programmatic scroll flag to skip user interaction tracking
     // but gradients will still update via scroll handler
@@ -7802,25 +8662,17 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
     isDemoActive = true;
     
     // Disable scroll-snap during demo for smooth motion
-    // Use setProperty to ensure CSS property is set correctly
-    const originalSnapType = window.getComputedStyle(column).scrollSnapType;
     column.style.setProperty('scroll-snap-type', 'none', 'important');
     
-    // Calculate number of steps (one per item)
-    const numSteps = Math.abs(scrollDistance);
-    const direction = scrollDistance > 0 ? 1 : -1; // 1 for down, -1 for up
+    let frameCount = 0;
     
-    // Timing parameters for discrete gestures
-    const stepDuration = 300; // 300ms per scroll gesture (between 250-400ms)
-    const pauseDuration = 180; // 180ms pause between gestures (between 120-250ms)
-    
-    let currentStep = 0;
-    let currentStartScrollTop = startScrollTop;
-    
-    // Function to perform one discrete scroll gesture
-    function performScrollStep(stepIndex) {
+    // Single continuous animation with strong ease-out
+    function animate() {
         // Check if demo was cancelled - if so, stop immediately
         if (!isDemoActive) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8638',message:'Animation CANCELLED',data:{columnId,frameCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
+            // #endregion
             // Re-enable scroll-snap
             column.style.removeProperty('scroll-snap-type');
             // Reset flags
@@ -7828,113 +8680,81 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
             return;
         }
         
-        if (stepIndex >= numSteps) {
-            // All steps complete - re-enable scroll-snap and ensure final snap
-            column.style.removeProperty('scroll-snap-type');
+        frameCount++;
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Roulette-style easing: short acceleration (20%), long deceleration (80%)
+        // This creates the feel of a spinning wheel that takes time to slow down
+        const accelPhase = 0.15; // Only 15% of time for acceleration
+        let ease;
+        if (progress < accelPhase) {
+            // Ease-in: quick acceleration (quadratic)
+            const t = progress / accelPhase;
+            ease = t * t * accelPhase;
+        } else {
+            // Ease-out: gradual deceleration (power of 3)
+            const t = (progress - accelPhase) / (1 - accelPhase);
+            ease = accelPhase + (1 - accelPhase) * (1 - Math.pow(1 - t, 3));
+        }
+        
+        // Calculate incremental scroll delta since last frame
+        const deltaEase = ease - lastEase;
+        const deltaScroll = totalScrollDistance * deltaEase;
+        lastEase = ease;
+        
+        // Apply incremental scroll
+        let newScrollTop = column.scrollTop + deltaScroll;
+        
+        // Wrap position if we cross boundaries (infinite scroll during animation)
+        let wrapped = false;
+        if (newScrollTop < topBoundary) {
+            // Scrolled too far up: wrap forward by one set
+            newScrollTop += singleSetHeight;
+            wrapped = true;
+        } else if (newScrollTop > bottomBoundary) {
+            // Scrolled too far down: wrap backward by one set
+            newScrollTop -= singleSetHeight;
+            wrapped = true;
+        }
+        
+        column.scrollTop = newScrollTop;
+        
+        // Log every 30 frames (~0.5 sec at 60fps) or when wrapped
+        if (frameCount % 30 === 1 || wrapped) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8670',message:'Animation FRAME',data:{columnId,frameCount,elapsed,progress,ease,deltaScroll,newScrollTop,wrapped,actualScrollTop:column.scrollTop},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
+            // #endregion
+        }
+        
+        if (progress < 1) {
+            const frameId = requestAnimationFrame(animate);
+            demoAnimationFrames.push(frameId);
+        } else {
+            // Animation complete
+            const finalActual = column.scrollTop;
             
-            // Final snap to nearest item
-            const currentScroll = column.scrollTop;
-            const tileIndex = Math.round(currentScroll / itemHeight);
-            const snappedPosition = tileIndex * itemHeight;
-            column.scrollTop = snappedPosition;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8688',message:'Animation COMPLETE',data:{columnId,frameCount,finalActual},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
+            // #endregion
             
-            // Reset flags after a small delay
+            // Re-enable scroll-snap after a small delay to avoid browser snap interference
             const timeoutId = setTimeout(() => {
+                column.style.removeProperty('scroll-snap-type');
                 isProgrammaticScroll = false;
                 // Note: isDemoActive is reset in scrollBothColumnsProgrammatically after all animations complete
-            }, 50);
+            }, 100);
             demoTimeouts.push(timeoutId);
-            return;
         }
-        
-        // Calculate target for this step (one item in the direction)
-        const stepStartScrollTop = currentStartScrollTop;
-        const stepTargetScrollTop = stepStartScrollTop + (itemHeight * direction);
-        const stepStartTime = Date.now();
-        
-        // Animate this single step
-        function animateStep() {
-            // Check if demo was cancelled - if so, stop immediately
-            if (!isDemoActive) {
-                // Re-enable scroll-snap
-                column.style.removeProperty('scroll-snap-type');
-                // Reset flags
-                isProgrammaticScroll = false;
-                return;
-            }
-            
-            const elapsed = Date.now() - stepStartTime;
-            const progress = Math.min(elapsed / stepDuration, 1);
-            
-            // Use ease-out for natural deceleration (feels more like user gesture)
-            const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
-            
-            // Update scrollTop only - existing scroll handler will update gradients
-            const newScrollTop = stepStartScrollTop + (stepTargetScrollTop - stepStartScrollTop) * ease;
-            column.scrollTop = newScrollTop;
-            
-            if (progress < 1) {
-                // Check again before scheduling next frame
-                if (!isDemoActive) {
-                    // Re-enable scroll-snap
-                    column.style.removeProperty('scroll-snap-type');
-                    // Reset flags
-                    isProgrammaticScroll = false;
-                    return;
-                }
-                const frameId = requestAnimationFrame(animateStep);
-                demoAnimationFrames.push(frameId);
-                currentAnimationFrame = frameId;
-            } else {
-                // Step complete - snap to exact position
-                column.scrollTop = stepTargetScrollTop;
-                currentStartScrollTop = stepTargetScrollTop;
-                
-                // Check if demo was cancelled before proceeding
-                if (!isDemoActive) {
-                    // Re-enable scroll-snap
-                    column.style.removeProperty('scroll-snap-type');
-                    // Reset flags
-                    isProgrammaticScroll = false;
-                    return;
-                }
-                
-                // Check if this is the last step
-                const isLastStep = (stepIndex + 1) >= numSteps;
-                
-                if (isLastStep) {
-                    // Last step - proceed immediately to cleanup
-                    performScrollStep(stepIndex + 1);
-                } else {
-                    // Not last step - pause before next step
-                    const timeoutId = setTimeout(() => {
-                        // Check again before proceeding
-                        if (!isDemoActive) {
-                            // Re-enable scroll-snap
-                            column.style.removeProperty('scroll-snap-type');
-                            // Reset flags
-                            isProgrammaticScroll = false;
-                            return;
-                        }
-                        performScrollStep(stepIndex + 1);
-                    }, pauseDuration);
-                    demoTimeouts.push(timeoutId);
-                }
-            }
-        }
-        
-        const frameId = requestAnimationFrame(animateStep);
-        demoAnimationFrames.push(frameId);
-        currentAnimationFrame = frameId;
     }
     
-    // Start the first step
-    performScrollStep(0);
+    // Start the animation
+    const frameId = requestAnimationFrame(animate);
+    demoAnimationFrames.push(frameId);
 }
     
 // Function to scroll both columns programmatically
-// Split into two sequential phases: right first, then left
-// Uses discrete scroll gestures with calculated timing
+// Both columns scroll simultaneously with smooth continuous motion
 function scrollBothColumnsProgrammatically(duration) {
     const leftColumn = document.querySelector('.left-column');
     const rightColumn = document.querySelector('.right-column');
@@ -7958,88 +8778,127 @@ function scrollBothColumnsProgrammatically(duration) {
     // to prevent text from appearing before demo starts
     // This ensures text stays hidden throughout the demo
     
-    // Timing parameters for discrete gestures (must match scrollColumnProgrammatically)
-    const stepDuration = 300; // 300ms per scroll gesture
-    const pauseDuration = 180; // 180ms pause between gestures
+    // Demo duration: ~5 seconds for roulette-style scroll
+    // Extended to give more time for the fast spinning phase
+    const phaseDuration = 5000;
     
-    // Calculate phase duration based on number of steps
-    // For 4 items: (4 × 300ms) + (3 × 180ms) = 1200ms + 540ms = 1740ms per phase
-    const numSteps = 4; // Both phases scroll 4 items (extended duration, same fast rhythm)
-    const phaseDuration = (numSteps * stepDuration) + ((numSteps - 1) * pauseDuration);
+    // Both columns scroll simultaneously
+    // Right column scrolls UP, left column scrolls DOWN
+    // Scroll 12 items (2 full wheel rotations) with wrapping for infinite scroll effect
+    scrollColumnProgrammatically(rightColumn, phaseDuration, -12); // Up 12 items (2 rotations)
+    scrollColumnProgrammatically(leftColumn, phaseDuration, 12);   // Down 12 items (2 rotations)
     
-    // Phase 1: Right column scrolls UP (4 items with discrete gestures)
-    // Left column stays still
-    scrollColumnProgrammatically(rightColumn, phaseDuration, -4); // Up 4 items
-    
-    // Phase 2: After Phase 1 completes, left column scrolls DOWN (4 items with discrete gestures)
-    // Right column stays still
-    const phase2Timeout = setTimeout(() => {
-        // Check if demo was cancelled before starting phase 2
+    // Cleanup after animation fully completes - show text only at the end
+    const cleanupTimeout = setTimeout(() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8781',message:'Cleanup timeout START',data:{isDemoActive,introTextChanged,initialInstructionTextShown},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+        // #endregion
+        
+        // Check if demo was cancelled
         if (!isDemoActive) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8784',message:'Cleanup SKIPPED - demo was cancelled',data:{isDemoActive},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+            // #endregion
             return;
         }
         
-        scrollColumnProgrammatically(leftColumn, phaseDuration, 4); // Down 4 items
+        isDemoActive = false;
         
-        // Reset demo active flag after all animations complete (both phases)
-        const cleanupTimeout = setTimeout(() => {
-            // Check again before cleanup
-            if (!isDemoActive) {
-                return;
+        // CRITICAL: Set grace period flag to prevent START from triggering immediately
+        // This prevents scroll-snap and residual events from triggering START
+        demoJustEnded = true;
+        userInteracted = false;
+        hasScrolledScrollbar = false;
+        
+        // Clear grace period after 300ms - allows real user interaction to trigger START
+        setTimeout(() => {
+            demoJustEnded = false;
+        }, 300);
+        
+        // Remove demo-active class to show instruction text again
+        const gradientContainer = document.getElementById('gradient-intro-container');
+        
+        // #region agent log
+        const classListBefore = gradientContainer ? gradientContainer.className : 'no container';
+        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8789',message:'Before class changes',data:{classListBefore,hasContainer:!!gradientContainer},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'css'})}).catch(()=>{});
+        // #endregion
+        
+        if (gradientContainer) {
+            gradientContainer.classList.remove('demo-active');
+            // Ensure intro-active class is present for CSS rules to work
+            if (!gradientContainer.classList.contains('intro-active')) {
+                gradientContainer.classList.add('intro-active');
             }
             
-            isDemoActive = false;
+            // #region agent log
+            const classListAfter = gradientContainer.className;
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8798',message:'After class changes',data:{classListAfter,hasDemoActive:gradientContainer.classList.contains('demo-active'),hasIntroActive:gradientContainer.classList.contains('intro-active')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'css'})}).catch(()=>{});
+            // #endregion
+        }
+        
+        // Show instruction text (only if not already changed to START)
+        const introText = document.getElementById('gradient-intro-text');
+        // Check if text exists and either hasn't been changed yet, or current text is not the initial instruction text
+        const currentText = introText ? introText.textContent.trim().toLowerCase() : '';
+        const isCurrentlyStart = currentText === '[start]';
+        const hasInitialText = currentText.includes('synesthesia') || currentText.includes('scroll');
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8805',message:'Intro text check',data:{hasIntroText:!!introText,currentText,isCurrentlyStart,hasInitialText,introTextChanged,willShow:introText&&(!introTextChanged||(!isCurrentlyStart&&!hasInitialText))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+        // #endregion
+        
+        if (introText && (!introTextChanged || (!isCurrentlyStart && !hasInitialText))) {
+            // Restore initial instruction text content
+            introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
+            // Remove any inline styles that might override CSS
+            introText.style.cursor = '';
+            introText.style.pointerEvents = '';
+            // Ensure text is visible (display and visibility) - override any CSS that might hide it
+            introText.style.display = 'flex';
+            introText.style.visibility = 'visible';
+            // Force opacity to be visible (override CSS if needed)
+            introText.style.opacity = '1';
+            // Reset transform to trigger smooth animation
+            introText.style.transform = 'translateY(10px)';
+            // Force reflow to ensure transform reset is applied
+            void introText.offsetHeight;
+            // Update gradient intro to position text correctly
+            updateGradientIntro();
+            // Mark that initial instruction text has been shown immediately
+            initialInstructionTextShown = true;
             
-            // Remove demo-active class to show instruction text again
-            const gradientContainer = document.getElementById('gradient-intro-container');
-            if (gradientContainer) {
-                gradientContainer.classList.remove('demo-active');
-                // Ensure intro-active class is present for CSS rules to work
-                if (!gradientContainer.classList.contains('intro-active')) {
-                    gradientContainer.classList.add('intro-active');
-                }
-            }
+            // #region agent log
+            const computedStyle = window.getComputedStyle(introText);
+            const textRect = introText.getBoundingClientRect();
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8823',message:'Intro text SHOWN',data:{initialInstructionTextShown,textContent:introText.textContent.substring(0,50),computedOpacity:computedStyle.opacity,computedVisibility:computedStyle.visibility,computedDisplay:computedStyle.display,inlineOpacity:introText.style.opacity,inlineDisplay:introText.style.display,position:{top:textRect.top,left:textRect.left,width:textRect.width,height:textRect.height},windowSize:{w:window.innerWidth,h:window.innerHeight},zIndex:computedStyle.zIndex,color:computedStyle.color},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+            // #endregion
             
-            // Show instruction text after demo ends (only if not already changed to START)
-            const introText = document.getElementById('gradient-intro-text');
-            // Check if text exists and either hasn't been changed yet, or current text is not the initial instruction text
-            const currentText = introText ? introText.textContent.trim().toLowerCase() : '';
-            const isCurrentlyStart = currentText === '[start]';
-            const hasInitialText = currentText.includes('synesthesia') || currentText.includes('scroll');
-            if (introText && (!introTextChanged || (!isCurrentlyStart && !hasInitialText))) {
-                // Restore initial instruction text content
-                introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
-                // Remove any inline styles that might override CSS
-                introText.style.cursor = '';
-                introText.style.pointerEvents = '';
-                // Ensure text is visible (display and visibility) - override any CSS that might hide it
-                introText.style.display = 'flex';
-                introText.style.visibility = 'visible';
-                // Force opacity to be visible (override CSS if needed)
-                introText.style.opacity = '1';
-                // Reset transform to trigger smooth animation
-                introText.style.transform = 'translateY(10px)';
-                // Force reflow to ensure transform reset is applied
-                void introText.offsetHeight;
-                // Update gradient intro to position text correctly
-                updateGradientIntro();
-                // Mark that initial instruction text has been shown immediately
-                initialInstructionTextShown = true;
-                // Remove inline transform to let CSS transition handle the animation
-                // But keep opacity: 1 to ensure text stays visible
-                const transformTimeout = setTimeout(() => {
-                    introText.style.transform = '';
-                    // DO NOT remove opacity - keep it at 1 to ensure text is always visible
-                    // CSS will handle the transition, but we keep opacity: 1 as fallback
-                }, 0);
-                demoTimeouts.push(transformTimeout);
-                // CSS will handle visibility via intro-active class (opacity: 1 !important)
-                // But we keep inline opacity: 1 to ensure text is always visible even if CSS fails
-            }
-        }, phaseDuration + 50); // Wait for phase 2 to complete plus small buffer
-        demoTimeouts.push(cleanupTimeout);
-    }, phaseDuration);
-    demoTimeouts.push(phase2Timeout);
+            // Also log after a short delay to see if something changes
+            setTimeout(() => {
+                // #region agent log
+                const delayedComputedStyle = window.getComputedStyle(introText);
+                const delayedRect = introText.getBoundingClientRect();
+                fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8835',message:'Intro text AFTER 100ms',data:{computedOpacity:delayedComputedStyle.opacity,computedVisibility:delayedComputedStyle.visibility,computedDisplay:delayedComputedStyle.display,position:{top:delayedRect.top,left:delayedRect.left,width:delayedRect.width,height:delayedRect.height}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+                // #endregion
+            }, 100);
+            
+            // Remove inline transform to let CSS transition handle the animation
+            // But keep opacity: 1 to ensure text stays visible
+            const transformTimeout = setTimeout(() => {
+                introText.style.transform = '';
+                // DO NOT remove opacity - keep it at 1 to ensure text is always visible
+                // CSS will handle the transition, but we keep opacity: 1 as fallback
+            }, 0);
+            demoTimeouts.push(transformTimeout);
+            // CSS will handle visibility via intro-active class (opacity: 1 !important)
+            // But we keep inline opacity: 1 to ensure text is always visible even if CSS fails
+        } else {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8851',message:'Intro text NOT shown - condition failed',data:{hasIntroText:!!introText,introTextChanged,isCurrentlyStart,hasInitialText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
+            // #endregion
+        }
+    }, phaseDuration); // Show text only after animation fully completes
+    demoTimeouts.push(cleanupTimeout);
 }
 
 // Function to trigger demo when intro is in active phase
