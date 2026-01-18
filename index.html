@@ -107,10 +107,10 @@
         <div id="shape-number-container" class="shape-number-container hidden">
             <canvas id="shape-number-draw-surface"></canvas>
             <div id="shape-number-panel" class="shape-number-panel">
-                <input id="shape-number-countSlider" type="range" min="1" max="20" step="1" value="10" />
+                <input id="shape-number-countSlider" type="range" min="1" max="20" step="1" value="2" />
                 <div id="shape-number-countLabel" class="shape-number-value"></div>
                 <div class="shape-number-spacer"></div>
-                <input id="shape-number-sizeSlider" type="range" min="0.2" max="4.0" step="0.01" value="1.4" />
+                <input id="shape-number-sizeSlider" type="range" min="0.2" max="4.0" step="0.01" value="2.50" />
                 <div id="shape-number-sizeLabel" class="shape-number-value"></div>
                 <div class="shape-number-spacer"></div>
                 <div class="shape-number-shapes-container">
@@ -142,6 +142,10 @@
         <div class="canvas-text-box-letter-sound" id="canvas-text-box-letter-sound">
             <p>Written language is experienced as form rather than symbol. For some synesthetes, letters are not abstract signs but spatial entities with weight, direction, and geometry. Language becomes something shaped and seen before it is understood.</p>
         </div>
+        <!-- Letter + Color text box -->
+        <div class="canvas-text-box-letter-color" id="canvas-text-box-letter-color">
+            <p>For some synesthetes, color is an inseparable part of language. Letters do not appear as neutral marks, but arrive with their own chromatic presence. A word is already tinted before it is read, and its color remains stable, familiar, and personal.</p>
+        </div>
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
         </div>
@@ -152,6 +156,45 @@
         <!-- Container for white circle with black outline on Shape + Color page -->
         <div class="shape-color-circle-container" id="shape-color-circle-container">
             <div class="shape-color-circle"></div>
+        </div>
+        <!-- Container for MELODY circle letters on Sound + Letter page -->
+        <div class="melody-circle-container" id="melody-circle-container">
+            <!-- SVG for lines from center to each letter -->
+            <svg class="melody-lines-svg" id="melody-lines-svg">
+                <line class="melody-line" id="melody-line-0"></line>
+                <line class="melody-line" id="melody-line-1"></line>
+                <line class="melody-line" id="melody-line-2"></line>
+                <line class="melody-line" id="melody-line-3"></line>
+                <line class="melody-line" id="melody-line-4"></line>
+                <line class="melody-line" id="melody-line-5"></line>
+            </svg>
+            <div class="melody-letter" data-index="0">M</div>
+            <div class="melody-letter" data-index="1">E</div>
+            <div class="melody-letter" data-index="2">L</div>
+            <div class="melody-letter" data-index="3">O</div>
+            <div class="melody-letter" data-index="4">D</div>
+            <div class="melody-letter" data-index="5">Y</div>
+        </div>
+        <!-- Container for colored squares on Sound + Color page -->
+        <div class="sound-color-squares-container" id="sound-color-squares-container">
+            <!-- SVG for lines from center to each square -->
+            <svg class="sound-color-lines-svg" id="sound-color-lines-svg">
+                <line class="sound-color-line" id="sound-color-line-0"></line>
+                <line class="sound-color-line" id="sound-color-line-1"></line>
+                <line class="sound-color-line" id="sound-color-line-2"></line>
+                <line class="sound-color-line" id="sound-color-line-3"></line>
+                <line class="sound-color-line" id="sound-color-line-4"></line>
+                <line class="sound-color-line" id="sound-color-line-5"></line>
+            </svg>
+            <!-- Isolated wrapper so blend mode only applies between squares, not with lines -->
+            <div class="sound-color-squares-wrapper">
+                <div class="sound-color-square" data-index="0" data-color="#EF4538"></div>
+                <div class="sound-color-square" data-index="1" data-color="#891951"></div>
+                <div class="sound-color-square" data-index="2" data-color="#FAB01B"></div>
+                <div class="sound-color-square" data-index="3" data-color="#007A6F"></div>
+                <div class="sound-color-square" data-index="4" data-color="#EB4781"></div>
+                <div class="sound-color-square" data-index="5" data-color="#293990"></div>
+            </div>
         </div>
     </div>
     <div class="line line-outer-left"></div>

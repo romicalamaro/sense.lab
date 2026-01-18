@@ -78,6 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize SHAPE & LETTER text box visibility
     updateLetterSoundTextBox(initialPageId);
     
+    // Initialize LETTER & COLOR text box visibility
+    updateLetterColorTextBox(initialPageId);
+    
     // Initialize SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(initialPageId);
     
@@ -86,6 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Shape + Color circle visibility
     updateShapeColorCircle(initialPageId);
+    
+    // Initialize MELODY circle visibility (Sound + Letter page)
+    updateMelodyCircle(initialPageId);
+    
+    // Initialize Sound + Color squares visibility
+    updateSoundColorSquares(initialPageId);
     
     // Initialize Shape & Emotion canvas visibility
     updateShapeEmotionCanvasVisibility(initialPageId);
@@ -1021,6 +1030,40 @@ const LETTER_SHAPES = {
 };
 
 // ==================
+// LETTER → COLOR MAPPING
+// ==================
+// Mapping object: uppercase letter (A-Z) → color hex code
+// These are placeholder colors - can be customized later
+const LETTER_COLORS = {
+    'A': '#E53935',  // Red
+    'B': '#1E88E5',  // Blue
+    'C': '#FDD835',  // Yellow
+    'D': '#43A047',  // Green
+    'E': '#8E24AA',  // Purple
+    'F': '#FB8C00',  // Orange
+    'G': '#00ACC1',  // Cyan
+    'H': '#D81B60',  // Pink
+    'I': '#5E35B1',  // Deep Purple
+    'J': '#039BE5',  // Light Blue
+    'K': '#7CB342',  // Light Green
+    'L': '#FFB300',  // Amber
+    'M': '#3949AB',  // Indigo
+    'N': '#00897B',  // Teal
+    'O': '#F4511E',  // Deep Orange
+    'P': '#C0CA33',  // Lime
+    'Q': '#6D4C41',  // Brown
+    'R': '#EC407A',  // Pink Light
+    'S': '#AB47BC',  // Purple Light
+    'T': '#26A69A',  // Teal Light
+    'U': '#42A5F5',  // Blue Light
+    'V': '#66BB6A',  // Green Light
+    'W': '#FFCA28',  // Yellow Light
+    'X': '#EF5350',  // Red Light
+    'Y': '#7E57C2',  // Deep Purple Light
+    'Z': '#78909C'   // Blue Grey
+};
+
+// ==================
 // SHAPE RENDERER
 // ==================
 // Single reusable function to render any shape spec as SVG
@@ -1143,6 +1186,22 @@ function renderShape(shapeSpec, color = '#2C2C2C') {
     
     svg.appendChild(shape);
     return svg;
+}
+
+// ==================
+// COLORED LETTER RENDERER
+// ==================
+// Function to render a colored letter for the Letter + Color interaction
+function renderColoredLetter(letter, color) {
+    if (!color || !letter) return null;
+    
+    const colorSpan = document.createElement('span');
+    colorSpan.className = 'letter-color';
+    colorSpan.textContent = letter;
+    colorSpan.style.color = color;
+    // CSS handles positioning, font styling, and transitions
+    
+    return colorSpan;
 }
 
 function initializeLetterHoverInteraction() {
@@ -1381,6 +1440,197 @@ function initializeLetterHoverInteraction() {
     
 }
 
+// ==================
+// LETTER + COLOR INTERACTION
+// ==================
+// Initialize hover interaction for Letter + Color page
+// Similar to letter-shape but reveals colors instead of shapes
+function initializeLetterColorInteraction() {
+    const letterColorTextBox = document.getElementById('canvas-text-box-letter-color');
+    if (!letterColorTextBox) {
+        return;
+    }
+    
+    const paragraph = letterColorTextBox.querySelector('p');
+    if (!paragraph) {
+        return;
+    }
+    
+    // Check if already initialized (has letter spans)
+    if (paragraph.querySelector('.letter-span')) {
+        return;
+    }
+    
+    // Get the text content - use textContent as source of truth
+    const originalText = paragraph.textContent;
+    
+    // Split text into individual characters and wrap each in a span
+    // Define punctuation marks that should remain static (no animation, no color)
+    const punctuationMarks = /[.,;:!?'"()[\]{}—–\-…]/;
+    
+    const wrappedText = originalText.split('').map((char) => {
+        // Handle spaces, punctuation marks, and special characters
+        if (char === ' ') {
+            return '<span class="letter-span space" data-letter=" "> </span>';
+        } else if (char === '\n') {
+            return '<br>';
+        } else if (punctuationMarks.test(char)) {
+            // Punctuation marks remain static - no animation, no color
+            const escapedChar = char
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            return `<span class="letter-span space" data-letter="${escapedChar}">${escapedChar}</span>`;
+        } else {
+            // Escape HTML special characters
+            const escapedChar = char
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            return `<span class="letter-span" data-letter="${escapedChar}">${escapedChar}</span>`;
+        }
+    }).join('');
+    
+    // Replace paragraph content with wrapped letters
+    paragraph.innerHTML = wrappedText;
+    
+    // Inject colored letters for each letter
+    const letterSpans = paragraph.querySelectorAll('.letter-span:not(.space)');
+    
+    for (let index = 0; index < letterSpans.length; index++) {
+        const span = letterSpans[index];
+        
+        try {
+            const letter = span.getAttribute('data-letter');
+            if (!letter) {
+                continue;
+            }
+            
+            const upperLetter = letter.toUpperCase();
+            const colorHex = LETTER_COLORS[upperLetter];
+            
+            // Create and inject colored letter (fallback to grey if letter not mapped)
+            const coloredLetter = renderColoredLetter(upperLetter, colorHex || '#9E9E9E');
+            if (coloredLetter) {
+                span.appendChild(coloredLetter);
+            }
+        } catch (error) {
+            console.error('Error injecting colored letter at index', index, ':', error);
+        }
+    }
+    
+    // Restructure: wrap each letter-span in a letter-slot container
+    // Create static glyph for layout and sliding glyph inside mask
+    const allLetterSpans = paragraph.querySelectorAll('.letter-span:not(.space)');
+    allLetterSpans.forEach(span => {
+        // Get the text content (exclude color div by getting only text nodes)
+        let textContent = '';
+        for (let node of span.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                textContent += node.textContent;
+            }
+        }
+        textContent = textContent.trim();
+        
+        // Get the color square
+        const colorSquare = span.querySelector('.letter-color');
+        
+        // Create letter-slot container (natural size, no clipping)
+        const slot = document.createElement('span');
+        slot.className = 'letter-slot';
+        slot.setAttribute('data-letter', span.getAttribute('data-letter') || '');
+        
+        // Create static glyph for normal layout (visible by default)
+        const staticGlyph = document.createElement('span');
+        staticGlyph.className = 'letter-glyph-static';
+        staticGlyph.textContent = textContent;
+        
+        // Create letter-mask (45×45px clipping area, centered)
+        const mask = document.createElement('span');
+        mask.className = 'letter-mask';
+        
+        // Create sliding glyph inside mask (hidden by default, slides on hover)
+        const slidingGlyph = document.createElement('span');
+        slidingGlyph.className = 'letter-glyph';
+        slidingGlyph.textContent = textContent;
+        
+        // Add sliding glyph to mask
+        mask.appendChild(slidingGlyph);
+        
+        // Add color square to mask if it exists (inside mask, so it's clipped with the letter)
+        if (colorSquare) {
+            mask.appendChild(colorSquare);
+        }
+        
+        // Add static glyph to slot (for layout)
+        slot.appendChild(staticGlyph);
+        
+        // Add mask to slot
+        slot.appendChild(mask);
+        
+        // Replace the original span with the new slot
+        span.parentNode.replaceChild(slot, span);
+    });
+    
+    // Add robust hover state management to prevent blank states during rapid hover
+    const allSlots = paragraph.querySelectorAll('.letter-slot');
+    allSlots.forEach(slot => {
+        let hoverOutTimeout = null;
+        let isHovered = false;
+        
+        // Mouse enter: immediately activate hover state, cancel any pending hover-out
+        slot.addEventListener('mouseenter', () => {
+            isHovered = true;
+            
+            // Cancel any pending hover-out timeout
+            if (hoverOutTimeout) {
+                clearTimeout(hoverOutTimeout);
+                hoverOutTimeout = null;
+            }
+            
+            // Remove hover-leaving class if present
+            slot.classList.remove('hover-leaving');
+            
+            // Immediately add hover-active class to force hover-in state
+            slot.classList.add('hover-active');
+        });
+        
+        // Mouse leave: start delayed hover-out sequence
+        slot.addEventListener('mouseleave', () => {
+            isHovered = false;
+            
+            // Cancel any existing timeout
+            if (hoverOutTimeout) {
+                clearTimeout(hoverOutTimeout);
+            }
+            
+            // Wait for delay before starting hover-out animation
+            hoverOutTimeout = setTimeout(() => {
+                // Double-check we're still not hovered (user might have re-entered)
+                if (!isHovered) {
+                    // Add hover-leaving class to trigger push-up animation
+                    slot.classList.add('hover-leaving');
+                    
+                    // Remove hover-active class to trigger hover-out transitions
+                    slot.classList.remove('hover-active');
+                    
+                    // After animation completes, remove hover-leaving class
+                    setTimeout(() => {
+                        if (!isHovered && !slot.classList.contains('hover-active')) {
+                            slot.classList.remove('hover-leaving');
+                        }
+                    }, 315); // 105ms delay + 300ms animation = 315ms total
+                }
+                hoverOutTimeout = null;
+            }, 105); // 105ms delay matches CSS delay before hover-out transition starts
+        });
+    });
+}
+
 
 // Function to update visibility of SHAPE & LETTER text box
 function updateLetterSoundTextBox(pageId) {
@@ -1401,6 +1651,27 @@ function updateLetterSoundTextBox(pageId) {
         }, 50);
     } else {
         letterSoundTextBox.classList.remove('visible');
+    }
+}
+
+// Function to update visibility of LETTER & COLOR text box
+function updateLetterColorTextBox(pageId) {
+    const letterColorTextBox = document.getElementById('canvas-text-box-letter-color');
+    if (!letterColorTextBox) return;
+    
+    // Show text box only for LETTER & COLOR pages (pageId "2-5" or "5-2")
+    // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
+    const isLetterColorPage = pageId === '2-5' || pageId === '5-2';
+    
+    if (isLetterColorPage) {
+        letterColorTextBox.classList.add('visible');
+        // Initialize letter color interaction when text box becomes visible
+        // Use a small delay to ensure the element is rendered
+        setTimeout(() => {
+            initializeLetterColorInteraction();
+        }, 50);
+    } else {
+        letterColorTextBox.classList.remove('visible');
     }
 }
 
@@ -1445,6 +1716,1174 @@ function updateLetterLetterCircle(pageId) {
         circleContainer.classList.remove('visible');
     }
 }
+
+// ==================
+// Function to update MELODY circle visibility (Sound + Letter page)
+function updateMelodyCircle(pageId) {
+    const melodyContainer = document.getElementById('melody-circle-container');
+    if (!melodyContainer) return;
+    
+    // Show MELODY circle only for Sound + Letter pages (pageId "1-2" or "2-1")
+    // Parameter indices: 1=sound, 2=letter
+    const isSoundLetterPage = pageId === '1-2' || pageId === '2-1';
+    
+    if (isSoundLetterPage) {
+        melodyContainer.classList.add('visible');
+        // Initialize drag functionality when page becomes visible
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+            initializeMelodyDrag();
+        });
+    } else {
+        melodyContainer.classList.remove('visible');
+    }
+}
+
+// ==================
+// Function to update Sound + Color squares visibility
+function updateSoundColorSquares(pageId) {
+    const squaresContainer = document.getElementById('sound-color-squares-container');
+    if (!squaresContainer) return;
+    
+    // Show squares only for Sound + Color pages (pageId "1-5" or "5-1")
+    // Parameter indices: 1=sound, 5=color
+    const isSoundColorPage = pageId === '1-5' || pageId === '5-1';
+    
+    if (isSoundColorPage) {
+        squaresContainer.classList.add('visible');
+        // Reset positions to default when entering the page
+        soundColorSquarePositions = null;
+        // Initialize squares with positions and drag functionality
+        requestAnimationFrame(() => {
+            initializeSoundColorSquares();
+        });
+    } else {
+        squaresContainer.classList.remove('visible');
+        // Stop all instrument sounds when leaving the page
+        stopAllInstrumentLoops();
+    }
+}
+
+// ==================
+// SOUND + COLOR Squares State
+// ==================
+let soundColorSquarePositions = null;
+let soundColorDragInitialized = false;
+
+// ==================
+// SOUND + COLOR Audio System
+// ==================
+// Mapping of color index to instrument sound files
+// Index corresponds to colors array: 0=Orange, 1=Purple, 2=Yellow, 3=Green, 4=Pink, 5=Blue
+const SOUND_COLOR_INSTRUMENTS = {
+    0: { name: 'drums', file: 'sounds/756121__hewnmarrow__repeated-drum-beat-002-fx-011-v037.wav' },      // Orange (כתום) - Drums (תופים)
+    1: { name: 'bass', file: 'sounds/736935__sirbagel__bass-guitar-single-ga-note.wav' },                 // Purple (סגול) - Bass guitar (גיטרת בס)
+    2: { name: 'trumpet', file: 'sounds/194625__harbour11__trumpet1.wav' },                               // Yellow (צהוב) - Trumpet (חצוצרה)
+    3: { name: 'violin', file: 'sounds/56197__ldk1609__violin-spiccato-b3.wav' },                         // Green (ירוק) - Violin (כינור)
+    4: { name: 'piano', file: 'sounds/148471__neatonk__piano_loud_ab6.wav' },                             // Pink (ורוד) - Piano (פסנתר)
+    5: { name: 'triangle', file: 'sounds/31190__acclivity__triangle2.wav' }                               // Blue (כחול) - Triangle (משולש)
+};
+
+// Audio elements for each instrument (loaded once, reused)
+let soundColorAudioElements = {};
+// Track which instruments are currently playing
+let soundColorPlayingInstruments = new Set();
+// Track which squares are currently touching (as pairs)
+let soundColorTouchingPairs = new Set();
+// Track which square is currently being dragged (-1 means none)
+let soundColorDraggingSquareIndex = -1;
+
+// Initialize and preload all instrument audio files
+function initSoundColorAudio() {
+    // Only initialize once
+    if (Object.keys(soundColorAudioElements).length > 0) return;
+    
+    // Create Audio elements for each instrument
+    for (const [index, instrument] of Object.entries(SOUND_COLOR_INSTRUMENTS)) {
+        const audio = new Audio(instrument.file);
+        audio.loop = true; // Enable looping
+        audio.volume = 0.7; // Set default volume
+        audio.preload = 'auto'; // Preload audio
+        
+        // Store reference
+        soundColorAudioElements[index] = audio;
+        
+        // Log loading status (helpful for debugging)
+        audio.addEventListener('canplaythrough', () => {
+            console.log(`Sound loaded: ${instrument.name}`);
+        });
+        
+        audio.addEventListener('error', (e) => {
+            console.warn(`Failed to load sound: ${instrument.name}`, e);
+        });
+    }
+}
+
+// Start playing an instrument loop
+function startInstrumentLoop(index) {
+    const audio = soundColorAudioElements[index];
+    if (!audio) return;
+    
+    // Only start if not already playing
+    if (!soundColorPlayingInstruments.has(index)) {
+        audio.currentTime = 0; // Reset to start
+        audio.play().catch(e => {
+            // Autoplay might be blocked - this is normal on first interaction
+            console.log('Audio play blocked, waiting for user interaction');
+        });
+        soundColorPlayingInstruments.add(index);
+    }
+}
+
+// Stop playing an instrument loop
+function stopInstrumentLoop(index) {
+    const audio = soundColorAudioElements[index];
+    if (!audio) return;
+    
+    if (soundColorPlayingInstruments.has(index)) {
+        audio.pause();
+        audio.currentTime = 0; // Reset to start
+        soundColorPlayingInstruments.delete(index);
+    }
+}
+
+// Stop all instrument loops
+function stopAllInstrumentLoops() {
+    for (const index of Object.keys(soundColorAudioElements)) {
+        stopInstrumentLoop(parseInt(index));
+    }
+    soundColorTouchingPairs.clear();
+}
+
+// Check if two squares are touching (overlapping)
+function areSquaresTouching(square1, square2) {
+    const rect1 = square1.getBoundingClientRect();
+    const rect2 = square2.getBoundingClientRect();
+    
+    // Check for overlap (not touching = one is completely outside the other)
+    return !(rect1.right < rect2.left || 
+             rect1.left > rect2.right || 
+             rect1.bottom < rect2.top || 
+             rect1.top > rect2.bottom);
+}
+
+// Generate a unique key for a pair of indices (order-independent)
+function getPairKey(index1, index2) {
+    return index1 < index2 ? `${index1}-${index2}` : `${index2}-${index1}`;
+}
+
+// Check all square collisions and update sounds accordingly
+function checkSquareCollisionsAndUpdateSounds() {
+    const container = document.getElementById('sound-color-squares-container');
+    if (!container) return;
+    
+    const squares = container.querySelectorAll('.sound-color-square');
+    if (squares.length === 0) return;
+    
+    // Convert NodeList to Array for easier manipulation
+    const squaresArray = Array.from(squares);
+    
+    // Track current touching pairs
+    const currentTouchingPairs = new Set();
+    // Track which instruments should be playing
+    const shouldBePlaying = new Set();
+    
+    // If a square is being dragged, its sound should play
+    if (soundColorDraggingSquareIndex >= 0) {
+        shouldBePlaying.add(soundColorDraggingSquareIndex);
+    }
+    
+    // Check all pairs of squares for collisions
+    for (let i = 0; i < squaresArray.length; i++) {
+        for (let j = i + 1; j < squaresArray.length; j++) {
+            const square1 = squaresArray[i];
+            const square2 = squaresArray[j];
+            const index1 = parseInt(square1.getAttribute('data-index'));
+            const index2 = parseInt(square2.getAttribute('data-index'));
+            
+            if (areSquaresTouching(square1, square2)) {
+                const pairKey = getPairKey(index1, index2);
+                currentTouchingPairs.add(pairKey);
+                
+                // Both instruments should play
+                shouldBePlaying.add(index1);
+                shouldBePlaying.add(index2);
+            }
+        }
+    }
+    
+    // Start instruments that should be playing but aren't
+    for (const index of shouldBePlaying) {
+        if (!soundColorPlayingInstruments.has(index)) {
+            startInstrumentLoop(index);
+        }
+    }
+    
+    // Stop instruments that are playing but shouldn't be
+    for (const index of soundColorPlayingInstruments) {
+        if (!shouldBePlaying.has(index)) {
+            stopInstrumentLoop(index);
+        }
+    }
+    
+    // Update the tracking set
+    soundColorTouchingPairs = currentTouchingPairs;
+}
+
+// Get initial positions for squares - custom scattered arrangement
+// Based on the desired default layout from the design
+function getInitialSoundColorPositions() {
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer) {
+        // Fallback positions (custom scattered arrangement)
+        return [
+            { x: -20, y: -110 },    // 0: Orange - center, slightly up
+            { x: 320, y: 300 },     // 1: Purple - bottom right
+            { x: 280, y: 30 },      // 2: Yellow - right side, middle
+            { x: 350, y: -200 },    // 3: Green - top right
+            { x: -220, y: 80 },     // 4: Pink - left side, below center
+            { x: -340, y: -180 }    // 5: Blue - top left
+        ];
+    }
+    
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calculate available space
+    const padding = 120;
+    const squareSize = 100;
+    const maxX = (containerWidth / 2) - (squareSize / 2) - padding;
+    const maxY = (containerHeight / 2) - (squareSize / 2) - padding;
+    
+    // Custom scattered positions based on the desired layout
+    // Positions are relative to container center
+    // These ratios are based on the design screenshot
+    const positions = [
+        { x: -0.05 * maxX, y: -0.35 * maxY },   // 0: Orange - center, slightly up
+        { x: 0.85 * maxX, y: 0.85 * maxY },     // 1: Purple - bottom right
+        { x: 0.75 * maxX, y: 0.1 * maxY },      // 2: Yellow - right side, middle
+        { x: 0.95 * maxX, y: -0.6 * maxY },     // 3: Green - top right
+        { x: -0.55 * maxX, y: 0.25 * maxY },    // 4: Pink - left side, below center
+        { x: -0.9 * maxX, y: -0.55 * maxY }     // 5: Blue - top left
+    ];
+    
+    return positions;
+}
+
+// Update square position visually
+function updateSoundColorSquarePosition(squareElement, index) {
+    if (!soundColorSquarePositions || !soundColorSquarePositions[index]) return;
+    
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer) return;
+    
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const pos = soundColorSquarePositions[index];
+    
+    // Container center
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    
+    // Square size
+    const squareSize = 100;
+    
+    // Calculate position (center of square at pos.x, pos.y relative to container center)
+    const leftPos = centerX + pos.x - squareSize / 2;
+    const topPos = centerY + pos.y - squareSize / 2;
+    
+    // Apply position
+    squareElement.style.left = `${leftPos}px`;
+    squareElement.style.top = `${topPos}px`;
+    
+    // Update the line for this square
+    updateSoundColorLine(index);
+}
+
+// Update the SVG line connecting center to a specific square
+function updateSoundColorLine(index) {
+    const line = document.getElementById(`sound-color-line-${index}`);
+    if (!line || !soundColorSquarePositions || !soundColorSquarePositions[index]) return;
+    
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer) return;
+    
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const pos = soundColorSquarePositions[index];
+    
+    // Container center (where lines originate)
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    
+    // Square center - pos is already relative to container center
+    const squareCenterX = centerX + pos.x;
+    const squareCenterY = centerY + pos.y;
+    
+    // Calculate the edge of the square (instead of center)
+    // Direction from square center toward container center
+    const dx = centerX - squareCenterX;
+    const dy = centerY - squareCenterY;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    let edgeX = squareCenterX;
+    let edgeY = squareCenterY;
+    
+    if (length > 0) {
+        // Normalize direction
+        const dirX = dx / length;
+        const dirY = dy / length;
+        
+        const halfSize = 50; // Half of 100px square
+        
+        // Find intersection with square edge
+        // We move from square center toward container center until we hit an edge
+        let tX = Infinity, tY = Infinity;
+        
+        if (Math.abs(dirX) > 0.001) {
+            tX = halfSize / Math.abs(dirX);
+        }
+        if (Math.abs(dirY) > 0.001) {
+            tY = halfSize / Math.abs(dirY);
+        }
+        
+        // Take the minimum to find which edge we hit first
+        const t = Math.min(tX, tY);
+        
+        // Calculate edge point
+        edgeX = squareCenterX + dirX * t;
+        edgeY = squareCenterY + dirY * t;
+    }
+    
+    // Set line coordinates - from container center to square EDGE
+    line.setAttribute('x1', centerX);
+    line.setAttribute('y1', centerY);
+    line.setAttribute('x2', edgeX);
+    line.setAttribute('y2', edgeY);
+}
+
+// Update all sound-color lines (useful for initial setup and resize)
+function updateAllSoundColorLines() {
+    for (let i = 0; i < 6; i++) {
+        updateSoundColorLine(i);
+    }
+}
+
+// Initialize the colored squares with positions and drag functionality
+function initializeSoundColorSquares() {
+    const container = document.getElementById('sound-color-squares-container');
+    if (!container) return;
+    
+    const squares = container.querySelectorAll('.sound-color-square');
+    if (squares.length === 0) return;
+    
+    // Initialize audio system for instrument sounds
+    initSoundColorAudio();
+    
+    // Initialize positions if not already set
+    if (!soundColorSquarePositions) {
+        soundColorSquarePositions = getInitialSoundColorPositions();
+    }
+    
+    // Apply colors and positions
+    squares.forEach((square, index) => {
+        // Set background color from data attribute
+        const color = square.getAttribute('data-color');
+        if (color) {
+            square.style.backgroundColor = color;
+        }
+        // Update visual position
+        updateSoundColorSquarePosition(square, index);
+    });
+    
+    // Only add event listeners once
+    if (soundColorDragInitialized) return;
+    
+    const canvasContainer = document.getElementById('canvas-container');
+    
+    squares.forEach((square, index) => {
+        let isDragging = false;
+        let startX, startY;
+        let startPosX, startPosY;
+        
+        // Mouse down - start dragging
+        square.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            square.classList.add('dragging');
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            startPosX = soundColorSquarePositions[index].x;
+            startPosY = soundColorSquarePositions[index].y;
+            
+            // Track which square is being dragged for sound
+            soundColorDraggingSquareIndex = index;
+            // Start playing this square's sound immediately
+            checkSquareCollisionsAndUpdateSounds();
+            
+            // Add global mouse move and up listeners
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            // Calculate new position
+            let newX = startPosX + dx;
+            let newY = startPosY + dy;
+            
+            // Constrain to canvas bounds
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                const padding = 60; // Padding from edges
+                const squareSize = 100;
+                
+                const maxX = (canvasRect.width / 2) - (squareSize / 2) - padding;
+                const maxY = (canvasRect.height / 2) - (squareSize / 2) - padding;
+                
+                // Clamp position
+                newX = Math.max(-maxX, Math.min(maxX, newX));
+                newY = Math.max(-maxY, Math.min(maxY, newY));
+            }
+            
+            // Update position
+            soundColorSquarePositions[index].x = newX;
+            soundColorSquarePositions[index].y = newY;
+            
+            // Update visual position
+            updateSoundColorSquarePosition(square, index);
+            
+            // Check for collisions with other squares and update sounds
+            checkSquareCollisionsAndUpdateSounds();
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+            square.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            
+            // Stop tracking dragged square
+            soundColorDraggingSquareIndex = -1;
+            // Final collision check when drag ends (will stop sound if not touching another square)
+            checkSquareCollisionsAndUpdateSounds();
+        }
+        
+        // Touch support for mobile
+        square.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            square.classList.add('dragging');
+            
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            startPosX = soundColorSquarePositions[index].x;
+            startPosY = soundColorSquarePositions[index].y;
+            
+            // Track which square is being dragged for sound
+            soundColorDraggingSquareIndex = index;
+            // Start playing this square's sound immediately
+            checkSquareCollisionsAndUpdateSounds();
+            
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+        });
+        
+        function onTouchMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            
+            // Calculate new position
+            let newX = startPosX + dx;
+            let newY = startPosY + dy;
+            
+            // Constrain to canvas bounds
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                const padding = 60;
+                const squareSize = 100;
+                
+                const maxX = (canvasRect.width / 2) - (squareSize / 2) - padding;
+                const maxY = (canvasRect.height / 2) - (squareSize / 2) - padding;
+                
+                newX = Math.max(-maxX, Math.min(maxX, newX));
+                newY = Math.max(-maxY, Math.min(maxY, newY));
+            }
+            
+            // Update position
+            soundColorSquarePositions[index].x = newX;
+            soundColorSquarePositions[index].y = newY;
+            
+            // Update visual position
+            updateSoundColorSquarePosition(square, index);
+            
+            // Check for collisions with other squares and update sounds
+            checkSquareCollisionsAndUpdateSounds();
+        }
+        
+        function onTouchEnd() {
+            isDragging = false;
+            square.classList.remove('dragging');
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            
+            // Stop tracking dragged square
+            soundColorDraggingSquareIndex = -1;
+            // Final collision check when drag ends (will stop sound if not touching another square)
+            checkSquareCollisionsAndUpdateSounds();
+        }
+    });
+    
+    soundColorDragInitialized = true;
+}
+
+// ==================
+// MELODY Letters Drag Functionality
+// ==================
+
+// Store current positions of each letter (relative to container center)
+let melodyLetterPositions = null;
+let melodyDragInitialized = false;
+// Store which axis each letter is constrained to ('horizontal' or 'vertical')
+let melodyLetterConstraints = null;
+
+// ==================
+// MELODY Letters Sound System (Web Audio API)
+// ==================
+let melodyAudioCtx = null;
+let melodyMasterGain = null;
+let melodyActiveOscillators = {}; // Track active oscillator nodes per letter index
+
+// Ensure audio context is initialized and running
+function ensureMelodyAudio() {
+    if (!melodyAudioCtx) {
+        melodyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        melodyMasterGain = melodyAudioCtx.createGain();
+        melodyMasterGain.gain.value = 0.5;
+        melodyMasterGain.connect(melodyAudioCtx.destination);
+    }
+    if (melodyAudioCtx.state === "suspended") {
+        melodyAudioCtx.resume();
+    }
+}
+
+// Convert font weight (100-900) to frequency (high to low)
+// Light weight = high pitch, Heavy weight = low pitch
+function fontWeightToFrequency(fontWeight) {
+    const normalized = (fontWeight - 100) / 800; // 0 to 1
+    const minFreq = 110;  // A2 (low)
+    const maxFreq = 880;  // A5 (high)
+    // Invert: light (100) = high freq, heavy (900) = low freq
+    return maxFreq - (normalized * (maxFreq - minFreq));
+}
+
+// Get unique sound character for each letter
+// Returns oscillator type, gain, and filter settings
+function getMelodyLetterSoundConfig(letterIndex) {
+    const configs = [
+        // M (index 0) - Warm, round, bass-friendly (sine)
+        { oscType: 'sine', gain: 0.6, filterType: null, filterFreq: null },
+        // E (index 1) - Bright, clear, mid-range (triangle)
+        { oscType: 'triangle', gain: 0.5, filterType: null, filterFreq: null },
+        // L (index 2) - Rich, evolving (sawtooth with lowpass filter)
+        { oscType: 'sawtooth', gain: 0.35, filterType: 'lowpass', filterFreq: 2000 },
+        // O (index 3) - Open, vowel-like (sine, slightly louder)
+        { oscType: 'sine', gain: 0.65, filterType: null, filterFreq: null },
+        // D (index 4) - Punchy, percussive (square with lowpass filter)
+        { oscType: 'square', gain: 0.3, filterType: 'lowpass', filterFreq: 1500 },
+        // Y (index 5) - Soft, airy (triangle with highpass filter)
+        { oscType: 'triangle', gain: 0.45, filterType: 'highpass', filterFreq: 300 }
+    ];
+    return configs[letterIndex] || configs[0];
+}
+
+// Start continuous sound for a letter
+function startMelodySound(letterIndex, initialFontWeight) {
+    ensureMelodyAudio();
+    if (!melodyAudioCtx || melodyAudioCtx.state !== "running") return;
+    
+    // Stop any existing sound for this letter
+    stopMelodySound(letterIndex);
+    
+    const config = getMelodyLetterSoundConfig(letterIndex);
+    const initialFreq = fontWeightToFrequency(initialFontWeight || 500);
+    
+    // Create oscillator
+    const osc = melodyAudioCtx.createOscillator();
+    osc.type = config.oscType;
+    osc.frequency.setValueAtTime(initialFreq, melodyAudioCtx.currentTime);
+    
+    // Create gain node for this letter
+    const gainNode = melodyAudioCtx.createGain();
+    gainNode.gain.setValueAtTime(0.0001, melodyAudioCtx.currentTime);
+    // Fade in smoothly
+    gainNode.gain.linearRampToValueAtTime(config.gain, melodyAudioCtx.currentTime + 0.05);
+    
+    // Create filter if needed
+    let filterNode = null;
+    if (config.filterType) {
+        filterNode = melodyAudioCtx.createBiquadFilter();
+        filterNode.type = config.filterType;
+        filterNode.frequency.setValueAtTime(config.filterFreq, melodyAudioCtx.currentTime);
+        filterNode.Q.setValueAtTime(1, melodyAudioCtx.currentTime);
+        
+        osc.connect(gainNode);
+        gainNode.connect(filterNode);
+        filterNode.connect(melodyMasterGain);
+    } else {
+        osc.connect(gainNode);
+        gainNode.connect(melodyMasterGain);
+    }
+    
+    osc.start();
+    
+    // Store references for later updates and cleanup
+    melodyActiveOscillators[letterIndex] = {
+        osc: osc,
+        gainNode: gainNode,
+        filterNode: filterNode,
+        config: config
+    };
+}
+
+// Update frequency for an active letter sound
+function updateMelodyFrequency(letterIndex, fontWeight) {
+    const activeSound = melodyActiveOscillators[letterIndex];
+    if (!activeSound || !melodyAudioCtx) return;
+    
+    const newFreq = fontWeightToFrequency(fontWeight);
+    // Smooth frequency transition for continuous sound
+    activeSound.osc.frequency.linearRampToValueAtTime(
+        newFreq, 
+        melodyAudioCtx.currentTime + 0.03
+    );
+}
+
+// Stop sound for a letter with smooth fade-out
+function stopMelodySound(letterIndex) {
+    const activeSound = melodyActiveOscillators[letterIndex];
+    if (!activeSound || !melodyAudioCtx) return;
+    
+    const { osc, gainNode, filterNode } = activeSound;
+    
+    // Fade out smoothly
+    const fadeOutTime = 0.15;
+    gainNode.gain.linearRampToValueAtTime(0.0001, melodyAudioCtx.currentTime + fadeOutTime);
+    
+    // Stop and disconnect after fade
+    setTimeout(() => {
+        try { osc.stop(); } catch (e) {}
+        try { osc.disconnect(); } catch (e) {}
+        try { gainNode.disconnect(); } catch (e) {}
+        if (filterNode) {
+            try { filterNode.disconnect(); } catch (e) {}
+        }
+    }, fadeOutTime * 1000 + 50);
+    
+    // Remove from active oscillators
+    delete melodyActiveOscillators[letterIndex];
+}
+
+// Calculate font weight based on horizontal position
+// Maps x position to font weight (100-900): Left = thin (100), Right = heavy (900)
+function calculateFontWeightFromPosition(xPosition, minX, maxX) {
+    const normalizedPosition = (xPosition - minX) / (maxX - minX);
+    const clampedPosition = Math.max(0, Math.min(1, normalizedPosition));
+    const fontWeight = 100 + (clampedPosition * 800);
+    return Math.round(fontWeight);
+}
+
+// Initialize the positions at canvas edges (not in a circle)
+// Letter order: M(0), E(1), L(2), O(3), D(4), Y(5)
+// Based on the design: Y-left, M-top, E-right, L-bottom-right, O-bottom, D-bottom-left
+function getInitialMelodyPositions() {
+    // Get canvas container dimensions to calculate edge positions
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer) {
+        // Fallback if container not ready - positions based on design image
+        return [
+            { x: 180, y: -280 },   // M - top right area (heavy weight)
+            { x: 280, y: -300 },   // E - right upper (lighter weight)
+            { x: 280, y: 220 },    // L - bottom right (heavy weight)
+            { x: 340, y: 280 },    // O - bottom, right of center (light weight)
+            { x: -280, y: 120 },   // D - left side, lower (heavy weight)
+            { x: -280, y: -150 }   // Y - left side, upper (light weight)
+        ];
+    }
+    
+    // The melody container is 700x700 and centered in the canvas
+    // We need to calculate positions relative to the 700x700 container center (350, 350)
+    // But we want letters at the actual canvas edges
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const melodyContainer = document.getElementById('melody-circle-container');
+    const melodyRect = melodyContainer ? melodyContainer.getBoundingClientRect() : null;
+    
+    // Calculate how far the edges are from the melody container center
+    let leftEdge, rightEdge, topEdge, bottomEdge;
+    
+    if (melodyRect) {
+        const melodyCenterX = melodyRect.left + melodyRect.width / 2;
+        const melodyCenterY = melodyRect.top + melodyRect.height / 2;
+        
+        // Distance from melody center to canvas edges (with padding for letter size)
+        const letterPadding = 80; // Account for letter size
+        leftEdge = -(melodyCenterX - containerRect.left - letterPadding);
+        rightEdge = containerRect.right - melodyCenterX - letterPadding;
+        topEdge = -(melodyCenterY - containerRect.top - letterPadding);
+        bottomEdge = containerRect.bottom - melodyCenterY - letterPadding;
+    } else {
+        // Fallback values
+        leftEdge = -300;
+        rightEdge = 300;
+        topEdge = -200;
+        bottomEdge = 200;
+    }
+    
+    // Position letters based on the design image:
+    // M(0) - top right (heavy), E(1) - right middle, L(2) - bottom-right (heavy), 
+    // O(3) - bottom slightly left (light), D(4) - left lower (heavy), Y(5) - left upper (light)
+    
+    // Calculate intermediate positions (not all at edges)
+    const rightMid = rightEdge;
+    const leftMid = leftEdge;
+    const topMid = topEdge;
+    const bottomMid = bottomEdge;
+    
+    // M moves horizontally: position toward right for heavy weight
+    const mX = rightEdge * 0.6;  // 60% toward right edge
+    
+    // O moves horizontally: position right of center for light weight
+    const oX = 340;   // 340px right of center
+    
+    // E moves vertically: upper position for lighter weight
+    const eY = -300;  // 300px above center
+    
+    // L moves vertically: position toward bottom for heavy weight
+    const lY = bottomEdge * 0.8;  // 80% toward bottom
+    
+    // D moves vertically: position lower for heavy weight
+    const dY = bottomEdge * 0.5;  // 50% toward bottom
+    
+    // Y moves vertically: position upper for light weight
+    const yY = topEdge * 0.6;    // 60% toward top
+    
+    return [
+        { x: mX, y: topMid },              // M - top, right of center (heavy)
+        { x: rightMid, y: eY },            // E - right edge, center height (medium)
+        { x: rightMid, y: lY },            // L - right edge, toward bottom (heavy)
+        { x: oX, y: bottomMid },           // O - bottom, slightly left (light)
+        { x: leftMid, y: dY },             // D - left edge, lower half (heavy)
+        { x: leftMid, y: yY }              // Y - left edge, upper area (light)
+    ];
+}
+
+// Get the movement constraint for each letter based on its edge position
+function getLetterConstraints() {
+    // M(0) - horizontal only
+    // E(1) - vertical only
+    // L(2) - vertical only
+    // O(3) - horizontal only
+    // D(4) - vertical only
+    // Y(5) - vertical only
+    return [
+        'horizontal', // M
+        'vertical',   // E
+        'vertical',   // L
+        'horizontal', // O
+        'vertical',   // D
+        'vertical'    // Y
+    ];
+}
+
+// Update letter position visually
+function updateMelodyLetterPosition(letterElement, index) {
+    if (!melodyLetterPositions || !melodyLetterPositions[index]) return;
+    
+    const pos = melodyLetterPositions[index];
+    
+    // Get letter dimensions for centering
+    const letterWidth = letterElement.offsetWidth || 150; // Fallback estimate
+    const letterHeight = letterElement.offsetHeight || 200; // Fallback estimate
+    
+    // Container is 700x700, center is at (350, 350)
+    // Position the letter so its center is at (350 + pos.x, 350 + pos.y)
+    const leftPos = 350 + pos.x - letterWidth / 2;
+    const topPos = 350 + pos.y - letterHeight / 2;
+    
+    // Use absolute positioning
+    letterElement.style.left = `${leftPos}px`;
+    letterElement.style.top = `${topPos}px`;
+    letterElement.style.transform = 'none'; // Remove any transforms
+    
+    // Update font weight for all letters based on position
+    // M(0) and O(3) move horizontally: left = light (100), right = heavy (900)
+    // E(1), L(2), D(4), Y(5) move vertically: top = light (100), bottom = heavy (900)
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer && melodyLetterConstraints) {
+        const canvasRect = canvasContainer.getBoundingClientRect();
+        const constraint = melodyLetterConstraints[index];
+        let fontWeight;
+        
+        if (constraint === 'horizontal') {
+            // M and O: horizontal movement - left = light, right = heavy
+            fontWeight = calculateFontWeightFromPosition(
+                pos.x, 
+                -(canvasRect.width / 2), 
+                canvasRect.width / 2
+            );
+        } else {
+            // E, L, D, Y: vertical movement - top = light, bottom = heavy
+            fontWeight = calculateFontWeightFromPosition(
+                pos.y, 
+                -(canvasRect.height / 2), 
+                canvasRect.height / 2
+            );
+        }
+        letterElement.style.fontWeight = fontWeight;
+        
+        // Update sound frequency if this letter is currently being dragged
+        updateMelodyFrequency(index, fontWeight);
+    }
+    
+    // Update the line for this letter
+    updateMelodyLine(letterElement, index);
+}
+
+// Get the fixed connection point for each letter based on its position
+// Each letter has a specific edge where the line connects
+// Letter positions: M(0)-top, E(1)-right, L(2)-bottom-right, O(3)-bottom, D(4)-bottom-left, Y(5)-left
+function getLetterConnectionPoint(letterElement, index) {
+    if (!melodyLetterPositions || !melodyLetterPositions[index]) return null;
+    
+    const pos = melodyLetterPositions[index];
+    
+    // Get letter dimensions
+    const letterWidth = letterElement.offsetWidth || 150;
+    const letterHeight = letterElement.offsetHeight || 200;
+    
+    // Calculate letter bounds (in container coordinates, where center is 350, 350)
+    const letterCenterX = 350 + pos.x;
+    const letterCenterY = 350 + pos.y;
+    
+    // Inward padding to get to the actual letter ink
+    // Increased by 20px to bring lines closer to letter center
+    const inwardPaddingX = 35;
+    const inwardPaddingY = 40;
+    
+    const letterLeft = letterCenterX - letterWidth / 2 + inwardPaddingX;
+    const letterRight = letterCenterX + letterWidth / 2 - inwardPaddingX;
+    const letterTop = letterCenterY - letterHeight / 2 + inwardPaddingY;
+    const letterBottom = letterCenterY + letterHeight / 2 - inwardPaddingY;
+    
+    // Define fixed connection point for each letter based on its typical position
+    // The line connects to the edge facing the center
+    switch (index) {
+        case 0: // M - at top, connect to bottom center (extra 8px inward)
+            return { x: letterCenterX, y: letterBottom - 8 };
+        case 1: // E - at right, connect to left edge center
+            return { x: letterLeft, y: letterCenterY };
+        case 2: // L - at bottom-right, connect to top-left corner area
+            return { x: letterLeft, y: letterTop };
+        case 3: // O - at bottom, connect to top center
+            return { x: letterCenterX, y: letterTop };
+        case 4: // D - at bottom-left, connect to top-right corner area (extra 8px inward)
+            return { x: letterRight - 8, y: letterTop + 8 };
+        case 5: // Y - at left, connect to right edge center (extra 13px inward)
+            return { x: letterRight - 13, y: letterCenterY };
+        default:
+            return { x: letterCenterX, y: letterCenterY };
+    }
+}
+
+// Update the SVG line connecting center to a specific letter
+function updateMelodyLine(letterElement, index) {
+    const line = document.getElementById(`melody-line-${index}`);
+    if (!line) return;
+    
+    // Get the fixed connection point for this letter
+    const connectionPoint = getLetterConnectionPoint(letterElement, index);
+    if (!connectionPoint) return;
+    
+    // Center of container (350, 350)
+    const centerX = 350;
+    const centerY = 350;
+    
+    // Set line coordinates
+    line.setAttribute('x1', centerX);
+    line.setAttribute('y1', centerY);
+    line.setAttribute('x2', connectionPoint.x);
+    line.setAttribute('y2', connectionPoint.y);
+}
+
+// Update all melody lines (useful for initial setup and resize)
+function updateAllMelodyLines() {
+    const container = document.getElementById('melody-circle-container');
+    if (!container) return;
+    
+    const letters = container.querySelectorAll('.melody-letter');
+    letters.forEach((letter, index) => {
+        updateMelodyLine(letter, index);
+    });
+}
+
+// Initialize drag functionality for MELODY letters
+function initializeMelodyDrag() {
+    const container = document.getElementById('melody-circle-container');
+    if (!container) return;
+    
+    const letters = container.querySelectorAll('.melody-letter');
+    if (letters.length === 0) return;
+    
+    // Initialize positions if not already set
+    if (!melodyLetterPositions) {
+        melodyLetterPositions = getInitialMelodyPositions();
+    }
+    
+    // Initialize constraints if not already set
+    if (!melodyLetterConstraints) {
+        melodyLetterConstraints = getLetterConstraints();
+    }
+    
+    // Add variable-weight class to all letters for dynamic font weight
+    letters.forEach((letter) => {
+        letter.classList.add('variable-weight');
+    });
+    
+    // Apply positions via JavaScript
+    // This ensures letters and lines are synchronized
+    letters.forEach((letter, index) => {
+        updateMelodyLetterPosition(letter, index);
+    });
+    
+    // Only add event listeners once
+    if (melodyDragInitialized) return;
+    
+    // Get canvas container bounds for constraining drag
+    const canvasContainer = document.getElementById('canvas-container');
+    
+    letters.forEach((letter, index) => {
+        let isDragging = false;
+        let startX, startY;
+        let startPosX, startPosY;
+        
+        // Mouse down - start dragging
+        letter.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            letter.classList.add('dragging');
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            startPosX = melodyLetterPositions[index].x;
+            startPosY = melodyLetterPositions[index].y;
+            
+            // Start sound for this letter (get current font weight from element style)
+            const currentFontWeight = parseInt(letter.style.fontWeight) || 500;
+            startMelodySound(index, currentFontWeight);
+            
+            // Add global mouse move and up listeners
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            // Get the constraint for this letter (horizontal or vertical)
+            const constraint = melodyLetterConstraints[index];
+            
+            // Apply movement only on the allowed axis
+            let newX = startPosX;
+            let newY = startPosY;
+            
+            if (constraint === 'horizontal') {
+                newX = startPosX + dx;
+            } else {
+                // vertical
+                newY = startPosY + dy;
+            }
+            
+            // Constrain to canvas bounds (accounting for letter size and container position)
+            const containerRect = container.getBoundingClientRect();
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                const containerCenterX = containerRect.left + containerRect.width / 2;
+                const containerCenterY = containerRect.top + containerRect.height / 2;
+                
+                // Calculate max distances from center (with padding for letter size)
+                const letterPadding = 80;
+                const maxLeft = -(containerCenterX - canvasRect.left - letterPadding);
+                const maxRight = canvasRect.right - containerCenterX - letterPadding;
+                const maxTop = -(containerCenterY - canvasRect.top - letterPadding);
+                const maxBottom = canvasRect.bottom - containerCenterY - letterPadding;
+                
+                // Clamp position
+                newX = Math.max(maxLeft, Math.min(maxRight, newX));
+                newY = Math.max(maxTop, Math.min(maxBottom, newY));
+            }
+            
+            // Update position
+            melodyLetterPositions[index].x = newX;
+            melodyLetterPositions[index].y = newY;
+            
+            // Update visual position
+            updateMelodyLetterPosition(letter, index);
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+            letter.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            // Stop sound for this letter with fade-out
+            stopMelodySound(index);
+        }
+        
+        // Touch support for mobile
+        letter.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            letter.classList.add('dragging');
+            
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            startPosX = melodyLetterPositions[index].x;
+            startPosY = melodyLetterPositions[index].y;
+            
+            // Start sound for this letter (get current font weight from element style)
+            const currentFontWeight = parseInt(letter.style.fontWeight) || 500;
+            startMelodySound(index, currentFontWeight);
+            
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+        });
+        
+        function onTouchMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            
+            // Get the constraint for this letter (horizontal or vertical)
+            const constraint = melodyLetterConstraints[index];
+            
+            // Apply movement only on the allowed axis
+            let newX = startPosX;
+            let newY = startPosY;
+            
+            if (constraint === 'horizontal') {
+                newX = startPosX + dx;
+            } else {
+                // vertical
+                newY = startPosY + dy;
+            }
+            
+            // Constrain to canvas bounds
+            const containerRect = container.getBoundingClientRect();
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                const containerCenterX = containerRect.left + containerRect.width / 2;
+                const containerCenterY = containerRect.top + containerRect.height / 2;
+                
+                const letterPadding = 80;
+                const maxLeft = -(containerCenterX - canvasRect.left - letterPadding);
+                const maxRight = canvasRect.right - containerCenterX - letterPadding;
+                const maxTop = -(containerCenterY - canvasRect.top - letterPadding);
+                const maxBottom = canvasRect.bottom - containerCenterY - letterPadding;
+                
+                newX = Math.max(maxLeft, Math.min(maxRight, newX));
+                newY = Math.max(maxTop, Math.min(maxBottom, newY));
+            }
+            
+            melodyLetterPositions[index].x = newX;
+            melodyLetterPositions[index].y = newY;
+            
+            updateMelodyLetterPosition(letter, index);
+        }
+        
+        function onTouchEnd() {
+            isDragging = false;
+            letter.classList.remove('dragging');
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            // Stop sound for this letter with fade-out
+            stopMelodySound(index);
+        }
+    });
+    
+    melodyDragInitialized = true;
+}
+
+// Reset MELODY positions to edge layout
+function resetMelodyPositions() {
+    melodyLetterPositions = getInitialMelodyPositions();
+    melodyLetterConstraints = getLetterConstraints();
+    
+    const container = document.getElementById('melody-circle-container');
+    if (!container) return;
+    
+    const letters = container.querySelectorAll('.melody-letter');
+    letters.forEach((letter, index) => {
+        updateMelodyLetterPosition(letter, index);
+    });
+}
+
+// Recalculate MELODY positions on window resize (to keep letters at canvas edges)
+let melodyResizeTimeout = null;
+window.addEventListener('resize', () => {
+    if (melodyResizeTimeout) clearTimeout(melodyResizeTimeout);
+    melodyResizeTimeout = setTimeout(() => {
+        // Only recalculate if positions have been initialized
+        if (melodyLetterPositions) {
+            // Get new edge positions
+            const newPositions = getInitialMelodyPositions();
+            
+            // Update positions to match new edges while preserving relative positions
+            const container = document.getElementById('melody-circle-container');
+            if (!container) return;
+            
+            const melodyContainer = document.getElementById('melody-circle-container');
+            if (!melodyContainer || !melodyContainer.classList.contains('visible')) return;
+            
+            // Update each letter's position to stay at the edge
+            const letters = container.querySelectorAll('.melody-letter');
+            letters.forEach((letter, index) => {
+                // Get the constraint for this letter
+                const constraint = melodyLetterConstraints ? melodyLetterConstraints[index] : 'horizontal';
+                
+                // For edge-constrained letters, update their edge position while preserving the other axis
+                if (constraint === 'horizontal') {
+                    // Horizontal movement: update Y to match new edge, preserve X position
+                    melodyLetterPositions[index].y = newPositions[index].y;
+                } else {
+                    // Vertical movement: update X to match new edge, preserve Y position
+                    melodyLetterPositions[index].x = newPositions[index].x;
+                }
+                
+                updateMelodyLetterPosition(letter, index);
+            });
+        }
+    }, 150);
+});
 
 // State for Shape + Color page click interaction
 let shapeColorClickHandler = null;
@@ -2172,6 +3611,9 @@ function updateActivePage(pageId, reason) {
     // Update LETTER & SOUND text box visibility
     updateLetterSoundTextBox(pageId);
     
+    // Update LETTER & COLOR text box visibility
+    updateLetterColorTextBox(pageId);
+    
     // Update SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(pageId);
     
@@ -2180,6 +3622,12 @@ function updateActivePage(pageId, reason) {
     
     // Update Shape + Color circle visibility
     updateShapeColorCircle(pageId);
+    
+    // Update MELODY circle visibility (Sound + Letter page)
+    updateMelodyCircle(pageId);
+    
+    // Update Sound + Color squares visibility
+    updateSoundColorSquares(pageId);
     
     // Update Shape & Number canvas visibility
     updateShapeNumberCanvasVisibility(pageId);
@@ -2617,9 +4065,9 @@ const SHAPE_NUMBER_STROKE_W = 3;
 const TOP_ROW = ["1","2","3","4","5"];
 const BOTTOM_ROW = ["6","7","8","9","0"];
 
-let numShapes = 10;
+let numShapes = 2;
 let shapeType = "circle";
-let shapeSizeFactor = 1.4;
+let shapeSizeFactor = 2.50;
 
 // Initialize Shape & Number canvas
 function initializeShapeNumberCanvas() {

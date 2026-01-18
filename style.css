@@ -5,6 +5,13 @@
     font-style: normal;
 }
 
+@font-face {
+    font-family: 'Helvetica Now Variable';
+    src: url('HelveticaNowVariable.ttf') format('truetype');
+    font-weight: 100 900; /* Variable font weight range */
+    font-style: normal;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -1259,6 +1266,288 @@ body {
     stroke-width: 2px !important; /* 2px stroke width */
 }
 
+/* ==================
+   LETTER + COLOR TEXT BOX
+   ================== */
+/* Canvas text box for LETTER & COLOR only */
+.canvas-text-box-letter-color {
+    position: absolute;
+    /* 85px from the start of the canvas (85px below the bottom edge of gradient header) */
+    top: 85px;
+    /* 85px inward from the inner edge of left scrollbar (which is at 50px) */
+    left: 85px;
+    /* 85px inward from the inner edge of right scrollbar (which is at 50px from right) */
+    right: 85px;
+    /* Width is calculated automatically via left and right */
+    font-family: Helvetica, sans-serif;
+    font-size: 67px;
+    line-height: 71px;
+    font-weight: bold;
+    color: #2C2C2C; /* Same black as UI rectangles */
+    z-index: 11; /* Below main canvas text box (z-index: 12) but above canvas */
+    pointer-events: auto; /* Enable hover interactions on letters */
+    overflow: visible; /* Ensure text is visible */
+    text-align: left; /* Left-aligned text */
+    text-transform: uppercase; /* Convert text to uppercase */
+    /* Ensure no padding or margin that would offset text from left edge */
+    padding: 0;
+    margin: 0;
+    /* Hidden by default, shown only for LETTER & COLOR pages */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+}
+
+/* Show text box when LETTER & COLOR is active */
+.canvas-text-box-letter-color.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Paragraph styling for letter-color text box */
+.canvas-text-box-letter-color p {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left; /* Left-aligned text */
+    /* Normal font size and line height for proper text flow */
+    font-size: 67px; /* Match container font-size */
+    line-height: 71px; /* Match container line-height */
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+    /* Ensure normal white-space for proper text flow (not flex or per-letter layout) */
+    white-space: normal; /* Normal wrapping behavior */
+    /* Typography refinement: balanced spacing for justified text */
+    word-spacing: 0.12em; /* Clear word separation, tighter than default justify gaps */
+    letter-spacing: 0.03em; /* Subtle letter spacing for even distribution */
+    /* No transforms or offsets that would shift lines */
+    transform: none;
+    /* Ensure no left indent */
+    text-indent: 0;
+}
+
+/* Letter slot container - natural size, no clipping in default state */
+.canvas-text-box-letter-color .letter-slot {
+    display: inline; /* Inline to maintain natural text flow for justification */
+    position: relative; /* Allow absolute positioning of children */
+    width: auto; /* Natural width - matches glyph size */
+    height: auto; /* Natural height - matches glyph size */
+    overflow: visible; /* No clipping - letters render normally */
+    vertical-align: baseline; /* Align with text baseline */
+    cursor: pointer;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+}
+
+/* Static glyph - visible normally for layout, hidden on hover */
+.canvas-text-box-letter-color .letter-slot .letter-glyph-static {
+    display: inline; /* Inline to maintain natural text flow */
+    position: relative;
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    color: inherit;
+    pointer-events: none;
+    /* Hover-out: delay before reappearing to allow letter to slide up and push color out */
+    /* No opacity transition - visibility controlled by position/masking only */
+    transition: visibility 0s linear 0.315s; /* 0.315s delay, then instant show */
+    visibility: visible;
+}
+
+/* Letter mask - 45×45px clipping area centered on letter */
+/* Contains both the sliding letter glyph and the color square */
+.canvas-text-box-letter-color .letter-slot .letter-mask {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 45px;
+    height: 45px;
+    transform: translate(-50%, -50%);
+    overflow: hidden; /* Clip both letter and color as they transition */
+    pointer-events: none; /* Don't interfere with hover */
+    z-index: 1;
+    opacity: 0; /* Hidden by default */
+    /* Hover-out: mask stays visible during animation, then hides instantly (no fade) */
+    transition: opacity 0s linear 0.315s; /* Instant hide after 0.315s delay */
+    /* Ensure mask fully clips content - no overflow visible */
+    clip-path: inset(0);
+}
+
+/* Letter glyph - the sliding version inside mask, hidden by default */
+.canvas-text-box-letter-color .letter-slot .letter-glyph {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Start at center position */
+    transform: translate(-50%, -50%) translateY(0);
+    /* Hover-out: letter slides UP from below (70px → 0) - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay, then 0.3s slide up */
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    /* Center text both horizontally and vertically */
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    pointer-events: none;
+    white-space: nowrap;
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    z-index: 1; /* Below color square */
+}
+
+/* Hover-out: letter slides up - translate only, no opacity */
+.canvas-text-box-letter-color .letter-slot.hover-leaving .letter-glyph {
+    /* Letter slides from 70px (down) to 0 (center) - translate only */
+    transform: translate(-50%, -50%) translateY(0);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity */
+}
+
+/* Colored letter - positioned inside mask, slides up from below */
+.canvas-text-box-letter-color .letter-slot .letter-color {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Start from below (translateY(70px)) - matches letter slide distance for synchronized motion */
+    transform: translate(-50%, -50%) translateY(70px);
+    /* Hover-out: color is pushed UP and out by letter sliding up - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay, then 0.3s ease-in push up */
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    /* Center text both horizontally and vertically */
+    align-items: center;
+    justify-content: center;
+    /* Color is set via JS style.color */
+    pointer-events: none;
+    white-space: nowrap;
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    /* Colored letter appears above glyph to cover it */
+    z-index: 2;
+}
+
+/* Hover-out state: colored letter is pushed up and out by black letter sliding up */
+.canvas-text-box-letter-color .letter-slot.hover-leaving .letter-color {
+    /* Colored letter is pushed UP and out by black letter sliding up - translate only */
+    transform: translate(-50%, -50%) translateY(-70px);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity */
+}
+
+/* Letter slot hover state - black letter slides down, colored letter slides up */
+.canvas-text-box-letter-color .letter-slot:hover,
+.canvas-text-box-letter-color .letter-slot.hover-active {
+    /* Increase z-index so hovered colored letter appears on top of neighbors */
+    z-index: 10;
+}
+
+/* Hide static glyph on hover - instant (no fade) */
+.canvas-text-box-letter-color .letter-slot:hover .letter-glyph-static,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-glyph-static {
+    visibility: hidden; /* Instant hide - no opacity, visibility only */
+    /* Hover-in: instant hide, no delay */
+    transition: visibility 0s ease; /* Instant hide on hover */
+}
+
+/* Show mask on hover - becomes visible immediately */
+.canvas-text-box-letter-color .letter-slot:hover .letter-mask,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-mask {
+    opacity: 1; /* Instant show - no transition */
+    /* Hover-in: instant show, no transition */
+    transition: none; /* No transitions - instant visibility */
+}
+
+/* Sliding glyph: visible as it slides down into mask, then gets clipped */
+/* Slide down enough to fully exit the mask (70px ensures tall letters disappear completely) */
+.canvas-text-box-letter-color .letter-slot:hover .letter-glyph,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-glyph {
+    /* Visible during slide-down animation - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(70px); /* Slide down enough to fully disappear */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+}
+
+/* Colored letter slides up from below to center position on hover */
+/* This creates the "push" effect - colored letter takes the black letter's place */
+.canvas-text-box-letter-color .letter-slot:hover .letter-color,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-color {
+    /* Visible as it slides up - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(0); /* Slide up to center position */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+    z-index: 2;
+}
+
+/* When hover-active class is present, override any hover-out delays to prevent blank states */
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-glyph-static {
+    /* Force immediate hide when hover-active class is set - visibility only */
+    transition: visibility 0s ease !important;
+}
+
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-mask,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-glyph,
+.canvas-text-box-letter-color .letter-slot.hover-active .letter-color {
+    /* Force immediate show when hover-active class is set (cancel any pending hover-out) - translate only */
+    transition: transform 0.2s ease !important; /* Translate only, no opacity */
+}
+
+/* Keep old letter-span styles for spaces (they won't be wrapped in slots) */
+.canvas-text-box-letter-color .letter-span {
+    display: inline; /* Use inline to maintain natural text flow for justification */
+    position: relative;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    text-align: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    z-index: 1;
+}
+
+/* Space character handling - no transformation */
+.canvas-text-box-letter-color .letter-span.space {
+    display: inline;
+    width: auto;
+    height: auto;
+    font-size: inherit;
+    line-height: inherit;
+    cursor: default;
+    margin: 0;
+    padding: 0;
+    transform: none;
+}
+
+/* Space character: no colored letter */
+.canvas-text-box-letter-color .letter-span.space .letter-color {
+    display: none;
+}
+
 /* Canvas instruction text for SOUND & SHAPE page */
 .canvas-instruction-text {
     position: absolute;
@@ -1506,6 +1795,76 @@ h1 {
 /* Star hover state - handled by JavaScript (gradient requires dynamic reference) */
 
 /* ==================
+   MELODY CIRCLE LETTERS (Sound + Letter page)
+   ================== */
+.melody-circle-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px; /* Circle diameter - increased for larger letters */
+    height: 700px; /* Circle diameter - increased for larger letters */
+    pointer-events: none; /* Don't interfere with canvas interactions */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.melody-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* SVG for lines from center to each letter */
+.melody-lines-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1; /* Below letters */
+    overflow: visible;
+}
+
+.melody-line {
+    stroke: #2C2C2C;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.melody-letter {
+    position: absolute;
+    font-family: Helvetica, sans-serif;
+    font-size: 200px;
+    font-weight: bold;
+    color: #2C2C2C; /* Same black as UI */
+    text-transform: uppercase;
+    /* Positioned by JavaScript using left/top pixel values */
+    z-index: 2; /* Above lines */
+    pointer-events: auto; /* Enable dragging */
+    cursor: grab;
+    user-select: none; /* Prevent text selection while dragging */
+}
+
+.melody-letter:active {
+    cursor: grabbing;
+}
+
+.melody-letter.dragging {
+    cursor: grabbing;
+}
+
+/* Variable weight class for M letter - uses Helvetica Now Variable font */
+.melody-letter.variable-weight {
+    font-family: 'Helvetica Now Variable', Helvetica, sans-serif;
+    font-weight: 400; /* Default, will be overridden by JS */
+}
+
+/* ==================
    SHAPE & NUMBER CANVAS
    ================== */
 .shape-number-container {
@@ -1707,5 +2066,81 @@ h1 {
     background: #fff;
     z-index: 11;
     cursor: crosshair; /* Indicate drawing capability */
+}
+
+/* ==================
+   SOUND + COLOR SQUARES (6 colored squares in a circle at canvas edges)
+   ================== */
+.sound-color-squares-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Container doesn't block interactions */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.sound-color-squares-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Individual colored square - 100px × 100px */
+.sound-color-square {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    pointer-events: auto; /* Enable drag interactions */
+    cursor: grab;
+    transition: box-shadow 0.2s ease;
+    z-index: 2; /* Above lines (z-index: 1) */
+    mix-blend-mode: multiply; /* Colors blend/darken where squares overlap */
+    /* Position will be set by JavaScript */
+}
+
+.sound-color-square:active,
+.sound-color-square.dragging {
+    cursor: grabbing;
+}
+
+/* Hover effect for squares */
+.sound-color-square:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Wrapper that isolates blend mode to only affect squares, not lines */
+.sound-color-squares-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    isolation: isolate; /* Blend mode only applies within this container */
+    pointer-events: none; /* Let events pass through to squares */
+}
+
+/* SVG container for lines from center to each square */
+.sound-color-lines-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1; /* Below squares (which don't have explicit z-index, so they're higher) */
+    overflow: visible;
+}
+
+/* Line styling - same black as the site (#2C2C2C) */
+.sound-color-line {
+    stroke: #2C2C2C;
+    stroke-width: 2px;
+    fill: none;
 }
 
