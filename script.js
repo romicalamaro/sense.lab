@@ -112,9 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Shape & Emotion canvas visibility
     updateShapeEmotionCanvasVisibility(initialPageId);
     
-    // Initialize PANEL expanded state (expanded only on pages with internal panels)
-    updatePanelExpandedState(initialPageId);
-    
     // Initialize Shape & Number canvas (not using p5.js)
     initializeShapeNumberCanvas();
     
@@ -132,8 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 200);
     
-    // Initialize panel text hover effect
-    initializePanelHoverEffect();
+    // Initialize SYN logo hover effect
+    initializeSynHoverEffect();
     
     // Initialize color key click effect
     initializeColorKeyClickEffect();
@@ -1702,22 +1699,16 @@ function updateLetterColorTextBox(pageId) {
     }
 }
 
-// Function to update visibility of SOUND & SHAPE instruction text
+// Function to update visibility of canvas instruction text
 function updateSoundShapeInstructionText(pageId) {
     const instructionText = document.getElementById('canvas-instruction-text');
     if (!instructionText) return;
     
     // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
-    // Check for SOUND & SHAPE pages (pageId "1-0" or "0-1")
-    const isSoundShapePage = pageId === '1-0' || pageId === '0-1';
     // Check for SHAPE & COLOR pages (pageId "0-5" or "5-0")
     const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
-    if (isSoundShapePage) {
-        // Show instruction text for SOUND & SHAPE pages
-        instructionText.textContent = '[choose a shape and drag to create a sound]';
-        instructionText.classList.add('visible');
-    } else if (isShapeColorPage) {
+    if (isShapeColorPage) {
         // Show instruction text for SHAPE & COLOR pages
         instructionText.textContent = '[click to create shapes]';
         instructionText.classList.add('visible');
@@ -4501,26 +4492,6 @@ function updateShapeNumberCanvasVisibility(pageId) {
     }
 }
 
-// Function to update PANEL expanded state based on current page
-// PANEL word shows expanded letter-spacing only on pages with internal panels:
-// - Shape & Number (0-3, 3-0)
-// - Shape & Sound (0-1, 1-0)
-function updatePanelExpandedState(pageId) {
-    const panelElement = document.querySelector('.black-middle-rectangle');
-    if (!panelElement) return;
-    
-    // Check if current page has an internal panel
-    const hasInternalPanel = 
-        pageId === '0-3' || pageId === '3-0' ||  // Shape & Number
-        pageId === '0-1' || pageId === '1-0';    // Shape & Sound
-    
-    if (hasInternalPanel) {
-        panelElement.classList.add('panel-expanded');
-    } else {
-        panelElement.classList.remove('panel-expanded');
-    }
-}
-
 // Function to update the active page/canvas based on color selection
 function updateActivePage(pageId, reason) {
     
@@ -4570,9 +4541,6 @@ function updateActivePage(pageId, reason) {
     
     // Update Shape & Emotion canvas visibility
     updateShapeEmotionCanvasVisibility(pageId);
-    
-    // Update PANEL expanded state (expanded only on pages with internal panels)
-    updatePanelExpandedState(pageId);
     
     // Check if we need to switch to a different canvas sketch
     // Skip p5.js canvas creation for Shape & Number pages (0-3, 3-0) - they use native Canvas API
@@ -6096,8 +6064,8 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
             // Calculate total height of all shapes
             const totalHeight = (SHAPE_TYPES.length - 1) * SHAPE_SPACING;
             
-            // Calculate starting Y position to center the column vertically
-            const startY = (p.height - totalHeight) / 2;
+            // Calculate starting Y position to center the column vertically (shifted 60px up)
+            const startY = (p.height - totalHeight) / 2 - 60;
             
             // Create shape positions: circle, square, triangle, ellipse, star, pentagon
             for (let i = 0; i < SHAPE_TYPES.length; i++) {
@@ -6174,8 +6142,12 @@ function createP5Cell01Sketch(containerElement, containerWidth, containerHeight,
                 drawDraggableShape(p, shape.x, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
                 
                 // Draw mirrored shape on right side (same size)
+                // Only draw if not at center to avoid double-drawing
                 const mirroredX = p.width - shape.x;
-                drawDraggableShape(p, mirroredX, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+                const centerX = p.width / 2;
+                if (Math.abs(shape.x - centerX) > 5) {
+                    drawDraggableShape(p, mirroredX, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+                }
             }
         }
         
@@ -6711,42 +6683,31 @@ function initializeP5Sketch() {
     });
 }
 
-// Function to initialize panel text hover effect
-function initializePanelHoverEffect() {
-    const whiteRegion = document.getElementById('white-region');
-    if (!whiteRegion) return;
+// Function to initialize SYN logo hover effect
+// Shows synesthesia text overlay when hovering over the SYN logo
+function initializeSynHoverEffect() {
+    // Initialize SYN hover overlay
+    const synElement = document.querySelector('.black-rectangle');
+    const synOverlay = document.getElementById('canvas-text-box-syn-overlay');
+    const synBacking = document.getElementById('canvas-text-box-syn-backing');
     
-    // Add class to body when hovering over white region
-    whiteRegion.addEventListener('mouseenter', () => {
-        document.body.classList.add('white-region-hovered');
-    });
-    
-    whiteRegion.addEventListener('mouseleave', () => {
-        document.body.classList.remove('white-region-hovered');
-    });
-    
-    // Initialize PANEL hover overlay
-    const panelElement = document.querySelector('.black-rectangle');
-    const panelOverlay = document.getElementById('canvas-text-box-panel-overlay');
-    const panelBacking = document.getElementById('canvas-text-box-panel-backing');
-    
-    if (panelElement && panelOverlay && panelBacking) {
+    if (synElement && synOverlay && synBacking) {
         // Render overlay text with line backgrounds to match main text box styling
-        // Use same width as main text box (1035px) for the PANEL overlay
+        // Use same width as main text box (1035px) for the SYN overlay
         // Use black background color (#2C2C2C) for line backgrounds to match UI black
-        const panelText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
-        renderTextWithLineBackgrounds(panelOverlay, panelText, 1035, '#2C2C2C');
+        const synText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
+        renderTextWithLineBackgrounds(synOverlay, synText, 1035, '#2C2C2C');
         
         // Show overlay and backing layer on hover
-        panelElement.addEventListener('mouseenter', () => {
-            panelBacking.classList.add('visible');
-            panelOverlay.classList.add('visible');
+        synElement.addEventListener('mouseenter', () => {
+            synBacking.classList.add('visible');
+            synOverlay.classList.add('visible');
         });
         
         // Hide overlay and backing layer when hover ends
-        panelElement.addEventListener('mouseleave', () => {
-            panelBacking.classList.remove('visible');
-            panelOverlay.classList.remove('visible');
+        synElement.addEventListener('mouseleave', () => {
+            synBacking.classList.remove('visible');
+            synOverlay.classList.remove('visible');
         });
     }
 }
@@ -8784,9 +8745,9 @@ function scrollBothColumnsProgrammatically(duration) {
     
     // Both columns scroll simultaneously
     // Right column scrolls UP, left column scrolls DOWN
-    // Scroll 12 items (2 full wheel rotations) with wrapping for infinite scroll effect
-    scrollColumnProgrammatically(rightColumn, phaseDuration, -12); // Up 12 items (2 rotations)
-    scrollColumnProgrammatically(leftColumn, phaseDuration, 12);   // Down 12 items (2 rotations)
+    // Scroll amounts chosen to land on specific colors: orange (left) and green (right)
+    scrollColumnProgrammatically(rightColumn, phaseDuration, -9); // Up 9 items (1.5 rotations) → lands on green (ירוק)
+    scrollColumnProgrammatically(leftColumn, phaseDuration, 6);   // Down 6 items (1 rotation) → lands on orange (כתום)
     
     // Cleanup after animation fully completes - show text only at the end
     const cleanupTimeout = setTimeout(() => {

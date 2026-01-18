@@ -386,6 +386,12 @@ body {
     transform: translateY(0); /* Slide up to final position with smooth easing */
 }
 
+/* Hover effect for START button - grows slightly when hovered */
+.gradient-intro-container.intro-active .gradient-intro-text:hover {
+    transform: translateY(0) scale(1.1); /* Grow 10% on hover */
+    transition: transform 0.2s ease-out; /* Quick, smooth hover transition */
+}
+
 /* Hide text during demo - must override intro-active opacity */
 /* More specific selector ensures it wins when both intro-active and demo-active are present */
 .gradient-intro-container.intro-active.demo-active .gradient-intro-text,
@@ -433,7 +439,7 @@ body {
 }
 
 
-/* UI layer wrapper - contains all UI elements (logo, panel, colorkey) */
+/* UI layer wrapper - contains all UI elements (logo, colorkey) */
 .ui-layer {
     position: absolute;
     left: 0;
@@ -559,27 +565,6 @@ body {
 
 /* Rectangle width stays static on hover - only letter-spacing changes */
 
-.black-middle-rectangle {
-    position: absolute;
-    right: 50px; /* 50px from right edge - aligns with left edge of right scrollbar */
-    bottom: 0; /* Positioned at bottom of screen */
-    width: 225px; /* Keep original width - this is the panel rectangle (short rectangle) */
-    height: 40px; /* Increased from 35px by 5px - top edge only */
-    background-color: #2C2C2C; /* Same black as other rectangles */
-    z-index: 1; /* Relative to ui-layer */
-    pointer-events: auto; /* Enable hover interactions */
-    box-sizing: border-box; /* Ensure width includes padding/border */
-    margin: 0; /* Remove any default margins */
-    padding: 0; /* Remove any default padding */
-    transition: width 0.3s ease, left 0.2s ease, right 0.2s ease; /* Smooth transitions */
-    cursor: pointer; /* Indicate interactivity */
-    display: flex;
-    align-items: center; /* Vertically centers text within rectangle */
-    justify-content: flex-start; /* Align text to left edge */
-    overflow: hidden; /* Ensure text stays within bounds */
-}
-
-/* Rectangle width stays static on hover - only letter-spacing changes */
 
 .black-rectangle {
     position: absolute;
@@ -690,57 +675,7 @@ body {
     flex-direction: column;
 }
 
-/* Text styling for PANEL - same as COLOR KEY */
-.black-middle-rectangle .panel-text {
-    color: white; /* Match white canvas color */
-    font-family: Helvetica, sans-serif;
-    font-size: 0; /* Remove spacing between inline-block children */
-    font-weight: bold;
-    letter-spacing: -0.05em; /* -5% letter spacing */
-    white-space: nowrap;
-    text-transform: uppercase;
-    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
-    box-sizing: border-box;
-    position: relative;
-    top: 9px; /* Moved up 3px from 12px */
-    left: -3px; /* Moved 3px to the left */
-}
-
-/* Default letter-spacing for each letter - -15% spacing */
-.black-middle-rectangle .panel-text .panel-letter-p,
-.black-middle-rectangle .panel-text .panel-letter-a,
-.black-middle-rectangle .panel-text .panel-letter-n,
-.black-middle-rectangle .panel-text .panel-letter-e,
-.black-middle-rectangle .panel-text .panel-letter-l {
-    display: inline-block; /* Allow individual letter control */
-    font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.05em; /* -5% letter spacing */
-    transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
-}
-
-/* Expanded letter-spacing for pages with internal panels - progressive spacing */
-/* Applied via .panel-expanded class (not hover) for Shape & Number and Shape & Sound pages */
-.black-middle-rectangle.panel-expanded .panel-text .panel-letter-p {
-    letter-spacing: 0.16em; /* 16% - between P and A */
-}
-
-.black-middle-rectangle.panel-expanded .panel-text .panel-letter-a {
-    letter-spacing: 0.24em; /* 24% - between A and N */
-}
-
-.black-middle-rectangle.panel-expanded .panel-text .panel-letter-n {
-    letter-spacing: 0.32em; /* 32% - between N and E */
-}
-
-.black-middle-rectangle.panel-expanded .panel-text .panel-letter-e {
-    letter-spacing: 0.4em; /* 40% - between E and L */
-}
-
-.black-middle-rectangle.panel-expanded .panel-text .panel-letter-l {
-    letter-spacing: 0.48em; /* 48% - after L */
-}
-
-/* Text styling for WORD - same as PANEL */
+/* Text styling for WORD */
 .black-bottom-rectangle .word-text {
     color: white; /* Match white canvas color */
     font-family: Helvetica, sans-serif;
@@ -772,34 +707,6 @@ body {
 .black-bottom-rectangle .word-text .word-space-around-ampersand {
     margin-right: 0.25em; /* Add visible spacing despite negative letter-spacing */
 }
-
-/* Info marker [i] next to panel text */
-.black-middle-rectangle .panel-text .parameter-info-marker {
-    position: absolute;
-    left: 100%; /* Start at end of text content */
-    margin-left: -3px; /* Move 3px to the left (was -5px, moved 2px right) */
-    top: 0; /* Aligned to top edge */
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    color: white; /* Match white canvas color */
-    white-space: nowrap;
-    text-transform: none; /* Override parent's uppercase transform to keep lowercase */
-    pointer-events: none; /* Don't interfere with interactions */
-    margin-top: 0;
-    margin-right: 0;
-    margin-bottom: 0;
-    padding: 0;
-    display: inline-block; /* Ensure proper positioning */
-    transition: transform 0.3s ease; /* Smooth transition to match letter spacing */
-}
-
-/* When panel is expanded, move [i] left to stick to the L letter (L has letter-spacing: 0.48em) */
-.black-middle-rectangle.panel-expanded .panel-text .parameter-info-marker {
-    /* Move left by L's letter-spacing (0.48em) to stick to L */
-    /* font-size is 34px, so 0.48em = 0.48 * 34px = 16.32px */
-    transform: translateX(calc(-0.48em - 3px)); /* Move left by L's letter-spacing plus original offset */
-}
-
 
 .text-box {
     width: 100%;
@@ -932,15 +839,15 @@ body {
     overflow: visible; /* Ensure text is visible */
 }
 
-/* White backing layer: blocks main text box when PANEL is hovered */
-.canvas-text-box-panel-backing {
-    position: fixed; /* Fixed to viewport - matches PANEL overlay positioning */
-    left: 50px; /* Same as PANEL overlay */
-    top: calc(100vh / 6 * 5 + 3px); /* Same as PANEL overlay */
+/* White backing layer: blocks main text box when SYN logo is hovered */
+.canvas-text-box-syn-backing {
+    position: fixed; /* Fixed to viewport - matches SYN overlay positioning */
+    left: 50px; /* Same as SYN overlay */
+    top: calc(100vh / 6 * 5 + 3px); /* Same as SYN overlay */
     width: 1035px; /* Same width as main text box */
-    height: calc(100vh / 6); /* Same height as PANEL overlay */
+    height: calc(100vh / 6); /* Same height as SYN overlay */
     background-color: white; /* White background to block main text box */
-    z-index: 12; /* Above main text box (12) but below PANEL text overlay (13) */
+    z-index: 12; /* Above main text box (12) but below SYN text overlay (13) */
     pointer-events: none; /* Don't interfere with canvas interactions */
     /* Hidden by default */
     opacity: 0;
@@ -948,14 +855,14 @@ body {
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Show backing layer when PANEL element is hovered (via class toggle) */
-.canvas-text-box-panel-backing.visible {
+/* Show backing layer when SYN element is hovered (via class toggle) */
+.canvas-text-box-syn-backing.visible {
     opacity: 1;
     visibility: visible;
 }
 
-/* PANEL hover overlay: appears above main canvas text box on hover */
-.canvas-text-box-panel-overlay {
+/* SYN hover overlay: appears above main canvas text box on hover */
+.canvas-text-box-syn-overlay {
     position: fixed; /* Fixed to viewport - matches canvas-text-box positioning */
     left: 50px; /* Same as canvas-text-box */
     top: calc(100vh / 6 * 5 + 3px); /* Same as canvas-text-box */
@@ -975,8 +882,8 @@ body {
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Show overlay when PANEL element is hovered (via class toggle) */
-.canvas-text-box-panel-overlay.visible {
+/* Show overlay when SYN element is hovered (via class toggle) */
+.canvas-text-box-syn-overlay.visible {
     opacity: 1;
     visibility: visible;
 }
