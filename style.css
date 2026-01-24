@@ -108,6 +108,61 @@ body {
     right: 0;
 }
 
+/* ==================
+   REEL TRIANGLES - decorative triangles at top and bottom of each column
+   ================== */
+/* Base styles for all reel triangles */
+.reel-triangle {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 8.45px solid transparent;
+    border-right: 8.45px solid transparent;
+    z-index: 100; /* Above color items (z-index: 11) */
+    pointer-events: none; /* Don't interfere with column interactions */
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease; /* Smooth fade in/out */
+}
+
+/* Top triangle - points upward */
+.reel-triangle-top {
+    top: 13px; /* moved 3px more inward */
+    border-bottom: 21.125px solid #2C2C2C;
+}
+
+/* Bottom triangle - points downward */
+.reel-triangle-bottom {
+    bottom: 13px; /* moved 3px more inward */
+    border-top: 21.125px solid #2C2C2C;
+}
+
+/* Left column triangles: centered on 50px width (25px from left edge) */
+.reel-triangle-left {
+    left: 25px;
+    transform: translateX(-50%); /* Center the triangle horizontally */
+}
+
+/* Right column triangles: centered on 50px width (25px from right edge) */
+.reel-triangle-right {
+    right: 25px;
+    transform: translateX(50%); /* Center the triangle horizontally */
+}
+
+/* Show left column triangles on hover */
+.left-column:hover ~ .reel-triangle-left {
+    opacity: 1;
+}
+
+/* Show right column triangles on hover */
+.right-column:hover ~ .reel-triangle-right {
+    opacity: 1;
+}
+
+/* During intro (before intro-collapsed), always show all triangles */
+body:has(.gradient-intro-container:not(.intro-collapsed)) .reel-triangle {
+    opacity: 1;
+}
+
 /* Legend expansion: all rectangles expand to normal hover width (85px) */
 /* This creates a bulk-hover effect where all items expand together */
 .color-item.legend-expanded {
@@ -356,11 +411,11 @@ body {
 .gradient-intro-text {
     position: absolute;
     color: white;
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    font-weight: normal;
-    text-transform: none; /* Allow lowercase like [i] */
-    letter-spacing: 0.03em; /* 3% letter spacing - same as [i] */
+    font-family: Helvetica, sans-serif;
+    font-size: 29px;
+    font-weight: bold;
+    text-transform: none;
+    letter-spacing: 0; /* No extra letter spacing */
     text-align: center;
     white-space: normal;
     pointer-events: none; /* Don't block interactions */
@@ -392,6 +447,87 @@ body {
     transition: transform 0.2s ease-out; /* Quick, smooth hover transition */
 }
 
+/* Individual intro text lines with black background */
+.intro-line {
+    display: inline-block;
+    background-color: #2C2C2C; /* Same black as UI rectangles */
+    height: 45px;
+    line-height: 45px; /* Center text vertically */
+    padding: 0 10px; /* Horizontal padding only */
+    color: white;
+    font-family: Helvetica, sans-serif;
+    font-size: 29px;
+    font-weight: bold;
+}
+
+/* Special styling for "scroll" word in intro - no longer used, kept for backward compatibility */
+.intro-scroll-word {
+    /* Now inherits from .intro-line - uniform Helvetica 29px bold styling */
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    vertical-align: baseline;
+    display: inline;
+    position: relative;
+    top: 0;
+}
+
+/* Specific styles for the two separate intro text line containers */
+/* These containers act as masks - overflow hidden clips the inner content */
+.gradient-intro-text-line1,
+.gradient-intro-text-line2 {
+    /* Inherits from .gradient-intro-text */
+    overflow: hidden !important; /* Create clipping mask for slide-up effect */
+    /* Reset transform on container - the inner intro-line will animate */
+    transform: none !important;
+    /* Container is always visible (no opacity animation on container) */
+    opacity: 1 !important;
+    /* Ensure proper positioning for mask effect */
+    position: absolute;
+    /* Use block display and center content via text-align */
+    display: block !important;
+    text-align: center;
+    transition: left 2s cubic-bezier(0.2, 0.0, 0.0, 1), 
+                width 2s cubic-bezier(0.2, 0.0, 0.0, 1);
+}
+
+/* Inner intro-line elements slide up from below the mask */
+.gradient-intro-text-line1 .intro-line,
+.gradient-intro-text-line2 .intro-line {
+    display: inline-block; /* Keep inline-block for proper sizing */
+    /* Start below the visible area - pushed down by 45px (line height) */
+    transform: translateY(45px);
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth ease-out slide */
+}
+
+/* Hide inner content during entering phase */
+.gradient-intro-container.intro-entering .gradient-intro-text-line1 .intro-line,
+.gradient-intro-container.intro-entering .gradient-intro-text-line2 .intro-line {
+    transform: translateY(45px); /* Keep hidden below mask */
+}
+
+/* Staggered slide-up animation for the inner intro-line elements when active */
+.gradient-intro-container.intro-active .gradient-intro-text-line1 .intro-line {
+    transform: translateY(0); /* Slide up into view */
+    transition-delay: 0.1s; /* First line appears first */
+}
+
+.gradient-intro-container.intro-active .gradient-intro-text-line2 .intro-line {
+    transform: translateY(0); /* Slide up into view */
+    transition-delay: 0.25s; /* Second line appears after first */
+}
+
+/* Slide-out animation: inner intro-line slides down and out of mask when exiting */
+/* This overrides the intro-active state to animate lines out before showing START */
+.gradient-intro-text-line1 .intro-line.intro-line-exiting,
+.gradient-intro-text-line2 .intro-line.intro-line-exiting {
+    transform: translateY(45px) !important; /* Slide down out of view */
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important; /* Slower, smooth ease-out slide */
+    transition-delay: 0s !important; /* No delay for exit animation */
+}
+
 /* Hide text during demo - must override intro-active opacity */
 /* More specific selector ensures it wins when both intro-active and demo-active are present */
 .gradient-intro-container.intro-active.demo-active .gradient-intro-text,
@@ -399,6 +535,12 @@ body {
     opacity: 0 !important;
     visibility: hidden !important;
     display: none !important;
+}
+
+/* Also hide the line elements during demo - keep them below mask */
+.gradient-intro-container.demo-active .gradient-intro-text-line1 .intro-line,
+.gradient-intro-container.demo-active .gradient-intro-text-line2 .intro-line {
+    transform: translateY(45px) !important; /* Keep hidden below mask during demo */
 }
 
 /* START text is no longer clickable - center scroll trigger is used instead */
@@ -459,23 +601,89 @@ body {
     /* Keep pointer-events: none on parent, but children have pointer-events: auto to enable interactions */
 }
 
-.black-corner-rectangle {
+/* UI layer during logo entrance animation - only logo is visible, rest of UI stays hidden */
+/* This allows the logo to animate independently before the full UI becomes visible */
+.ui-layer.logo-animating {
+    opacity: 1; /* Make layer visible so logo can be seen */
+    z-index: 6; /* Temporarily higher than intro-layer (z-index: 5) so logo appears above gradient */
+    /* Clip to show only the top 1/6 of viewport (gradient area) */
+    /* This creates the mask - logo emerges from the clip edge at gradient's bottom */
+    clip-path: inset(0 0 calc(100vh - 100vh / 6) 0);
+}
+
+/* Hide specific UI elements during logo entrance animation - NOT using visibility:hidden to preserve layout */
+/* Only hide when logo-animating is present WITHOUT ui-visible */
+.ui-layer.logo-animating:not(.ui-visible) .black-corner-rectangle,
+.ui-layer.logo-animating:not(.ui-visible) .black-bottom-rectangle-left,
+.ui-layer.logo-animating:not(.ui-visible) .black-bottom-rectangle-right {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ==================
+   UI RECTANGLE MASK CONTAINERS
+   These create the clipping mask for slide-up animation
+   ================== */
+.ui-rect-mask {
     position: absolute;
-    right: 50px; /* 50px from right edge - aligns with left edge of right scrollbar */
-    /* top position is set dynamically via JavaScript to align with ESTHESIA center */
-    width: 225px; /* Increased from 205px by 20px to expand leftward */
-    height: 40px; /* Increased from 35px by 5px - top edge only */
+    height: 40px; /* Same as rectangle height */
+    overflow: hidden; /* Clip content - creates the mask effect */
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: none; /* Let events pass through to child rectangle */
+    transition: left 0.2s ease, right 0.2s ease; /* Smooth transition for logo hover effect */
+}
+
+/* INDEX mask - positioned at bottom right */
+.ui-rect-mask-index {
+    right: 50px;
+    bottom: 0;
+    min-width: 100px;
+    width: auto;
+}
+
+/* WORD left mask - positioned at left, top set by JS */
+.ui-rect-mask-left {
+    left: 50px;
+    min-width: 100px;
+    width: auto;
+}
+
+/* WORD right mask - positioned at right, top set by JS */
+.ui-rect-mask-right {
+    right: 50px;
+    min-width: 100px;
+    width: auto;
+}
+
+/* Logo hover effect - push mask containers inward */
+.ui-rect-mask-left.logo-hovered {
+    left: 85px;
+}
+
+.ui-rect-mask-right.logo-hovered {
+    right: 85px;
+}
+
+.ui-rect-mask-index.logo-hovered {
+    right: 85px;
+}
+
+.black-corner-rectangle {
+    position: relative; /* Changed from absolute - now inside mask container */
+    width: auto; /* Auto width based on content - same as parameter rectangles */
+    min-width: 100px; /* Minimum width - same as parameter rectangles */
+    height: 40px; /* Same height as parameter rectangles */
     background-color: #2C2C2C; /* Same black as .black-rectangle */
     z-index: 1; /* Relative to ui-layer */
     pointer-events: auto; /* Enable hover interactions */
     box-sizing: border-box; /* Ensure width includes padding/border */
     margin: 0; /* Remove any default margins */
     padding: 0; /* Remove any default padding */
-    transition: width 0.2s ease, left 0.2s ease, right 0.2s ease, top 0.1s ease; /* Smooth transitions - all match column expansion timing (0.2s) */
+    transition: width 0.2s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* Width for hover, transform for slide-in */
     cursor: pointer; /* Indicate interactivity */
     display: flex;
     align-items: center; /* Vertically centers text within rectangle */
-    justify-content: flex-start; /* Align text to left */
+    justify-content: flex-end; /* Align text to right (inner edge of right scrollbar) */
     overflow: hidden; /* Ensure text stays within bounds */
 }
 
@@ -488,111 +696,209 @@ body {
     letter-spacing: -0.05em; /* -5% letter spacing */
     white-space: nowrap;
     text-transform: uppercase;
-    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
+    padding: 0 0 0 10px; /* Left padding only - flush against right edge */
     box-sizing: border-box;
     position: relative;
     top: 9px; /* Moved up 3px from 12px */
-    left: -1px; /* Move 1px to the left (moved 2px right from -3px) */
+    right: 0; /* Align to right edge of rectangle (inner edge of right scrollbar) */
     display: flex;
-    justify-content: flex-start; /* Align text to left */
+    justify-content: flex-end; /* Align text to right */
 }
 
-/* Default letter-spacing for each letter - -15% spacing */
-.black-corner-rectangle .color-key-text .letter-s,
+/* Default letter-spacing for each letter - -5% spacing */
 .black-corner-rectangle .color-key-text .letter-i,
-.black-corner-rectangle .color-key-text .letter-g,
 .black-corner-rectangle .color-key-text .letter-n,
-.black-corner-rectangle .color-key-text .letter-a,
-.black-corner-rectangle .color-key-text .letter-l {
+.black-corner-rectangle .color-key-text .letter-d,
+.black-corner-rectangle .color-key-text .letter-e,
+.black-corner-rectangle .color-key-text .letter-x {
     display: inline-block; /* Allow individual letter control */
     font-size: 34px; /* Reset font-size from parent's 0 */
     letter-spacing: -0.05em; /* -5% letter spacing */
     transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
 }
 
-/* Expanded letter-spacing on hover - progressive spacing (same logic as PANEL) */
-.black-corner-rectangle:hover .color-key-text .letter-s,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-s {
-    letter-spacing: 0.16em; /* 16% - between S and I (same as P→A in PANEL) */
-}
-
+/* Expanded letter-spacing on hover - reversed progressive spacing (largest at I, smallest at E, X stays static) */
 .black-corner-rectangle:hover .color-key-text .letter-i,
 .black-corner-rectangle.color-key-expanded .color-key-text .letter-i {
-    letter-spacing: 0.24em; /* 24% - between I and G */
-}
-
-.black-corner-rectangle:hover .color-key-text .letter-g,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-g {
-    letter-spacing: 0.32em; /* 32% - between G and N */
+    letter-spacing: 0.46em; /* largest gap - between I and N */
 }
 
 .black-corner-rectangle:hover .color-key-text .letter-n,
 .black-corner-rectangle.color-key-expanded .color-key-text .letter-n {
-    letter-spacing: 0.4em; /* 40% - between N and A */
+    letter-spacing: 0.36em; /* between N and D */
 }
 
-.black-corner-rectangle:hover .color-key-text .letter-a,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-a {
-    letter-spacing: 0.48em; /* 48% - between A and L */
+.black-corner-rectangle:hover .color-key-text .letter-d,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-d {
+    letter-spacing: 0.26em; /* between D and E */
 }
 
-.black-corner-rectangle:hover .color-key-text .letter-l,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-l {
-    letter-spacing: 0.56em; /* 56% - after L (last letter) */
+.black-corner-rectangle:hover .color-key-text .letter-e,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-e {
+    letter-spacing: 0.16em; /* smallest gap - between E and X */
+}
+
+.black-corner-rectangle:hover .color-key-text .letter-x,
+.black-corner-rectangle.color-key-expanded .color-key-text .letter-x {
+    letter-spacing: -0.05em; /* stays at default - X is static */
 }
 
 /* Rectangle width stays static on hover - only letter-spacing changes */
 
-.black-bottom-rectangle {
-    position: absolute;
-    left: 285px; /* Right edge of .black-rectangle (50px + 235px) */
-    /* top position is set dynamically via JavaScript to align with ESTHESIA center */
-    width: 365px; /* Keep original width - this is the parameter text-box (long rectangle) */
-    height: 40px; /* Increased from 35px by 5px - top edge only */
-    background-color: #2C2C2C; /* Same black as other rectangles */
+/* Left parameter rectangle - inside mask container */
+.black-bottom-rectangle-left {
+    position: relative; /* Changed from absolute - now inside mask container */
+    width: auto; /* Auto width based on content */
+    min-width: 100px; /* Minimum width */
+    height: 40px;
+    background-color: #2C2C2C;
     z-index: 1; /* Relative to ui-layer */
-    pointer-events: auto; /* Enable hover interactions */
+    pointer-events: auto;
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    transition: top 0.1s ease; /* Smooth transitions - removed width transition */
-    cursor: default; /* Changed from pointer to default - no hover indication */
+    cursor: default;
     display: flex;
-    align-items: center; /* Vertically centers text within rectangle */
-    justify-content: flex-start; /* Align text to left edge */
-    overflow: hidden; /* Ensure text stays within bounds */
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
 }
 
-/* Rectangle width stays static on hover - only letter-spacing changes */
-
-
-.black-rectangle {
-    position: absolute;
-    left: 50px;
-    top: calc(100vh / 6 - 75px); /* Positioned so bottom edge stays at calc(100vh / 6) */
-    width: 235px;
-    height: 75px; /* Reduced height, bottom edge stays fixed */
+/* Right parameter rectangle - inside mask container */
+.black-bottom-rectangle-right {
+    position: relative; /* Changed from absolute - now inside mask container */
+    width: auto; /* Auto width based on content */
+    min-width: 100px; /* Minimum width */
+    height: 40px;
     background-color: #2C2C2C;
     z-index: 1; /* Relative to ui-layer */
-    pointer-events: auto; /* Enable hover interactions for SYN letter-spacing effect */
-    cursor: pointer; /* Indicate interactivity */
-    padding-left: 0; /* No left padding - text sits flush with left edge */
-    padding-bottom: 0; /* No bottom padding - text sits on bottom edge */
-    font-family: sans-serif;
-    font-size: 28px;
-    font-weight: bold;
-    color: white; /* Match white canvas color */
-    letter-spacing: 2px;
-    line-height: 114%;
-    overflow: visible; /* Allow SYN text to extend beyond container on hover */
+    pointer-events: auto;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* Align text to right edge for right rectangle */
+    overflow: hidden;
 }
 
-.black-rectangle .syn-text {
+/* Logo hover effect - positioning now handled by mask containers */
+/* These classes are kept for JS compatibility but positioning is on masks */
+
+/* UI rectangles hidden by default - slide up from below mask when revealed */
+/* This creates the effect of rectangles emerging upward from behind a clipping mask */
+.ui-layer .black-bottom-rectangle-left,
+.ui-layer .black-bottom-rectangle-right,
+.ui-layer .black-corner-rectangle {
+    transform: translateY(100%); /* Start below the mask - fully hidden */
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth ease-out slide */
+}
+
+/* Show UI rectangles when collapse animation reaches the reveal point */
+/* All three rectangles slide up together simultaneously */
+.ui-layer.words-revealed .black-bottom-rectangle-left,
+.ui-layer.words-revealed .black-bottom-rectangle-right,
+.ui-layer.words-revealed .black-corner-rectangle {
+    transform: translateY(0); /* Slide up into view */
+    transition-delay: 0ms; /* All appear together */
+}
+
+/* Logo container - wrapper for SYN and [esthesia] rectangles */
+.logo-container {
+    position: absolute;
+    left: 50%; /* Centered horizontally */
+    transform: translateX(-50%); /* Center the container */
+    top: calc(100vh / 6 - 75px); /* Positioned so bottom edge stays at calc(100vh / 6) */
+    height: 75px;
+    z-index: 1; /* Relative to ui-layer */
+    pointer-events: none; /* Container doesn't block interactions - children handle them */
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end; /* Align children to bottom */
+    gap: 0; /* No gap - rectangles are attached */
+    transition: transform 0.3s ease; /* Smooth transition for hover compensation */
+}
+
+/* On hover, compensate for SYN expansion to keep left edge fixed */
+/* SYN grows from 180px to 240px = 60px growth, half = 30px shift */
+.logo-container:hover {
+    transform: translateX(calc(-50% + 30px)); /* Shift right to keep left edge fixed */
+}
+
+/* ==================
+   LOGO ENTRANCE ANIMATION
+   Logo rises up from behind the top gradient rectangle before demo starts
+   ================== */
+
+/* Initial hidden state - logo is positioned at the bottom edge of the top gradient */
+/* The logo starts below its final position and will animate upward */
+/* No opacity - the clip-path mask handles visibility */
+.logo-container.logo-intro-hidden {
+    top: calc(100vh / 6); /* Logo's top is at gradient's bottom - fully hidden below clip edge */
+}
+
+/* Entrance animation state - logo rises up from behind gradient */
+/* Applied together with logo-intro-hidden, then logo-intro-hidden is removed to trigger animation */
+.logo-container.logo-entering {
+    /* Smooth rise-up animation synced with gradient shrink (2000ms) */
+    /* Uses same easing as gradient shrink for synchronized motion */
+    /* No opacity transition - clip-path mask handles the reveal effect */
+    transition: top 2000ms cubic-bezier(0.2, 0.0, 0.0, 1);
+}
+
+/* When entering (animating), set final position - animation triggered by removing logo-intro-hidden */
+.logo-container.logo-entering:not(.logo-intro-hidden) {
+    top: calc(100vh / 6 - 75px); /* Final position - bottom edge at gradient bottom */
+}
+
+/* Final visible state - logo is in its normal position */
+.logo-container.logo-visible {
+    top: calc(100vh / 6 - 75px); /* Same as default position */
+    /* Restore normal hover transition after entrance */
+    transition: transform 0.3s ease;
+}
+
+/* Ensure hover still works during and after entrance animation */
+.logo-container.logo-entering:hover,
+.logo-container.logo-visible:hover {
+    transform: translateX(calc(-50% + 30px));
+}
+
+/* SYN rectangle - contains the large SYN letters */
+.black-rectangle-syn {
+    position: relative;
+    width: 160px;
+    height: 75px;
+    background-color: #2C2C2C;
+    pointer-events: auto; /* Enable hover interactions */
+    cursor: pointer; /* Indicate interactivity */
+    overflow: visible; /* Allow SYN text to extend beyond container on hover */
+    transition: width 0.3s ease, z-index 0s; /* Smooth expansion on hover */
+    z-index: 1; /* Default z-index */
+}
+
+/* [esthesia] rectangle - contains the smaller text */
+.black-rectangle-ethesia {
+    position: relative;
+    height: 40px; /* Smaller height for the text */
+    background-color: #2C2C2C;
+    pointer-events: auto; /* Enable hover interactions */
+    cursor: pointer; /* Indicate interactivity */
+    display: flex;
+    align-items: center; /* Vertically center the text */
+    padding: 0 10px 0 0; /* Right padding only - text flush against left edge */
+    z-index: 0; /* Lower z-index so SYN can overlap it on hover */
+    margin-left: -1px; /* Close any sub-pixel gap */
+}
+
+.black-rectangle-syn .syn-text {
     position: absolute;
     bottom: -6px; /* Negative offset to make glyphs touch bottom edge */
     left: 0; /* Flush with left edge of black rectangle */
     font-family: Helvetica, sans-serif;
     font-size: 88px;
+    font-weight: bold;
     letter-spacing: -0.17em; /* -17% letter spacing */
     color: white; /* Match white canvas color */
     text-transform: uppercase;
@@ -604,54 +910,59 @@ body {
     overflow: visible; /* Allow text to extend beyond container */
 }
 
-.black-rectangle .syn-text .syn-word {
+.black-rectangle-syn .syn-text .syn-word {
     display: inline-block;
     position: relative;
     white-space: nowrap; /* Prevent line breaking when letters expand */
 }
 
 /* Default letter-spacing for each SYN letter */
-.black-rectangle .syn-text .syn-letter-s,
-.black-rectangle .syn-text .syn-letter-y,
-.black-rectangle .syn-text .syn-letter-n {
+.black-rectangle-syn .syn-text .syn-letter-s,
+.black-rectangle-syn .syn-text .syn-letter-y,
+.black-rectangle-syn .syn-text .syn-letter-n {
     display: inline-block; /* Allow individual letter control */
     letter-spacing: -0.17em; /* -17% letter spacing - matches original */
     transition: letter-spacing 0.3s ease; /* Smooth transition */
 }
 
 /* Specific S letter spacing - 3px tighter than default */
-.black-rectangle .syn-text .syn-letter-s {
+.black-rectangle-syn .syn-text .syn-letter-s {
     letter-spacing: -0.204em; /* -0.17em - 0.034em (3px at 88px font) */
 }
 
-/* Expanded letter-spacing on hover - progressive spacing (same logic as PANEL) */
-.black-rectangle:hover .syn-text .syn-letter-s {
-    letter-spacing: 0.068em; /* ~6px at 88px font - reduced by 2px */
+/* SYN rectangle expands to the right on hover to match SYN text expansion */
+.black-rectangle-syn:hover,
+.logo-container:hover .black-rectangle-syn {
+    width: 220px; /* Expand to match the letter-spacing expansion of SYN text (~60px growth) */
+    z-index: 2; /* Higher z-index to appear above [esthesia] */
 }
 
-.black-rectangle:hover .syn-text .syn-letter-y {
-    letter-spacing: 0.205em; /* ~18px at 88px font - reduced by 3px from 0.24em */
+/* Expanded letter-spacing on hover - progressive spacing */
+.black-rectangle-syn:hover .syn-text .syn-letter-s,
+.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-s {
+    letter-spacing: 0.068em; /* ~6px at 88px font */
 }
 
-.black-rectangle:hover .syn-text .syn-letter-n {
-    letter-spacing: -0.17em; /* Keep same as default - maintains consistent gap to [i] */
+.black-rectangle-syn:hover .syn-text .syn-letter-y,
+.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-y {
+    letter-spacing: 0.205em; /* ~18px at 88px font */
 }
 
-.black-rectangle .syn-text .ethesia-text {
-    position: relative; /* Changed from absolute to flow with SYN letters */
-    display: inline-block;
-    vertical-align: top; /* Align to top of SYN */
-    margin-left: 15px; /* 15px gap from SYN */
-    margin-top: 3px; /* Same 3px offset from top as before */
+.black-rectangle-syn:hover .syn-text .syn-letter-n,
+.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-n {
+    letter-spacing: -0.17em; /* Keep same as default */
+}
+
+/* [esthesia] text styling */
+.black-rectangle-ethesia .ethesia-text {
     font-family: 'JetBrains Mono NL', monospace;
     font-size: 15px;
     letter-spacing: 0.03em; /* 3% letter spacing */
     color: white;
     white-space: nowrap;
-    text-transform: none; /* Override parent's uppercase transform to keep lowercase */
-    line-height: 0.8; /* Match SYN's line-height */
-    margin-right: 0;
-    margin-bottom: 0;
+    text-transform: none; /* Keep lowercase */
+    line-height: 1;
+    margin: 0;
     padding: 0;
 }
 
@@ -675,37 +986,52 @@ body {
     flex-direction: column;
 }
 
-/* Text styling for WORD */
-.black-bottom-rectangle .word-text {
-    color: white; /* Match white canvas color */
+/* Text styling for left parameter word */
+.black-bottom-rectangle-left .word-text-left {
+    color: white;
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
-    letter-spacing: -0.05em; /* -5% letter spacing */
+    letter-spacing: -0.05em;
     white-space: nowrap;
     text-transform: uppercase;
-    text-align: left; /* Explicitly align text to left */
-    padding: 0 10px 0 0; /* Right padding only, no left padding - flush against left edge */
-    margin: 0; /* Remove any default margins */
+    text-align: left;
+    padding: 0 10px 0 0; /* Right padding for spacing from edge */
+    margin: 0;
     box-sizing: border-box;
     position: relative;
-    top: 9px; /* Moved up 3px from 12px */
-    left: -2px; /* Moved 2px to the left */
+    top: 9px;
+    left: -2px;
     display: flex;
-    justify-content: flex-start; /* Align text to left */
+    justify-content: flex-start;
 }
 
-/* Default letter-spacing for each letter - -15% spacing */
-.black-bottom-rectangle .word-text .word-letter {
-    display: inline-block; /* Allow individual letter control */
-    font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.05em; /* -5% letter spacing */
-    /* Removed transition - no hover effects on text */
+/* Text styling for right parameter word */
+.black-bottom-rectangle-right .word-text-right {
+    color: white;
+    font-family: Helvetica, sans-serif;
+    font-size: 0; /* Remove spacing between inline-block children */
+    font-weight: bold;
+    letter-spacing: -0.05em;
+    white-space: nowrap;
+    text-transform: uppercase;
+    text-align: right;
+    padding: 0 0 0 10px; /* Left padding for spacing from edge */
+    margin: 0;
+    box-sizing: border-box;
+    position: relative;
+    top: 9px;
+    right: 0px; /* Moved 2px left (was -2px) */
+    display: flex;
+    justify-content: flex-end;
 }
 
-/* Extra spacing for spaces around "&" symbol - visible despite negative letter-spacing */
-.black-bottom-rectangle .word-text .word-space-around-ampersand {
-    margin-right: 0.25em; /* Add visible spacing despite negative letter-spacing */
+/* Default letter-spacing for each letter in both rectangles */
+.black-bottom-rectangle-left .word-text-left .word-letter,
+.black-bottom-rectangle-right .word-text-right .word-letter {
+    display: inline-block;
+    font-size: 34px;
+    letter-spacing: -0.05em;
 }
 
 .text-box {
@@ -847,18 +1173,19 @@ body {
     width: 1035px; /* Same width as main text box */
     height: calc(100vh / 6); /* Same height as SYN overlay */
     background-color: white; /* White background to block main text box */
-    z-index: 12; /* Above main text box (12) but below SYN text overlay (13) */
+    z-index: 200; /* Above blur overlay (100) and main text box - ensures text is visible over blur */
     pointer-events: none; /* Don't interfere with canvas interactions */
     /* Hidden by default */
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, left 0.2s ease;
 }
 
 /* Show backing layer when SYN element is hovered (via class toggle) */
 .canvas-text-box-syn-backing.visible {
     opacity: 1;
     visibility: visible;
+    left: 85px; /* Pushed inward to align with expanded scrollbars */
 }
 
 /* SYN hover overlay: appears above main canvas text box on hover */
@@ -873,19 +1200,20 @@ body {
     line-height: 29px; /* Same line height */
     font-weight: bold; /* Same font weight */
     color: #E0E0E0; /* Same gray as used elsewhere on the site */
-    z-index: 13; /* Higher than backing layer (12) and canvas-text-box (12) to appear above both */
+    z-index: 201; /* Above blur overlay (100) and backing layer (200) - ensures text appears above blur */
     pointer-events: none; /* Don't interfere with canvas interactions */
     overflow: visible; /* Ensure text is visible */
     /* Hidden by default */
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, left 0.2s ease;
 }
 
 /* Show overlay when SYN element is hovered (via class toggle) */
 .canvas-text-box-syn-overlay.visible {
     opacity: 1;
     visibility: visible;
+    left: 85px; /* Pushed inward to align with expanded scrollbars */
 }
 
 /* Line background blocks for canvas text box */
@@ -1544,7 +1872,7 @@ h1 {
 /* Ring circle styling */
 .ring-circle {
     fill: white;
-    stroke: #2C2C2C;
+    stroke: #FAB01B;
     stroke-width: 2px;
     pointer-events: all; /* Allow clicking on the entire circle area */
 }
@@ -1575,6 +1903,15 @@ h1 {
     display: block;
     visibility: visible;
     opacity: 1;
+}
+
+/* Number + Number rings: green color (#007A6F) for circles and digit */
+#number-number-rings-svg .ring-circle {
+    stroke: #007A6F;
+}
+
+#number-number-rings-svg .ring-letter {
+    fill: #007A6F;
 }
 
 /* Container for white circle with black outline on Shape + Color page */
@@ -2012,6 +2349,93 @@ h1 {
     cursor: crosshair; /* Indicate drawing capability */
 }
 
+/* Ellipses container for Shape & Emotion interaction */
+.shape-emotion-ellipses {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    z-index: 12; /* Above the draw surface */
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+/* Wrapper for each SVG ellipse */
+.emotion-ellipse-wrapper {
+    flex: 1 1 14.2857%; /* Equal initial width (100% / 7) */
+    height: 100%;
+    position: relative;
+    /* Remove margin/padding to ensure touching edges */
+    margin: 0;
+    padding: 0;
+    /* Cursor changes based on position - handled by JS for edges */
+    cursor: default;
+    /* Prevent text selection during drag */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* SVG container - fills the wrapper */
+.emotion-ellipse-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible; /* Allow stroke to extend beyond viewBox */
+}
+
+/* SVG ellipse styling with non-scaling stroke */
+.emotion-ellipse {
+    fill: #ffffff; /* White fill */
+    stroke: #2C2C2C; /* Black stroke - same as UI rectangles */
+    stroke-width: 3px; /* 3px stroke width */
+    vector-effect: non-scaling-stroke; /* KEY: Stroke width stays constant regardless of scaling */
+}
+
+/* Drag handle zones - invisible areas on wrapper edges for dragging */
+.emotion-ellipse-wrapper::before,
+.emotion-ellipse-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 15px; /* Drag zone width */
+    height: 100%;
+    cursor: ew-resize; /* Horizontal resize cursor */
+    z-index: 1;
+}
+
+/* Left edge drag handle */
+.emotion-ellipse-wrapper::before {
+    left: 0;
+}
+
+/* Right edge drag handle */
+.emotion-ellipse-wrapper::after {
+    right: 0;
+}
+
+/* First ellipse: no left drag handle (can't resize left edge) */
+.emotion-ellipse-wrapper:first-child::before {
+    display: none;
+}
+
+/* Last ellipse: no right drag handle (can't resize right edge) */
+.emotion-ellipse-wrapper:last-child::after {
+    display: none;
+}
+
+/* Active dragging state - applied via JS */
+.emotion-ellipse-wrapper.dragging {
+    cursor: ew-resize;
+}
+
+/* When any ellipse is being dragged, show resize cursor on container */
+.shape-emotion-ellipses.dragging {
+    cursor: ew-resize;
+}
+
 /* ==================
    SOUND + COLOR SQUARES (6 colored squares in a circle at canvas edges)
    ================== */
@@ -2302,5 +2726,93 @@ h1 {
     height: 120px;
     margin-top: -60px;
     margin-left: -60px;
+}
+
+/* ==================
+   NUMBER + EMOTION DIGITS
+   ================== */
+.number-emotion-digits-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 80px)); /* Centered with upward offset like other elements */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 13; /* Above canvas but below buttons */
+    /* Flexbox to arrange digits in a row with equal spacing */
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 80px; /* Equal spacing between digits */
+}
+
+.number-emotion-digits-container.visible {
+    display: flex;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Individual digit styling */
+.number-emotion-digit {
+    font-family: Helvetica, sans-serif;
+    font-size: 200px;
+    font-weight: bold;
+    color: #2C2C2C; /* Site's standard black */
+    line-height: 1;
+    user-select: none;
+    cursor: grab;
+    /* Position will be controlled by JavaScript when dragging */
+    position: relative;
+    /* Smooth transitions for scale changes */
+    transition: transform 0.15s ease-out;
+    /* Ensure scaling happens from center */
+    transform-origin: center center;
+}
+
+.number-emotion-digit:active,
+.number-emotion-digit.dragging {
+    cursor: grabbing;
+}
+
+/* Digit 7 animation - double jump with 360 rotation every 5 seconds */
+@keyframes digit7JumpRotate {
+    0% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(0) rotate(0deg); }
+    15% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(-40px) rotate(90deg); }
+    30% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(0) rotate(180deg); }
+    45% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(-40px) rotate(270deg); }
+    60% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(0) rotate(360deg); }
+    100% { transform: translate(var(--offset-x, 0px), var(--offset-y, 0px)) translateY(0) rotate(360deg); }
+}
+
+.number-emotion-digit.digit7-animating {
+    animation: digit7JumpRotate 1s ease-in-out;
+}
+
+/* ==================
+   LOGO HOVER OVERLAY
+   ================== */
+/* Logo hover overlay - covers canvas container when hovering on SYN logo */
+.logo-hover-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1); /* 10% white opacity */
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px); /* Safari support */
+    z-index: 100; /* Above all canvas content */
+    pointer-events: none; /* Don't block interactions */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.logo-hover-overlay.visible {
+    opacity: 1;
+    visibility: visible;
 }
 

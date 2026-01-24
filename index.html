@@ -29,6 +29,9 @@
         <div class="color-item" data-color="#EB4781"></div>
         <div class="color-item" data-color="#293990"></div>
     </div>
+    <!-- Reel triangles for left column -->
+    <div class="reel-triangle reel-triangle-top reel-triangle-left"></div>
+    <div class="reel-triangle reel-triangle-bottom reel-triangle-left"></div>
     <div class="column-container right-column">
         <div class="color-item" data-color="#EF4538"></div>
         <div class="color-item" data-color="#891951"></div>
@@ -51,36 +54,57 @@
         <div class="color-item" data-color="#EB4781"></div>
         <div class="color-item" data-color="#293990"></div>
     </div>
+    <!-- Reel triangles for right column -->
+    <div class="reel-triangle reel-triangle-top reel-triangle-right"></div>
+    <div class="reel-triangle reel-triangle-bottom reel-triangle-right"></div>
     <div class="intro-layer">
         <div class="gradient-intro-container" id="gradient-intro-container"></div>
     </div>
     <div class="main-gradient-header" id="main-gradient-header"></div>
     <div class="ui-layer">
-        <div class="black-corner-rectangle">
-            <div class="color-key-text">
-                <span class="letter-s">S</span>
-                <span class="letter-i">I</span>
-                <span class="letter-g">G</span>
-                <span class="letter-n">N</span>
-                <span class="letter-a">A</span>
-                <span class="letter-l">L</span>
+        <div class="ui-rect-mask ui-rect-mask-index">
+            <div class="black-corner-rectangle">
+                <div class="color-key-text">
+                    <span class="letter-i">I</span>
+                    <span class="letter-n">N</span>
+                    <span class="letter-d">D</span>
+                    <span class="letter-e">E</span>
+                    <span class="letter-x">X</span>
+                </div>
             </div>
         </div>
-        <div class="black-bottom-rectangle">
-            <div class="word-text" id="word-text">
-                <span class="word-letter">W</span>
-                <span class="word-letter">O</span>
-                <span class="word-letter">R</span>
-                <span class="word-letter">D</span>
+        <div class="ui-rect-mask ui-rect-mask-left">
+            <div class="black-bottom-rectangle-left">
+                <div class="word-text-left" id="word-text-left">
+                    <span class="word-letter">W</span>
+                    <span class="word-letter">O</span>
+                    <span class="word-letter">R</span>
+                    <span class="word-letter">D</span>
+                </div>
             </div>
         </div>
-        <div class="black-rectangle">
-            <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span><span class="ethesia-text">[i]</span></div>
+        <div class="ui-rect-mask ui-rect-mask-right">
+            <div class="black-bottom-rectangle-right">
+                <div class="word-text-right" id="word-text-right">
+                    <span class="word-letter">W</span>
+                    <span class="word-letter">O</span>
+                    <span class="word-letter">R</span>
+                    <span class="word-letter">D</span>
+                </div>
+            </div>
+        </div>
+        <div class="logo-container">
+            <div class="black-rectangle-syn">
+                <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span></div>
+            </div>
+            <div class="black-rectangle-ethesia">
+                <span class="ethesia-text">[esthesia]</span>
+            </div>
         </div>
     </div>
     <div class="split-region split-region-white" id="white-region">
         <div class="text-box" id="text-box">
-            <p>Synesthesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another.</p>
+            <p>A perceptual experience where one sense triggers another</p>
             <p>A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured.</p>
             <p>These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.</p>
             <p>Synesthesia is not a disorder, but a different way of perceiving reality—one in which the boundaries between the senses gently blur.</p>
@@ -121,6 +145,44 @@
         <!-- Shape & Emotion canvas container -->
         <div id="shape-emotion-container" class="shape-emotion-container hidden">
             <canvas id="shape-emotion-draw-surface"></canvas>
+            <!-- Ellipses for Shape & Emotion interaction (SVG for consistent stroke width) -->
+            <div id="shape-emotion-ellipses" class="shape-emotion-ellipses">
+                <div class="emotion-ellipse-wrapper" data-index="0">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="1">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="2">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="3">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="4">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="5">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+                <div class="emotion-ellipse-wrapper" data-index="6">
+                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                    </svg>
+                </div>
+            </div>
         </div>
         <div class="canvas-text-box" id="canvas-text-box"></div>
         <div class="canvas-text-box-syn-backing" id="canvas-text-box-syn-backing"></div>
@@ -162,34 +224,34 @@
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and yellow stroke -->
                 <g class="ring-group" data-ring="0">
-                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#FAB01B" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
                 </g>
                 
                 <!-- Ring 1: circle r=240 -->
                 <g class="ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#FAB01B" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
                 </g>
                 
                 <!-- Ring 2 (middle): circle r=180 -->
                 <g class="ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#FAB01B" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
                 </g>
                 
                 <!-- Ring 3: circle r=120 -->
                 <g class="ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#FAB01B" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
                 </g>
                 
                 <!-- Ring 4 (innermost): solid circle r=60 -->
                 <g class="ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#FAB01B" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
                 </g>
             </svg>
         </div>
@@ -220,34 +282,34 @@
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and green stroke -->
                 <g class="ring-group number-ring-group" data-ring="0">
-                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#007A6F" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
                 </g>
                 
                 <!-- Ring 1: circle r=240 -->
                 <g class="ring-group number-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#007A6F" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
                 </g>
                 
                 <!-- Ring 2 (middle): circle r=180 -->
                 <g class="ring-group number-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#007A6F" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
                 </g>
                 
                 <!-- Ring 3: circle r=120 -->
                 <g class="ring-group number-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#007A6F" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
                 </g>
                 
                 <!-- Ring 4 (innermost): solid circle r=60 -->
                 <g class="ring-group number-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#007A6F" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
                 </g>
             </svg>
         </div>
@@ -392,6 +454,16 @@
             </svg>
             <button class="sound-wave-mic-btn" id="sound-wave-mic-btn">[enable microphone]</button>
         </div>
+        <!-- Container for Number + Emotion page digits -->
+        <div class="number-emotion-digits-container" id="number-emotion-digits-container">
+            <span class="number-emotion-digit" data-digit="1">1</span>
+            <span class="number-emotion-digit" data-digit="2">2</span>
+            <span class="number-emotion-digit" data-digit="3">3</span>
+            <span class="number-emotion-digit" data-digit="4">4</span>
+            <span class="number-emotion-digit" data-digit="7">7</span>
+        </div>
+        <!-- Logo hover overlay: darkens and blurs canvas when hovering on SYN logo -->
+        <div class="logo-hover-overlay" id="logo-hover-overlay"></div>
     </div>
     <div class="line line-outer-left"></div>
     <div class="line line-inner-left"></div>

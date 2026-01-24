@@ -6,7 +6,11 @@ const colors = ['#EF4538', '#891951', '#FAB01B', '#007A6F', '#EB4781', '#293990'
 const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
-const INITIAL_INSTRUCTION_TEXT = 'Synesthesia is a perceptual experience where one sense triggers another,<br>This site explores synesthesia through combinations of two senses at a time.<div style="margin-top: 21px;">Scroll the left and right bars to combine senses</div>';
+// Split into two lines for independent positioning on different gradient rectangles
+const INTRO_LINE_1_TEXT = 'An experience where one sense triggers another';
+const INTRO_LINE_2_TEXT = 'Scroll the bars to combine senses';
+// Legacy constant for backward compatibility (used in some checks)
+const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span><div style="margin-top: 21px;"><span class="intro-line">' + INTRO_LINE_2_TEXT + '</span></div>';
 
 // Color constants for visibility check
 const ORANGE_COLOR = '#EF4538';  // shape (index 0)
@@ -108,6 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Color + Color circle visibility
     updateColorColorCircle(initialPageId);
+    
+    // Initialize Number + Emotion digits visibility
+    updateNumberEmotionDigits(initialPageId);
     
     // Initialize Shape & Emotion canvas visibility
     updateShapeEmotionCanvasVisibility(initialPageId);
@@ -504,9 +511,6 @@ function initializeColumn(column, side) {
         
         // Recenter into middle set if we've drifted too far
         if (scrollTop < topBoundary) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:505',message:'Infinite scroll JUMP UP triggered',data:{side,scrollTop,topBoundary,isDemoActive,isProgrammaticScroll},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             // Scrolled too far up: jump forward by one set to recenter in middle
             isAdjusting = true;
             isProgrammaticScroll = true; // Mark as programmatic
@@ -517,9 +521,6 @@ function initializeColumn(column, side) {
             // Update selected indices after scroll position changes
             updateSelectedIndices();
         } else if (scrollTop > bottomBoundary) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:515',message:'Infinite scroll JUMP DOWN triggered',data:{side,scrollTop,bottomBoundary,isDemoActive,isProgrammaticScroll},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             // Scrolled too far down: jump backward by one set to recenter in middle
             isAdjusting = true;
             isProgrammaticScroll = true; // Mark as programmatic
@@ -606,18 +607,10 @@ function initializeColumn(column, side) {
                         gradientContainer.classList.add('intro-active');
                     }
                 }
-                
-                // Ensure text is visible (but don't force opacity - let CSS animation handle it)
-                setTimeout(() => {
-                    const introText = document.getElementById('gradient-intro-text');
-                    if (introText) {
-                        // Use 'flex' to match setupStartButton() and updateGradientIntro()
-                        introText.style.display = 'flex';
-                        introText.style.visibility = 'visible';
-                        // Don't set opacity - let CSS animation handle the fade-in
-                    }
-                }, 0);
-                
+                // setupStartButton() now handles the full animation sequence:
+                // 1. Animate instruction lines out (slide down)
+                // 2. Wait 500ms
+                // 3. Show START button with fade-in animation
             }
         }
         
@@ -668,18 +661,10 @@ function initializeColumn(column, side) {
                         gradientContainer.classList.add('intro-active');
                     }
                 }
-                
-                // Ensure text is visible (but don't force opacity - let CSS animation handle it)
-                setTimeout(() => {
-                    const introText = document.getElementById('gradient-intro-text');
-                    if (introText) {
-                        // Use 'flex' to match setupStartButton() and updateGradientIntro()
-                        introText.style.display = 'flex';
-                        introText.style.visibility = 'visible';
-                        // Don't set opacity - let CSS animation handle the fade-in
-                    }
-                }, 0);
-                
+                // setupStartButton() now handles the full animation sequence:
+                // 1. Animate instruction lines out (slide down)
+                // 2. Wait 500ms
+                // 3. Show START button with fade-in animation
             }
         }
     }, { passive: true });
@@ -797,10 +782,29 @@ const canvasTextBoxContent = {
     '2-1': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
     
     // 15. Emotion + Number (רגש + ספרות) - emotion=4, number=3
-    '4-3': '"Whenever I feel a strong emotion, a number pops into my head. Pure joy is always the number 7. Anxiety is a constant, flickering 9. When I\'m bored, I feel like the number 0 is expanding to fill the room. It\'s not that I\'m counting, it\'s that the feeling itself has a numerical value. I can describe my day to my partner by saying \'I feel like a 4 today,\' and for me, that perfectly describes a specific type of dull, heavy sadness."',
+    '4-3': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row."',
     
-    // 16. Color + Color (צבע + צבע) - color=5, color=5
-    '5-5': '"For me, colors are never static or isolated. Every color I see radiates its essence onto every other color nearby. When I look at a simple rainbow, it\'s not six or seven distinct bands—it\'s a living conversation. The red bleeds into the orange, the orange whispers to the yellow, the yellow embraces the green. Each hue influences and transforms its neighbors, creating an infinite dance of chromatic relationships that never stops moving in my mind."'
+    // ==================
+    // SAME-TYPE PAGES (Definition Texts)
+    // ==================
+    
+    // 16. Shape + Shape (צורה + צורה) - shape=0, shape=0
+    '0-0': 'Shape is the external appearance or outline of an object, defining the boundary with its surroundings. It focuses on geometric structures like circles or squares, regardless of color or material. This "silhouette" allows our eyes to identify and distinguish different objects in space. Categorizing these outlines helps us effectively organize and interpret the physical world.',
+    
+    // 17. Sound + Sound (סאונד + סאונד) - sound=1, sound=1
+    '1-1': 'Sound is a physical vibration traveling as a wave through matter until reaching the ear. The brain translates these waves into hearing, allowing us to perceive voices and noises. Characterized by varying frequencies, it is a fundamental element of communication and environmental awareness. This sensory input enables music, conversation, and alertness to changes in our surroundings.',
+    
+    // 18. Letter + Letter (אות + אות) - letter=2, letter=2
+    '2-2': 'A letter is a graphic symbol serving as the basic building block of writing and language. It represents specific speech sounds, translating spoken language into a visual form. Combinations of letters create words and sentences for conveying information and knowledge. Through standardized symbols, humans record history and communicate across vast distances and time.',
+    
+    // 19. Number + Number (ספרה + ספרה) - number=3, number=3
+    '3-3': 'A number is an abstract concept describing quantity, measurement, counting, or position within a series. Digits are specific symbols representing these values visually. As a fundamental tool in logic and mathematics, numbers help organize data and perform calculations. Beyond counting, numerical systems provide the framework for scientific discovery and modern global infrastructure.',
+    
+    // 20. Emotion + Emotion (רגש + רגש) - emotion=4, emotion=4
+    '4-4': 'Emotion is an internal reaction triggered by thoughts, events, or social interactions. Expressed through subjective feelings like joy or fear, it is often accompanied by physiological changes. Emotions help us evaluate situations, make decisions, and respond to our world. While personal, these states are expressed through facial and body language, fostering empathy and connection.',
+    
+    // 21. Color + Color (צבע + צבע) - color=5, color=5
+    '5-5': 'Color is a visual experience where the brain interprets how objects reflect or emit light. The human eye detects electromagnetic wavelengths, translating them into the visible hues we see. This element helps us distinguish details, identify objects, and provide aesthetic meaning. Cultural and biological factors influence perception, attaching symbolic meanings like danger or peace to specific shades.'
 };
 
 // Function to get text content for a specific page ID
@@ -973,7 +977,7 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         bgBlock.className = 'canvas-line-bg';
         bgBlock.style.position = 'absolute';
         bgBlock.style.left = '-35px'; // Start 35px before the text
-        bgBlock.style.width = `${lineWidth + 35}px`; // 35px left + lineWidth (ends exactly at text end)
+        bgBlock.style.width = `${lineWidth + 41}px`; // 35px left + lineWidth + 6px right extension
         bgBlock.style.height = `${extendedBgHeight}px`;
         bgBlock.style.backgroundColor = backgroundColor; // Use provided background color or default to light grey
         bgBlock.style.zIndex = '-1'; // Behind text
@@ -994,6 +998,7 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         textElement.style.lineHeight = '29px';
         // Color is inherited from parent container CSS
         textElement.style.whiteSpace = 'nowrap'; // Prevent text from wrapping
+        textElement.style.marginLeft = '6px'; // Move text 6px to the right
         
         // Add background and text to row
         lineRow.appendChild(bgBlock);
@@ -2251,58 +2256,14 @@ function initializeLetterNumberCircle() {
     if (!container) return;
     
     // Initialize displacements array (persistent - elements stay displaced)
-    // Start with items pushed to their boundary edges (maximum distance from center)
+    // Store as RADIAL displacement (single number): positive = away from center, negative = toward center
+    // Start with items pushed to their maximum distance from center
     if (!letterNumberDisplacements) {
         letterNumberDisplacements = [];
-        const centerX = 350;
-        const centerY = 350;
-        const minY = 50;
-        const maxY = 630;
-        const minX = -350;
-        const maxX = 1050;
         
         for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
-            // Calculate base position on circle
-            const angle = (i / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI;
-            const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
-            const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
-            
-            // Calculate direction from center (unit vector)
-            const dirX = Math.cos(angle);
-            const dirY = Math.sin(angle);
-            
-            // Find how far we can push in this direction before hitting a boundary
-            // We need to find the displacement that puts the item at the edge
-            let maxDisplacement = LETTER_NUMBER_MAX_DISPLACEMENT;
-            
-            // Check each boundary and find the limiting one
-            if (dirX > 0.01) {
-                // Moving right, check right boundary
-                const toRight = (maxX - baseX) / dirX;
-                maxDisplacement = Math.min(maxDisplacement, toRight);
-            } else if (dirX < -0.01) {
-                // Moving left, check left boundary
-                const toLeft = (minX - baseX) / dirX;
-                maxDisplacement = Math.min(maxDisplacement, toLeft);
-            }
-            
-            if (dirY > 0.01) {
-                // Moving down, check bottom boundary
-                const toBottom = (maxY - baseY) / dirY;
-                maxDisplacement = Math.min(maxDisplacement, toBottom);
-            } else if (dirY < -0.01) {
-                // Moving up, check top boundary
-                const toTop = (minY - baseY) / dirY;
-                maxDisplacement = Math.min(maxDisplacement, toTop);
-            }
-            
-            // Ensure positive displacement and apply it
-            maxDisplacement = Math.max(0, maxDisplacement);
-            
-            letterNumberDisplacements.push({
-                x: dirX * maxDisplacement,
-                y: dirY * maxDisplacement
-            });
+            // Start at maximum radial displacement (pushed outward as far as possible)
+            letterNumberDisplacements.push(LETTER_NUMBER_MAX_DISPLACEMENT);
         }
     }
     
@@ -2368,10 +2329,13 @@ function updateLetterNumberPositions() {
         const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
         const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
         
-        // Apply persistent displacement
-        const displacement = letterNumberDisplacements[index];
-        let finalX = baseX + displacement.x;
-        let finalY = baseY + displacement.y;
+        // Apply radial displacement in the current angle direction
+        // This ensures displacement rotates with the element, maintaining constant distance from center
+        const radialDisp = letterNumberDisplacements[index];
+        const dirX = Math.cos(angle); // Current outward direction based on rotation
+        const dirY = Math.sin(angle);
+        let finalX = baseX + dirX * radialDisp;
+        let finalY = baseY + dirY * radialDisp;
         
         // Clamp to boundaries (prevent going above UI/gradient header)
         finalX = Math.max(minX, Math.min(maxX, finalX));
@@ -2439,6 +2403,8 @@ function updateLetterNumberLine(index, itemX, itemY, centerX, centerY) {
 }
 
 // Calculate and apply repulsion from mouse
+// Smart push: mouse outside circle pushes inward, mouse inside circle pushes outward
+// Uses RADIAL displacement (single number) that rotates with the element
 function applyLetterNumberRepulsion() {
     const container = document.getElementById('letter-number-circle-container');
     if (!container) return;
@@ -2446,21 +2412,20 @@ function applyLetterNumberRepulsion() {
     const centerX = 350;
     const centerY = 350;
     
-    // Boundary constraints (same as in updateLetterNumberPositions)
-    const minY = 50;
-    const maxY = 630;
-    const minX = -350;
-    const maxX = 1050;
-    
     for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
         // Calculate current base position on circle
         const angle = (i / LETTER_NUMBER_TOTAL_ITEMS) * 2 * Math.PI + letterNumberRotationOffset;
         const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
         const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
         
-        // Current position with displacement
-        const currentX = baseX + letterNumberDisplacements[i].x;
-        const currentY = baseY + letterNumberDisplacements[i].y;
+        // Current radial displacement
+        const radialDisp = letterNumberDisplacements[i];
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+        
+        // Current position with radial displacement
+        const currentX = baseX + dirX * radialDisp;
+        const currentY = baseY + dirY * radialDisp;
         
         // Calculate distance from mouse (mouse position is relative to center)
         const mouseAbsX = centerX + letterNumberMousePosition.x;
@@ -2468,50 +2433,44 @@ function applyLetterNumberRepulsion() {
         
         const dx = currentX - mouseAbsX;
         const dy = currentY - mouseAbsY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
         
         // Apply repulsion if within range
-        if (distance < LETTER_NUMBER_REPULSION_RADIUS && distance > 0) {
+        if (distanceFromMouse < LETTER_NUMBER_REPULSION_RADIUS && distanceFromMouse > 0) {
             // Calculate repulsion force (stronger when closer)
-            const force = (LETTER_NUMBER_REPULSION_RADIUS - distance) / LETTER_NUMBER_REPULSION_RADIUS;
+            const force = (LETTER_NUMBER_REPULSION_RADIUS - distanceFromMouse) / LETTER_NUMBER_REPULSION_RADIUS;
             const repulsionStrength = force * 3; // Multiplier for responsiveness
             
-            // Push away from mouse
-            let pushX = (dx / distance) * repulsionStrength;
-            let pushY = (dy / distance) * repulsionStrength;
-            
-            // Check if pushing would exceed boundaries, if so limit the push
-            const newX = baseX + letterNumberDisplacements[i].x + pushX;
-            const newY = baseY + letterNumberDisplacements[i].y + pushY;
-            
-            // Don't push upward if already at top boundary
-            if (newY < minY && pushY < 0) pushY = 0;
-            // Don't push downward if already at bottom boundary
-            if (newY > maxY && pushY > 0) pushY = 0;
-            // Don't push left if already at left boundary
-            if (newX < minX && pushX < 0) pushX = 0;
-            // Don't push right if already at right boundary
-            if (newX > maxX && pushX > 0) pushX = 0;
-            
-            // Apply to displacement (cumulative - stays displaced)
-            letterNumberDisplacements[i].x += pushX;
-            letterNumberDisplacements[i].y += pushY;
-            
-            // Clamp displacement to maximum
-            const dispMag = Math.sqrt(
-                letterNumberDisplacements[i].x * letterNumberDisplacements[i].x +
-                letterNumberDisplacements[i].y * letterNumberDisplacements[i].y
+            // Calculate distances from center to determine push direction
+            const mouseDistFromCenter = Math.sqrt(
+                letterNumberMousePosition.x * letterNumberMousePosition.x +
+                letterNumberMousePosition.y * letterNumberMousePosition.y
             );
-            if (dispMag > LETTER_NUMBER_MAX_DISPLACEMENT) {
-                const scale = LETTER_NUMBER_MAX_DISPLACEMENT / dispMag;
-                letterNumberDisplacements[i].x *= scale;
-                letterNumberDisplacements[i].y *= scale;
+            const elementDistFromCenter = LETTER_NUMBER_RADIUS + radialDisp;
+            
+            let pushAmount;
+            
+            if (mouseDistFromCenter > elementDistFromCenter) {
+                // Mouse is OUTSIDE (farther from center) - push element INWARD (decrease radial displacement)
+                pushAmount = -repulsionStrength;
+            } else {
+                // Mouse is INSIDE (closer to center) - push element OUTWARD (increase radial displacement)
+                pushAmount = repulsionStrength;
             }
+            
+            // Apply to radial displacement
+            letterNumberDisplacements[i] += pushAmount;
+            
+            // Clamp displacement: minimum allows pushing toward center but not past it
+            // Maximum is the defined MAX_DISPLACEMENT
+            letterNumberDisplacements[i] = Math.max(-LETTER_NUMBER_RADIUS + 50, 
+                Math.min(LETTER_NUMBER_MAX_DISPLACEMENT, letterNumberDisplacements[i]));
         }
     }
 }
 
 // Slowly return elements to their original position (when not being pushed by mouse)
+// Uses RADIAL displacement (single number) - returns toward 0 (original circle position)
 function applyLetterNumberReturnToOrigin() {
     if (!letterNumberDisplacements) return;
     
@@ -2524,9 +2483,14 @@ function applyLetterNumberReturnToOrigin() {
         const baseX = centerX + LETTER_NUMBER_RADIUS * Math.cos(angle);
         const baseY = centerY + LETTER_NUMBER_RADIUS * Math.sin(angle);
         
-        // Current position with displacement
-        const currentX = baseX + letterNumberDisplacements[i].x;
-        const currentY = baseY + letterNumberDisplacements[i].y;
+        // Current radial displacement
+        const radialDisp = letterNumberDisplacements[i];
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+        
+        // Current position with radial displacement
+        const currentX = baseX + dirX * radialDisp;
+        const currentY = baseY + dirY * radialDisp;
         
         // Check distance from mouse
         const mouseAbsX = centerX + letterNumberMousePosition.x;
@@ -2537,16 +2501,12 @@ function applyLetterNumberReturnToOrigin() {
         
         // Only return to origin if mouse is far enough away
         if (distanceFromMouse > LETTER_NUMBER_REPULSION_RADIUS) {
-            // Slowly reduce displacement (move toward 0)
-            letterNumberDisplacements[i].x *= (1 - LETTER_NUMBER_RETURN_SPEED);
-            letterNumberDisplacements[i].y *= (1 - LETTER_NUMBER_RETURN_SPEED);
+            // Slowly reduce radial displacement (move toward 0 = original circle position)
+            letterNumberDisplacements[i] *= (1 - LETTER_NUMBER_RETURN_SPEED);
             
             // Snap to zero if very small (avoid floating point drift)
-            if (Math.abs(letterNumberDisplacements[i].x) < 0.1) {
-                letterNumberDisplacements[i].x = 0;
-            }
-            if (Math.abs(letterNumberDisplacements[i].y) < 0.1) {
-                letterNumberDisplacements[i].y = 0;
+            if (Math.abs(letterNumberDisplacements[i]) < 0.1) {
+                letterNumberDisplacements[i] = 0;
             }
         }
     }
@@ -2676,6 +2636,699 @@ function resetColorColorRings() {
     // Apply reset rotations to all rings
     for (let i = 0; i < 5; i++) {
         applyColorColorRingRotation(i, 0);
+    }
+}
+
+// ==================
+// NUMBER + EMOTION Digits
+// ==================
+
+// Store current positions of each digit (x, y offsets from initial position)
+let numberEmotionDigitPositions = null;
+let numberEmotionDragInitialized = false;
+// Animation loop ID for behaviors
+let numberEmotionAnimationId = null;
+// Track which digit is currently being dragged (-1 means none)
+let numberEmotionDraggingIndex = -1;
+// Track which corner digit 1 is currently in (0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right)
+let digit1CurrentCorner = 1; // Start at top-right (rightmost)
+// Flag to track if digit 1 has been positioned to a corner
+let digit1CornerInitialized = false;
+// Store the initial position of digit 1 (captured once when initialized, prevents race conditions)
+let digit1InitialPosition = null;
+// Timestamp of last digit 1 jump (for cooldown to prevent rapid jumps)
+let digit1LastJumpTime = 0;
+const DIGIT1_JUMP_COOLDOWN = 300; // Minimum ms between jumps
+
+// Digit 3 bouncing state
+let digit3BounceTime = 0; // Time counter for bounce animation
+const DIGIT3_BOUNCE_AMPLITUDE = 100; // How high the bounce goes (in pixels)
+const DIGIT3_BOUNCE_SPEED = 0.12; // How fast it bounces (radians per frame)
+
+// Digit 4 repulsion state (for pushing digit 3 away)
+let digit4IsEnlarged = false; // Tracks if digit 4 is currently scaled up
+const DIGIT4_PROXIMITY_THRESHOLD = 200; // Distance in pixels to trigger repulsion
+const DIGIT4_PUSH_DISTANCE = 50; // How far to push digit 3 away (in pixels)
+const DIGIT4_ENLARGED_SCALE = 2; // Scale factor when enlarged
+
+// Digit 7 animation timer (double jump + 360 rotation every 3 seconds)
+let digit7AnimationTimerId = null;
+const DIGIT7_ANIMATION_INTERVAL = 3000; // 3 seconds between animations
+
+// Function to update Number + Emotion digits visibility
+function updateNumberEmotionDigits(pageId) {
+    const digitsContainer = document.getElementById('number-emotion-digits-container');
+    if (!digitsContainer) return;
+    
+    // Show digits only for Number + Emotion pages (pageId "3-4" or "4-3")
+    // Parameter indices: 3=number, 4=emotion
+    const isNumberEmotionPage = pageId === '3-4' || pageId === '4-3';
+    
+    if (isNumberEmotionPage) {
+        digitsContainer.classList.add('visible');
+        // Initialize drag functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeNumberEmotionDrag();
+            // Start the behavior animation loop
+            startNumberEmotionBehaviors();
+        });
+    } else {
+        digitsContainer.classList.remove('visible');
+        // Reset positions when leaving the page
+        resetNumberEmotionPositions();
+    }
+}
+
+// Initialize positions array (all start at 0,0 offset)
+function getInitialNumberEmotionPositions() {
+    return [
+        { x: 0, y: 0 }, // digit 1
+        { x: 0, y: 0 }, // digit 2
+        { x: 0, y: 0 }, // digit 3
+        { x: 0, y: 0 }, // digit 4
+        { x: 0, y: 0 }  // digit 7
+    ];
+}
+
+// Update digit position visually using CSS transform
+function updateNumberEmotionDigitPosition(digit, index) {
+    if (!numberEmotionDigitPositions || !numberEmotionDigitPositions[index]) return;
+    
+    const pos = numberEmotionDigitPositions[index];
+    digit.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+}
+
+// Initialize drag functionality for Number + Emotion digits
+function initializeNumberEmotionDrag() {
+    const container = document.getElementById('number-emotion-digits-container');
+    if (!container) return;
+    
+    const digits = container.querySelectorAll('.number-emotion-digit');
+    if (digits.length === 0) return;
+    
+    // Initialize positions if not already set
+    if (!numberEmotionDigitPositions) {
+        numberEmotionDigitPositions = getInitialNumberEmotionPositions();
+    }
+    
+    // Apply initial positions
+    digits.forEach((digit, index) => {
+        updateNumberEmotionDigitPosition(digit, index);
+    });
+    
+    // Only add event listeners once
+    if (numberEmotionDragInitialized) return;
+    
+    // Get canvas container bounds for constraining drag
+    const canvasContainer = document.getElementById('canvas-container');
+    
+    digits.forEach((digit, index) => {
+        let isDragging = false;
+        let startX, startY;
+        let startPosX, startPosY;
+        
+        // Mouse down - start dragging (or jump for digit 1)
+        digit.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            
+            // Digit 1 (index 0) jumps to a random corner when clicked/dragged
+            if (index === 0) {
+                moveDigit1ToRandomCorner(digit);
+                return; // Don't allow normal dragging
+            }
+            
+            isDragging = true;
+            numberEmotionDraggingIndex = index; // Track which digit is being dragged
+            digit.classList.add('dragging');
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            startPosX = numberEmotionDigitPositions[index].x;
+            startPosY = numberEmotionDigitPositions[index].y;
+            
+            // Add global mouse move and up listeners
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            // Calculate new position (free movement on both axes)
+            let newX = startPosX + dx;
+            let newY = startPosY + dy;
+            
+            // Constrain to canvas bounds
+            const digitRect = digit.getBoundingClientRect();
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                // Calculate how far the digit can move while staying within canvas bounds
+                // Account for the digit's current position and size
+                const digitWidth = digitRect.width;
+                const digitHeight = digitRect.height;
+                
+                // Get the digit's initial position (before any transform)
+                const digitInitialLeft = digitRect.left - numberEmotionDigitPositions[index].x;
+                const digitInitialTop = digitRect.top - numberEmotionDigitPositions[index].y;
+                
+                // Calculate max movement in each direction
+                const padding = 20; // Small padding from edges
+                const maxLeft = canvasRect.left - digitInitialLeft + padding;
+                const maxRight = canvasRect.right - digitInitialLeft - digitWidth - padding;
+                const maxTop = canvasRect.top - digitInitialTop + padding;
+                const maxBottom = canvasRect.bottom - digitInitialTop - digitHeight - padding;
+                
+                // Clamp position
+                newX = Math.max(maxLeft, Math.min(maxRight, newX));
+                newY = Math.max(maxTop, Math.min(maxBottom, newY));
+            }
+            
+            // Update position
+            numberEmotionDigitPositions[index].x = newX;
+            numberEmotionDigitPositions[index].y = newY;
+            
+            // Update visual position
+            updateNumberEmotionDigitPosition(digit, index);
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+            numberEmotionDraggingIndex = -1; // Clear dragging state
+            digit.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        
+        // Touch support for mobile (or jump for digit 1)
+        digit.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            
+            // Digit 1 (index 0) jumps to a random corner when touched
+            if (index === 0) {
+                moveDigit1ToRandomCorner(digit);
+                return; // Don't allow normal dragging
+            }
+            
+            isDragging = true;
+            numberEmotionDraggingIndex = index; // Track which digit is being dragged
+            digit.classList.add('dragging');
+            
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            startPosX = numberEmotionDigitPositions[index].x;
+            startPosY = numberEmotionDigitPositions[index].y;
+            
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+        });
+        
+        function onTouchMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            
+            // Calculate new position
+            let newX = startPosX + dx;
+            let newY = startPosY + dy;
+            
+            // Constrain to canvas bounds
+            const digitRect = digit.getBoundingClientRect();
+            const canvasRect = canvasContainer ? canvasContainer.getBoundingClientRect() : null;
+            
+            if (canvasRect) {
+                const digitWidth = digitRect.width;
+                const digitHeight = digitRect.height;
+                
+                const digitInitialLeft = digitRect.left - numberEmotionDigitPositions[index].x;
+                const digitInitialTop = digitRect.top - numberEmotionDigitPositions[index].y;
+                
+                const padding = 20;
+                const maxLeft = canvasRect.left - digitInitialLeft + padding;
+                const maxRight = canvasRect.right - digitInitialLeft - digitWidth - padding;
+                const maxTop = canvasRect.top - digitInitialTop + padding;
+                const maxBottom = canvasRect.bottom - digitInitialTop - digitHeight - padding;
+                
+                newX = Math.max(maxLeft, Math.min(maxRight, newX));
+                newY = Math.max(maxTop, Math.min(maxBottom, newY));
+            }
+            
+            numberEmotionDigitPositions[index].x = newX;
+            numberEmotionDigitPositions[index].y = newY;
+            
+            updateNumberEmotionDigitPosition(digit, index);
+        }
+        
+        function onTouchEnd() {
+            isDragging = false;
+            numberEmotionDraggingIndex = -1; // Clear dragging state
+            digit.classList.remove('dragging');
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        }
+    });
+    
+    numberEmotionDragInitialized = true;
+}
+
+// Reset digit positions to initial layout
+function resetNumberEmotionPositions() {
+    // Stop the animation loop
+    stopNumberEmotionBehaviors();
+    
+    numberEmotionDigitPositions = null;
+    numberEmotionDragInitialized = false;
+    numberEmotionDraggingIndex = -1;
+    digit1CurrentCorner = 1; // Reset to top-right
+    digit1CornerInitialized = false;
+    digit1InitialPosition = null; // Reset stored initial position
+    digit1LastJumpTime = 0; // Reset cooldown
+    digit3BounceTime = 0; // Reset bounce animation
+    digit4IsEnlarged = false; // Reset digit 4 scale state
+    
+    // Reset visual transforms
+    const container = document.getElementById('number-emotion-digits-container');
+    if (container) {
+        const digits = container.querySelectorAll('.number-emotion-digit');
+        digits.forEach((digit) => {
+            digit.style.transform = '';
+        });
+    }
+}
+
+// ==================
+// NUMBER + EMOTION Behavior System
+// ==================
+
+// Start the behavior animation loop
+function startNumberEmotionBehaviors() {
+    // Don't start if already running
+    if (numberEmotionAnimationId !== null) return;
+    
+    // Start the loop
+    updateNumberEmotionBehaviors();
+    
+    // Start digit 7 animation timer (runs every 5 seconds)
+    if (digit7AnimationTimerId === null) {
+        // Trigger first animation after 5 seconds
+        digit7AnimationTimerId = setInterval(triggerDigit7Animation, DIGIT7_ANIMATION_INTERVAL);
+    }
+}
+
+// Stop the behavior animation loop
+function stopNumberEmotionBehaviors() {
+    if (numberEmotionAnimationId !== null) {
+        cancelAnimationFrame(numberEmotionAnimationId);
+        numberEmotionAnimationId = null;
+    }
+    
+    // Stop digit 7 animation timer
+    if (digit7AnimationTimerId !== null) {
+        clearInterval(digit7AnimationTimerId);
+        digit7AnimationTimerId = null;
+    }
+}
+
+// Trigger digit 7 double-jump + 360 rotation animation
+function triggerDigit7Animation() {
+    const container = document.getElementById('number-emotion-digits-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Find digit 7 (it's at index 4 in the array, data-digit="7")
+    const digit7 = container.querySelector('.number-emotion-digit[data-digit="7"]');
+    if (!digit7) return;
+    
+    // Set CSS custom properties for current position offset
+    // This allows the animation to work from the digit's current position
+    const pos = numberEmotionDigitPositions ? numberEmotionDigitPositions[4] : { x: 0, y: 0 };
+    digit7.style.setProperty('--offset-x', `${pos.x}px`);
+    digit7.style.setProperty('--offset-y', `${pos.y}px`);
+    
+    // Remove class first to reset animation if it's already playing
+    digit7.classList.remove('digit7-animating');
+    
+    // Force reflow to ensure the class removal takes effect
+    void digit7.offsetWidth;
+    
+    // Add the animation class
+    digit7.classList.add('digit7-animating');
+    
+    // Remove the class after animation completes (1 second)
+    setTimeout(() => {
+        digit7.classList.remove('digit7-animating');
+        // Restore the normal transform after animation
+        if (numberEmotionDigitPositions && numberEmotionDigitPositions[4]) {
+            digit7.style.transform = `translate(${numberEmotionDigitPositions[4].x}px, ${numberEmotionDigitPositions[4].y}px)`;
+        }
+    }, 1000);
+}
+
+// Main animation loop that updates all digit behaviors
+function updateNumberEmotionBehaviors() {
+    const container = document.getElementById('number-emotion-digits-container');
+    if (!container || !container.classList.contains('visible')) {
+        numberEmotionAnimationId = null;
+        return;
+    }
+    
+    const digits = container.querySelectorAll('.number-emotion-digit');
+    if (digits.length === 0 || !numberEmotionDigitPositions) {
+        numberEmotionAnimationId = requestAnimationFrame(updateNumberEmotionBehaviors);
+        return;
+    }
+    
+    // Update digit 1 repulsion behavior
+    updateDigit1Repulsion(digits);
+    
+    // Update digit 2 following behavior
+    updateDigit2Following(digits);
+    
+    // Update digit 4 repulsion behavior FIRST (pushes digit 3 away when approached)
+    // Must run before bouncing so the position is updated before the transform is applied
+    updateDigit4Repulsion(digits);
+    
+    // Update digit 3 bouncing behavior (applies the transform with bounce offset)
+    updateDigit3Bouncing(digits);
+    
+    // Continue the loop
+    numberEmotionAnimationId = requestAnimationFrame(updateNumberEmotionBehaviors);
+}
+
+// Calculate distance between two digit positions
+function getDigitDistance(index1, index2) {
+    if (!numberEmotionDigitPositions) return Infinity;
+    
+    const pos1 = numberEmotionDigitPositions[index1];
+    const pos2 = numberEmotionDigitPositions[index2];
+    
+    const dx = pos2.x - pos1.x;
+    const dy = pos2.y - pos1.y;
+    
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Get center position of a digit in screen coordinates
+function getDigitCenterPosition(digit, index) {
+    const rect = digit.getBoundingClientRect();
+    // Account for current transform offset
+    const offsetX = numberEmotionDigitPositions ? numberEmotionDigitPositions[index].x : 0;
+    const offsetY = numberEmotionDigitPositions ? numberEmotionDigitPositions[index].y : 0;
+    
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        offsetX: offsetX,
+        offsetY: offsetY
+    };
+}
+
+// Get corner positions for digit 1 (returns offset from initial position)
+function getDigit1CornerPositions(digit) {
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer || !digit) return null;
+    
+    const canvasRect = canvasContainer.getBoundingClientRect();
+    const digitRect = digit.getBoundingClientRect();
+    const digitWidth = digitRect.width;
+    const digitHeight = digitRect.height;
+    
+    // Use stored initial position if available (prevents race conditions)
+    // Otherwise calculate it from current rect (only happens on first call)
+    let digitInitialLeft, digitInitialTop;
+    if (digit1InitialPosition) {
+        digitInitialLeft = digit1InitialPosition.left;
+        digitInitialTop = digit1InitialPosition.top;
+    } else {
+        // First time: calculate from current rect with offset 0 (digit hasn't moved yet)
+        const currentOffset = numberEmotionDigitPositions ? numberEmotionDigitPositions[0] : { x: 0, y: 0 };
+        digitInitialLeft = digitRect.left - currentOffset.x;
+        digitInitialTop = digitRect.top - currentOffset.y;
+        // Store for future use
+        digit1InitialPosition = { left: digitInitialLeft, top: digitInitialTop, width: digitWidth, height: digitHeight };
+    }
+    
+    const padding = 30;
+    
+    // Calculate corner positions as offsets from initial position
+    const corners = [
+        // 0: top-left
+        { x: canvasRect.left - digitInitialLeft + padding, y: canvasRect.top - digitInitialTop + padding },
+        // 1: top-right
+        { x: canvasRect.right - digitInitialLeft - digitWidth - padding, y: canvasRect.top - digitInitialTop + padding },
+        // 2: bottom-left
+        { x: canvasRect.left - digitInitialLeft + padding, y: canvasRect.bottom - digitInitialTop - digitHeight - padding },
+        // 3: bottom-right
+        { x: canvasRect.right - digitInitialLeft - digitWidth - padding, y: canvasRect.bottom - digitInitialTop - digitHeight - padding }
+    ];
+    
+    return corners;
+}
+
+// Move digit 1 to a specific corner
+function moveDigit1ToCorner(digit, cornerIndex) {
+    // Check cooldown to prevent rapid jumps (which cause race conditions)
+    const now = Date.now();
+    if (now - digit1LastJumpTime < DIGIT1_JUMP_COOLDOWN) {
+        return; // Skip this jump, too soon after last one
+    }
+    
+    const corners = getDigit1CornerPositions(digit);
+    if (!corners || !numberEmotionDigitPositions) return;
+    
+    digit1LastJumpTime = now; // Update last jump time
+    digit1CurrentCorner = cornerIndex;
+    numberEmotionDigitPositions[0].x = corners[cornerIndex].x;
+    numberEmotionDigitPositions[0].y = corners[cornerIndex].y;
+    
+    updateNumberEmotionDigitPosition(digit, 0);
+}
+
+// Move digit 1 to a random different corner
+function moveDigit1ToRandomCorner(digit) {
+    // Get a random corner that's not the current one
+    let newCorner;
+    do {
+        newCorner = Math.floor(Math.random() * 4);
+    } while (newCorner === digit1CurrentCorner);
+    
+    moveDigit1ToCorner(digit, newCorner);
+}
+
+// Initialize digit 1 to the rightmost corner (top-right)
+function initializeDigit1Corner(digit) {
+    if (digit1CornerInitialized) return;
+    
+    // Wait a frame for the digit to be positioned
+    requestAnimationFrame(() => {
+        moveDigit1ToCorner(digit, 1); // 1 = top-right
+        digit1CornerInitialized = true;
+    });
+}
+
+// Digit 1 Corner Behavior: lives only in corners, jumps when approached
+function updateDigit1Repulsion(digits) {
+    if (!numberEmotionDigitPositions || digits.length < 2) return;
+    
+    const digit1 = digits[0];
+    const fleeRadius = 200; // Distance at which digit 1 jumps to another corner
+    
+    // Initialize to corner if not done yet
+    if (!digit1CornerInitialized) {
+        initializeDigit1Corner(digit1);
+        return;
+    }
+    
+    // Get digit 1's actual screen position (center point)
+    const digit1Rect = digit1.getBoundingClientRect();
+    const digit1CenterX = digit1Rect.left + digit1Rect.width / 2;
+    const digit1CenterY = digit1Rect.top + digit1Rect.height / 2;
+    
+    // Check if any digit is too close (using actual screen positions)
+    for (let i = 1; i < digits.length; i++) {
+        const otherDigit = digits[i];
+        const otherRect = otherDigit.getBoundingClientRect();
+        const otherCenterX = otherRect.left + otherRect.width / 2;
+        const otherCenterY = otherRect.top + otherRect.height / 2;
+        
+        const dx = otherCenterX - digit1CenterX;
+        const dy = otherCenterY - digit1CenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // If any digit is too close, jump to a different corner
+        if (distance < fleeRadius) {
+            moveDigit1ToRandomCorner(digit1);
+            return; // Only jump once per frame
+        }
+    }
+}
+
+// Digit 2 Following: follows digit 3 with a slight delay (easing)
+function updateDigit2Following(digits) {
+    if (!numberEmotionDigitPositions || digits.length < 3) return;
+    
+    const digit2Index = 1; // Digit "2" is at index 1
+    const digit3Index = 2; // Digit "3" is at index 2
+    
+    // Don't move digit 2 if it's being dragged
+    if (numberEmotionDraggingIndex === digit2Index) return;
+    
+    const digit2 = digits[digit2Index];
+    const pos2 = numberEmotionDigitPositions[digit2Index];
+    const pos3 = numberEmotionDigitPositions[digit3Index];
+    
+    // Target position: follow digit 3 with a small offset to the left
+    const followOffset = 60;
+    const targetX = pos3.x - followOffset;
+    const targetY = pos3.y;
+    
+    // Easing factor - lower = slower/more delay (0.08 = nice smooth follow)
+    const easingFactor = 0.08;
+    
+    // Smoothly interpolate towards target position
+    let newX = pos2.x + (targetX - pos2.x) * easingFactor;
+    let newY = pos2.y + (targetY - pos2.y) * easingFactor;
+    
+    // Constrain to canvas bounds
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer) {
+        const canvasRect = canvasContainer.getBoundingClientRect();
+        const digitRect = digit2.getBoundingClientRect();
+        const digitWidth = digitRect.width;
+        const digitHeight = digitRect.height;
+        
+        const digitInitialLeft = digitRect.left - pos2.x;
+        const digitInitialTop = digitRect.top - pos2.y;
+        
+        const padding = 20;
+        const maxLeft = canvasRect.left - digitInitialLeft + padding;
+        const maxRight = canvasRect.right - digitInitialLeft - digitWidth - padding;
+        const maxTop = canvasRect.top - digitInitialTop + padding;
+        const maxBottom = canvasRect.bottom - digitInitialTop - digitHeight - padding;
+        
+        newX = Math.max(maxLeft, Math.min(maxRight, newX));
+        newY = Math.max(maxTop, Math.min(maxBottom, newY));
+    }
+    
+    numberEmotionDigitPositions[digit2Index].x = newX;
+    numberEmotionDigitPositions[digit2Index].y = newY;
+    
+    // Update visual position
+    updateNumberEmotionDigitPosition(digit2, digit2Index);
+}
+
+// Digit 3 Bouncing: continuously bounces up and down like a jumping ball, stops when dragged
+function updateDigit3Bouncing(digits) {
+    if (!numberEmotionDigitPositions || digits.length < 3) return;
+    
+    const digit3Index = 2; // Digit "3" is at index 2
+    
+    // Don't bounce digit 3 if it's being dragged
+    if (numberEmotionDraggingIndex === digit3Index) {
+        // Reset the bounce time so it starts smoothly when released
+        digit3BounceTime = 0;
+        return;
+    }
+    
+    const digit3 = digits[digit3Index];
+    
+    // Increment time for the bounce animation
+    digit3BounceTime += DIGIT3_BOUNCE_SPEED;
+    
+    // Use abs(sin()) to create a "bouncing ball" effect
+    // The digit jumps UP (negative Y) and comes back DOWN to the baseline
+    // This looks more like a real jump than a smooth wave
+    const bounceOffset = -Math.abs(Math.sin(digit3BounceTime)) * DIGIT3_BOUNCE_AMPLITUDE;
+    
+    // Apply the transform with both the stored position and the bounce offset
+    const pos = numberEmotionDigitPositions[digit3Index];
+    digit3.style.transform = `translate(${pos.x}px, ${pos.y + bounceOffset}px)`;
+}
+
+// Digit 4 Repulsion: grows to 2x and keeps digit 3 at minimum distance
+// Digit 3 simply cannot get closer than DIGIT4_PROXIMITY_THRESHOLD pixels to digit 4
+function updateDigit4Repulsion(digits) {
+    if (!numberEmotionDigitPositions || digits.length < 4) return;
+    
+    const digit3Index = 2; // Digit "3" is at index 2
+    const digit4Index = 3; // Digit "4" is at index 3
+    
+    const digit3 = digits[digit3Index];
+    const digit4 = digits[digit4Index];
+    
+    // Get actual screen positions (center points) for both digits
+    const digit3Rect = digit3.getBoundingClientRect();
+    const digit4Rect = digit4.getBoundingClientRect();
+    
+    const digit3CenterX = digit3Rect.left + digit3Rect.width / 2;
+    const digit3CenterY = digit3Rect.top + digit3Rect.height / 2;
+    const digit4CenterX = digit4Rect.left + digit4Rect.width / 2;
+    const digit4CenterY = digit4Rect.top + digit4Rect.height / 2;
+    
+    // Calculate distance between digit 3 and digit 4
+    const dx = digit3CenterX - digit4CenterX;
+    const dy = digit3CenterY - digit4CenterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Check if digit 3 is within the proximity threshold
+    if (distance < DIGIT4_PROXIMITY_THRESHOLD) {
+        // Digit 3 is too close - immediately push it back to minimum distance
+        
+        // Calculate unit vector pointing from digit 4 to digit 3
+        const length = Math.max(distance, 1); // Avoid division by zero
+        const dirX = dx / length;
+        const dirY = dy / length;
+        
+        // Calculate how much we need to push digit 3 to reach exactly the threshold distance
+        const pushAmount = DIGIT4_PROXIMITY_THRESHOLD - distance;
+        
+        // Apply push to digit 3's position (immediately, every frame)
+        numberEmotionDigitPositions[digit3Index].x += dirX * pushAmount;
+        numberEmotionDigitPositions[digit3Index].y += dirY * pushAmount;
+        
+        // Enlarge digit 4 (CSS transition handles the smooth animation)
+        const pos4 = numberEmotionDigitPositions[digit4Index];
+        digit4.style.transform = `translate(${pos4.x}px, ${pos4.y}px) scale(${DIGIT4_ENLARGED_SCALE})`;
+        digit4IsEnlarged = true;
+        
+    } else {
+        // Digit 3 is far enough - return digit 4 to normal size
+        if (digit4IsEnlarged) {
+            const pos4 = numberEmotionDigitPositions[digit4Index];
+            digit4.style.transform = `translate(${pos4.x}px, ${pos4.y}px) scale(1)`;
+            digit4IsEnlarged = false;
+        }
+    }
+    
+    // ALWAYS constrain digit 3 to canvas bounds (runs every frame, not just during repulsion)
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer) {
+        const canvasRect = canvasContainer.getBoundingClientRect();
+        const digitWidth = digit3Rect.width;
+        const digitHeight = digit3Rect.height;
+        
+        const pos3 = numberEmotionDigitPositions[digit3Index];
+        // Calculate digit's initial position (before any transform)
+        const digitInitialLeft = digit3Rect.left - pos3.x;
+        const digitInitialTop = digit3Rect.top - pos3.y;
+        
+        const padding = 20;
+        // Add bounce amplitude buffer to top constraint since bounce can push digit up by DIGIT3_BOUNCE_AMPLITUDE
+        const bounceBuffer = DIGIT3_BOUNCE_AMPLITUDE;
+        const maxLeft = canvasRect.left - digitInitialLeft + padding;
+        const maxRight = canvasRect.right - digitInitialLeft - digitWidth - padding;
+        const maxTop = canvasRect.top - digitInitialTop + padding + bounceBuffer; // Extra buffer for bounce
+        const maxBottom = canvasRect.bottom - digitInitialTop - digitHeight - padding;
+        
+        // Clamp position to stay within canvas
+        pos3.x = Math.max(maxLeft, Math.min(maxRight, pos3.x));
+        pos3.y = Math.max(maxTop, Math.min(maxBottom, pos3.y));
     }
 }
 
@@ -4034,9 +4687,10 @@ function handleShapeColorClick(event) {
         elementAtPoint.closest('.column-container') || 
         elementAtPoint.closest('.canvas-text-box') ||
         elementAtPoint.closest('.black-corner-rectangle') ||
-        elementAtPoint.closest('.black-bottom-rectangle') ||
+        elementAtPoint.closest('.black-bottom-rectangle-left') ||
+        elementAtPoint.closest('.black-bottom-rectangle-right') ||
         elementAtPoint.closest('.black-middle-rectangle') ||
-        elementAtPoint.closest('.black-rectangle') ||
+        elementAtPoint.closest('.logo-container') ||
         elementAtPoint.closest('.color-item'))) {
         return; // Let the click pass through to those elements
     }
@@ -4536,6 +5190,9 @@ function updateActivePage(pageId, reason) {
     // Update Color + Color circle visibility
     updateColorColorCircle(pageId);
     
+    // Update Number + Emotion digits visibility
+    updateNumberEmotionDigits(pageId);
+    
     // Update Shape & Number canvas visibility
     updateShapeNumberCanvasVisibility(pageId);
     
@@ -4700,48 +5357,36 @@ function updateActivePage(pageId, reason) {
 }
 
 // Function to update the word text based on current parameter combination
+// Now populates two separate rectangles: left word and right word
 function updateWordText() {
-    const wordTextElement = document.getElementById('word-text');
-    if (!wordTextElement) return;
+    const leftWordElement = document.getElementById('word-text-left');
+    const rightWordElement = document.getElementById('word-text-right');
     
     // Get the words for the current indices
     const leftWord = colorWords[selectedLeftIndex];
     const rightWord = colorWords[selectedRightIndex];
     
-    // Format: "SHAPE & COLOR" (uppercase, with " & " separator)
-    const combinationText = `${leftWord} & ${rightWord}`;
-    
-    // Clear existing content
-    wordTextElement.innerHTML = '';
-    
-    // Create a span for each character (including spaces and &)
-    for (let i = 0; i < combinationText.length; i++) {
-        const span = document.createElement('span');
-        const char = combinationText[i];
-        span.textContent = char;
+    // Helper function to populate a word element with letter spans
+    function populateWordElement(element, word) {
+        if (!element) return;
         
-        // Check if this is a space around "&"
-        if (char === ' ') {
-            const prevChar = i > 0 ? combinationText[i - 1] : '';
-            const nextChar = i < combinationText.length - 1 ? combinationText[i + 1] : '';
-            if (nextChar === '&' || prevChar === '&') {
-                // This is a space before or after "&"
-                span.className = 'word-letter word-space-around-ampersand';
-            } else {
-                span.className = 'word-letter';
-            }
-        } else {
+        // Clear existing content
+        element.innerHTML = '';
+        
+        // Create a span for each character
+        for (let i = 0; i < word.length; i++) {
+            const span = document.createElement('span');
+            span.textContent = word[i];
             span.className = 'word-letter';
+            element.appendChild(span);
         }
-        
-        wordTextElement.appendChild(span);
     }
     
-    // Add info marker [i] after the parameter text
-    const infoMarker = document.createElement('span');
-    infoMarker.className = 'parameter-info-marker';
-    infoMarker.textContent = '[i]';
-    wordTextElement.appendChild(infoMarker);
+    // Populate left rectangle with left word (e.g., "SHAPE")
+    populateWordElement(leftWordElement, leftWord);
+    
+    // Populate right rectangle with right word (e.g., "COLOR")
+    populateWordElement(rightWordElement, rightWord);
 }
 
 // Function to update selected indices from both columns
@@ -5692,6 +6337,8 @@ function updateShapeEmotionCanvasVisibility(pageId) {
         setTimeout(() => {
             if (shapeEmotionContainer && !shapeEmotionContainer.classList.contains('hidden')) {
                 resizeShapeEmotionCanvas();
+                // Initialize ellipses when page becomes visible
+                initializeEmotionEllipses();
             }
         }, 50);
     } else {
@@ -5704,6 +6351,225 @@ function updateShapeEmotionCanvasVisibility(pageId) {
         }
     }
 }
+
+// ==================
+// SHAPE & EMOTION ELLIPSES INTERACTION
+// ==================
+// 6 vertical ellipses with drag-to-resize accordion behavior
+
+// State variables for ellipse interaction
+let emotionEllipsesContainer = null;
+let emotionEllipses = [];
+// Varied initial widths to hint at resize capability (total = 100%)
+let ellipseWidths = [20, 8, 18, 12, 30, 6, 6]; // Percentages
+const MIN_ELLIPSE_WIDTH = 5; // Minimum width percentage
+const MAX_ELLIPSE_WIDTH = 60; // Maximum width percentage
+
+// Drag state
+let isDraggingEllipse = false;
+let dragStartX = 0;
+let dragEdgeIndex = -1; // The index of the edge being dragged (0-4, where edge i is between ellipse i and i+1)
+
+// Initialize ellipses interaction
+function initializeEmotionEllipses() {
+    emotionEllipsesContainer = document.getElementById('shape-emotion-ellipses');
+    if (!emotionEllipsesContainer) return;
+    
+    // Select the wrapper elements (not the SVG ellipses themselves)
+    emotionEllipses = Array.from(emotionEllipsesContainer.querySelectorAll('.emotion-ellipse-wrapper'));
+    if (emotionEllipses.length !== 7) return;
+    
+    // Varied initial widths to hint at resize capability (total = 100%)
+    ellipseWidths = [20, 8, 18, 12, 30, 6, 6];
+    updateEllipseWidths();
+    
+    // Remove old event listeners if any (to prevent duplicates)
+    emotionEllipsesContainer.removeEventListener('mousedown', handleEllipseMouseDown);
+    document.removeEventListener('mousemove', handleEllipseMouseMove);
+    document.removeEventListener('mouseup', handleEllipseMouseUp);
+    
+    // Add mouse event listeners
+    emotionEllipsesContainer.addEventListener('mousedown', handleEllipseMouseDown);
+    document.addEventListener('mousemove', handleEllipseMouseMove);
+    document.addEventListener('mouseup', handleEllipseMouseUp);
+    
+    // Add touch event listeners
+    emotionEllipsesContainer.removeEventListener('touchstart', handleEllipseTouchStart);
+    document.removeEventListener('touchmove', handleEllipseTouchMove);
+    document.removeEventListener('touchend', handleEllipseTouchEnd);
+    
+    emotionEllipsesContainer.addEventListener('touchstart', handleEllipseTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleEllipseTouchMove, { passive: false });
+    document.addEventListener('touchend', handleEllipseTouchEnd);
+}
+
+// Update ellipse widths in the DOM
+function updateEllipseWidths() {
+    if (!emotionEllipses || emotionEllipses.length !== 7) return;
+    
+    emotionEllipses.forEach((ellipse, index) => {
+        ellipse.style.flex = `0 0 ${ellipseWidths[index]}%`;
+    });
+}
+
+// Detect which edge is being clicked (returns edge index 0-5, or -1 if not on edge)
+function detectEdge(clientX, clientY) {
+    if (!emotionEllipses || emotionEllipses.length !== 7) return -1;
+    
+    const edgeZone = 15; // Pixels from edge that count as "on edge"
+    
+    // Check each ellipse (except the last) for right edge proximity
+    for (let i = 0; i < emotionEllipses.length - 1; i++) {
+        const rect = emotionEllipses[i].getBoundingClientRect();
+        const rightEdge = rect.right;
+        
+        // Check if click is near the right edge of this ellipse (which is the left edge of the next)
+        if (Math.abs(clientX - rightEdge) < edgeZone) {
+            return i; // Return the edge index
+        }
+    }
+    
+    return -1; // Not on any edge
+}
+
+// Mouse event handlers for ellipse dragging
+function handleEllipseMouseDown(e) {
+    const edgeIndex = detectEdge(e.clientX, e.clientY);
+    if (edgeIndex === -1) return; // Not clicking on an edge
+    
+    e.preventDefault();
+    isDraggingEllipse = true;
+    dragStartX = e.clientX;
+    dragEdgeIndex = edgeIndex;
+    
+    emotionEllipsesContainer.classList.add('dragging');
+}
+
+function handleEllipseMouseMove(e) {
+    if (!isDraggingEllipse) return;
+    
+    e.preventDefault();
+    const deltaX = e.clientX - dragStartX;
+    
+    // Calculate width change as percentage of container
+    const containerWidth = emotionEllipsesContainer.getBoundingClientRect().width;
+    const deltaPercent = (deltaX / containerWidth) * 100;
+    
+    // Apply the change to the two adjacent ellipses
+    resizeAdjacentEllipses(dragEdgeIndex, deltaPercent);
+    
+    // Update start position for next move
+    dragStartX = e.clientX;
+}
+
+function handleEllipseMouseUp(e) {
+    if (!isDraggingEllipse) return;
+    
+    isDraggingEllipse = false;
+    dragEdgeIndex = -1;
+    
+    if (emotionEllipsesContainer) {
+        emotionEllipsesContainer.classList.remove('dragging');
+    }
+}
+
+// Touch event handlers for ellipse dragging
+function handleEllipseTouchStart(e) {
+    if (!e.touches || e.touches.length === 0) return;
+    
+    const touch = e.touches[0];
+    const edgeIndex = detectEdge(touch.clientX, touch.clientY);
+    if (edgeIndex === -1) return; // Not touching on an edge
+    
+    e.preventDefault();
+    isDraggingEllipse = true;
+    dragStartX = touch.clientX;
+    dragEdgeIndex = edgeIndex;
+    
+    emotionEllipsesContainer.classList.add('dragging');
+}
+
+function handleEllipseTouchMove(e) {
+    if (!isDraggingEllipse) return;
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - dragStartX;
+    
+    // Calculate width change as percentage of container
+    const containerWidth = emotionEllipsesContainer.getBoundingClientRect().width;
+    const deltaPercent = (deltaX / containerWidth) * 100;
+    
+    // Apply the change to the two adjacent ellipses
+    resizeAdjacentEllipses(dragEdgeIndex, deltaPercent);
+    
+    // Update start position for next move
+    dragStartX = touch.clientX;
+}
+
+function handleEllipseTouchEnd(e) {
+    if (!isDraggingEllipse) return;
+    
+    isDraggingEllipse = false;
+    dragEdgeIndex = -1;
+    
+    if (emotionEllipsesContainer) {
+        emotionEllipsesContainer.classList.remove('dragging');
+    }
+}
+
+// Resize two adjacent ellipses (accordion behavior)
+// edgeIndex: the edge being dragged (between ellipse[edgeIndex] and ellipse[edgeIndex + 1])
+// deltaPercent: how much to change (positive = left ellipse grows, right shrinks)
+function resizeAdjacentEllipses(edgeIndex, deltaPercent) {
+    if (edgeIndex < 0 || edgeIndex >= ellipseWidths.length - 1) return;
+    
+    const leftIndex = edgeIndex;
+    const rightIndex = edgeIndex + 1;
+    
+    // Calculate new widths
+    let newLeftWidth = ellipseWidths[leftIndex] + deltaPercent;
+    let newRightWidth = ellipseWidths[rightIndex] - deltaPercent;
+    
+    // Clamp to min/max bounds
+    if (newLeftWidth < MIN_ELLIPSE_WIDTH) {
+        const overflow = MIN_ELLIPSE_WIDTH - newLeftWidth;
+        newLeftWidth = MIN_ELLIPSE_WIDTH;
+        newRightWidth -= overflow; // Don't give the overflow to the other ellipse
+    }
+    if (newRightWidth < MIN_ELLIPSE_WIDTH) {
+        const overflow = MIN_ELLIPSE_WIDTH - newRightWidth;
+        newRightWidth = MIN_ELLIPSE_WIDTH;
+        newLeftWidth -= overflow; // Don't give the overflow to the other ellipse
+    }
+    if (newLeftWidth > MAX_ELLIPSE_WIDTH) {
+        newLeftWidth = MAX_ELLIPSE_WIDTH;
+        newRightWidth = ellipseWidths[leftIndex] + ellipseWidths[rightIndex] - MAX_ELLIPSE_WIDTH;
+    }
+    if (newRightWidth > MAX_ELLIPSE_WIDTH) {
+        newRightWidth = MAX_ELLIPSE_WIDTH;
+        newLeftWidth = ellipseWidths[leftIndex] + ellipseWidths[rightIndex] - MAX_ELLIPSE_WIDTH;
+    }
+    
+    // Ensure widths stay within bounds after adjustment
+    newLeftWidth = Math.max(MIN_ELLIPSE_WIDTH, Math.min(MAX_ELLIPSE_WIDTH, newLeftWidth));
+    newRightWidth = Math.max(MIN_ELLIPSE_WIDTH, Math.min(MAX_ELLIPSE_WIDTH, newRightWidth));
+    
+    // Update state
+    ellipseWidths[leftIndex] = newLeftWidth;
+    ellipseWidths[rightIndex] = newRightWidth;
+    
+    // Update DOM
+    updateEllipseWidths();
+}
+
+// Handle window resize - maintain ellipse proportions
+window.addEventListener('resize', () => {
+    if (emotionEllipsesContainer && !emotionEllipsesContainer.closest('.hidden')) {
+        updateEllipseWidths();
+    }
+});
 
 // ==================
 // P5 CELL 01 SKETCH FACTORY
@@ -6686,29 +7552,41 @@ function initializeP5Sketch() {
 // Function to initialize SYN logo hover effect
 // Shows synesthesia text overlay when hovering over the SYN logo
 function initializeSynHoverEffect() {
-    // Initialize SYN hover overlay
-    const synElement = document.querySelector('.black-rectangle');
+    // Initialize SYN hover overlay - now using logo-container for unified hover
+    const logoContainer = document.querySelector('.logo-container');
+    const synElement = document.querySelector('.black-rectangle-syn');
+    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
     const synOverlay = document.getElementById('canvas-text-box-syn-overlay');
     const synBacking = document.getElementById('canvas-text-box-syn-backing');
     
-    if (synElement && synOverlay && synBacking) {
+    if (logoContainer && synOverlay && synBacking) {
         // Render overlay text with line backgrounds to match main text box styling
         // Use same width as main text box (1035px) for the SYN overlay
         // Use black background color (#2C2C2C) for line backgrounds to match UI black
         const synText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
         renderTextWithLineBackgrounds(synOverlay, synText, 1035, '#2C2C2C');
         
-        // Show overlay and backing layer on hover
-        synElement.addEventListener('mouseenter', () => {
+        // Helper function to show overlay
+        const showOverlay = () => {
             synBacking.classList.add('visible');
             synOverlay.classList.add('visible');
-        });
+        };
         
-        // Hide overlay and backing layer when hover ends
-        synElement.addEventListener('mouseleave', () => {
+        // Helper function to hide overlay
+        const hideOverlay = () => {
             synBacking.classList.remove('visible');
             synOverlay.classList.remove('visible');
-        });
+        };
+        
+        // Show overlay when hovering on either SYN or [esthesia] rectangle
+        if (synElement) {
+            synElement.addEventListener('mouseenter', showOverlay);
+            synElement.addEventListener('mouseleave', hideOverlay);
+        }
+        if (ethesiaElement) {
+            ethesiaElement.addEventListener('mouseenter', showOverlay);
+            ethesiaElement.addEventListener('mouseleave', hideOverlay);
+        }
     }
 }
 
@@ -6859,74 +7737,103 @@ function initializePerLineHighlights() {
     }
 }
 
-// Function to initialize color key hover effect
+// Function to initialize logo hover effect - expands all scrollbar color items and pushes UI rectangles inward when hovering on SYN logo
 function initializeColorKeyClickEffect() {
-    const colorKeyRect = document.querySelector('.black-corner-rectangle');
-    const rightColumn = document.querySelector('.right-column');
+    const synElement = document.querySelector('.black-rectangle-syn');
+    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
     
-    if (!colorKeyRect || !rightColumn) return;
+    if (!synElement && !ethesiaElement) return;
     
     // Get all color items from both columns
     const allColorItems = document.querySelectorAll('.color-item');
     
-    // Handle hover in - expand all items
-    colorKeyRect.addEventListener('mouseenter', () => {
-        // Add color-key-expanded class for letter spacing effect
-        colorKeyRect.classList.add('color-key-expanded');
-        
-        // Add legend-expanded class to ALL items (both columns) for bulk hover effect (key expansion)
+    // Get mask containers (CSS expects logo-hovered on these, not the inner rectangles)
+    const maskIndex = document.querySelector('.ui-rect-mask-index');
+    const maskLeft = document.querySelector('.ui-rect-mask-left');
+    const maskRight = document.querySelector('.ui-rect-mask-right');
+    
+    // Get the logo hover overlay (darkens and blurs canvas area)
+    const logoHoverOverlay = document.getElementById('logo-hover-overlay');
+    
+    // Helper function to handle hover in - expand all items and push UI rectangles inward
+    const handleHoverIn = () => {
+        // Add legend-expanded class to ALL items (both columns) for bulk hover effect
         allColorItems.forEach(item => {
             item.classList.add('legend-expanded');
         });
-    });
-    
-    // Handle hover out - collapse all items
-    colorKeyRect.addEventListener('mouseleave', () => {
-        // Remove color-key-expanded class
-        colorKeyRect.classList.remove('color-key-expanded');
         
-        // Remove legend-expanded class from all items (key expansion)
+        // Add logo-hovered class to mask containers to push them inward (to 85px from edges)
+        if (maskIndex) maskIndex.classList.add('logo-hovered');
+        if (maskLeft) maskLeft.classList.add('logo-hovered');
+        if (maskRight) maskRight.classList.add('logo-hovered');
+        
+        // Show the logo hover overlay (10% black + blur on canvas area)
+        if (logoHoverOverlay) logoHoverOverlay.classList.add('visible');
+    };
+    
+    // Helper function to handle hover out - collapse all items and reset UI rectangles
+    const handleHoverOut = () => {
+        // Remove legend-expanded class from all items
         allColorItems.forEach(item => {
             item.classList.remove('legend-expanded');
         });
-    });
+        
+        // Remove logo-hovered class from mask containers to reset their position (back to 50px)
+        if (maskIndex) maskIndex.classList.remove('logo-hovered');
+        if (maskLeft) maskLeft.classList.remove('logo-hovered');
+        if (maskRight) maskRight.classList.remove('logo-hovered');
+        
+        // Hide the logo hover overlay
+        if (logoHoverOverlay) logoHoverOverlay.classList.remove('visible');
+    };
+    
+    // Add event listeners to both logo rectangles for unified hover behavior
+    if (synElement) {
+        synElement.addEventListener('mouseenter', handleHoverIn);
+        synElement.addEventListener('mouseleave', handleHoverOut);
+    }
+    if (ethesiaElement) {
+        ethesiaElement.addEventListener('mouseenter', handleHoverIn);
+        ethesiaElement.addEventListener('mouseleave', handleHoverOut);
+    }
 }
 
-// Function to align PARAMETER TEXT-BOX and COLOR KEY rectangles with logo bottom edge
+// Function to align PARAMETER TEXT-BOX rectangles with logo bottom edge
+// Note: SIGNAL rectangle is now positioned at bottom via CSS, no JS alignment needed
+// Note: Positioning is now on mask containers (.ui-rect-mask-left, .ui-rect-mask-right)
 function alignRectanglesWithEsthesia() {
     // Wait for fonts to load if available, then wait for layout to stabilize
     const waitForLayout = () => {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                const logoRect = document.querySelector('.black-rectangle');
-                const parameterRect = document.querySelector('.black-bottom-rectangle');
-                const colorKeyRect = document.querySelector('.black-corner-rectangle');
+                // Use logo-container for alignment (contains both SYN and [esthesia] rectangles)
+                const logoContainer = document.querySelector('.logo-container');
+                // Get mask containers instead of rectangles for positioning
+                const maskLeft = document.querySelector('.ui-rect-mask-left');
+                const maskRight = document.querySelector('.ui-rect-mask-right');
                 
-                if (!logoRect || !parameterRect || !colorKeyRect) {
-                    console.warn('Logo alignment: Missing elements', {
-                        logoRect: !!logoRect,
-                        parameterRect: !!parameterRect,
-                        colorKeyRect: !!colorKeyRect
-                    });
+                if (!logoContainer) {
+                    console.warn('Logo alignment: Missing logo container element');
                     return;
                 }
                 
-                // Measure the logo rectangle using getBoundingClientRect()
-                const logoRectBounds = logoRect.getBoundingClientRect();
-                const logoBottom = logoRectBounds.bottom;
+                // Measure the logo container using getBoundingClientRect()
+                const logoContainerBounds = logoContainer.getBoundingClientRect();
+                const logoBottom = logoContainerBounds.bottom;
                 
-                // Get rectangle heights
-                const parameterRectHeight = parameterRect.offsetHeight || 40;
-                const colorKeyRectHeight = colorKeyRect.offsetHeight || 40;
+                // Align left mask container
+                if (maskLeft) {
+                    const leftRectHeight = 40; // Fixed height of mask/rectangle
+                    const leftTop = logoBottom - leftRectHeight;
+                    maskLeft.style.top = `${leftTop}px`;
+                }
                 
-                // Calculate top positions so rectangle bottoms align with logo bottom
-                // top = logoBottom - rectangleHeight
-                const parameterTop = logoBottom - parameterRectHeight;
-                const colorKeyTop = logoBottom - colorKeyRectHeight;
-                
-                // Apply positions
-                parameterRect.style.top = `${parameterTop}px`;
-                colorKeyRect.style.top = `${colorKeyTop}px`;
+                // Align right mask container
+                if (maskRight) {
+                    const rightRectHeight = 40; // Fixed height of mask/rectangle
+                    const rightTop = logoBottom - rightRectHeight;
+                    maskRight.style.top = `${rightTop}px`;
+                }
                 
             });
         });
@@ -6977,6 +7884,14 @@ function updateUIVisibility() {
     const show = hasExpandedToScrollbars || introCompleted;
     
     uiLayer.classList.toggle('ui-visible', show);
+    
+    // Only remove logo-animating when intro is COMPLETED (gradients fully collapsed)
+    // This ensures logo stays above gradients (z-index: 6) during the collapse animation
+    // If we remove it when hasExpandedToScrollbars is true, the logo would be covered by
+    // the still-visible gradients (z-index: 5 > z-index: 2)
+    if (introCompleted) {
+        uiLayer.classList.remove('logo-animating');
+    }
     
     // Also update UI mask visibility when UI visibility changes
     updateUIMaskVisibility();
@@ -7048,8 +7963,12 @@ function startEntryAnimation() {
     // DO NOT show UI yet - wait for EXPAND-to-scrollbars to complete
     // UI visibility is NOT updated here - it stays hidden until EXPAND happens
     
-    // After animation completes (2000ms), entry animation is done
-    // But UI must STAY HIDDEN - it only becomes visible after EXPAND-to-scrollbars
+    // Start logo entrance animation IN PARALLEL with gradient shrink
+    // Both animations run together (logo animation duration matches gradient shrink: 2000ms)
+    startLogoEntranceAnimation();
+    
+    // After gradient shrink animation completes (2000ms), entry animation is done
+    // Logo animation also completes around the same time (synced duration)
     setTimeout(() => {
         // Entry animation complete - but UI stays hidden
         // hasExpandedToScrollbars remains false until EXPAND happens
@@ -7057,11 +7976,39 @@ function startEntryAnimation() {
         // Verify UI is still hidden after entry animation
         updateUIVisibility();
         
-        // Trigger demo when intro text is visible
+        // Mark logo as visible (animation complete)
+        const logoContainer = document.querySelector('.logo-container');
+        if (logoContainer) {
+            logoContainer.classList.remove('logo-entering');
+            logoContainer.classList.add('logo-visible');
+        }
+        
+        // Trigger demo after both animations complete
         triggerDemo();
         
         // Note: Header (first rectangle at index 0) visibility is controlled by intro container visibility
     }, 2000);
+}
+
+// Function to animate logo entrance (rises up from behind top gradient)
+// Called at the same time as gradient shrink - both animations run in parallel
+function startLogoEntranceAnimation() {
+    const logoContainer = document.querySelector('.logo-container');
+    const uiLayer = document.querySelector('.ui-layer');
+    
+    if (!logoContainer || !uiLayer) {
+        return;
+    }
+    
+    // Add logo-animating class to UI layer to make only the logo visible
+    // This overrides the UI layer's opacity: 0 for just the logo
+    uiLayer.classList.add('logo-animating');
+    
+    // Remove hidden state to trigger the animation
+    // The logo-entering class is already added (during initialization)
+    // and has the transition defined, so removing logo-intro-hidden triggers the animation
+    // Animation duration is synced with gradient shrink (2000ms in CSS)
+    logoContainer.classList.remove('logo-intro-hidden');
 }
 
 // Function to initialize gradient intro
@@ -7082,15 +8029,23 @@ function initializeGradientIntro() {
         container.appendChild(rect);
     }
     
-    // Create instructional text for the 4th gradient rectangle (index 3) - all three lines
-    const introText = document.createElement('div');
-    introText.className = 'gradient-intro-text';
-    introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
-    introText.id = 'gradient-intro-text';
-    // Ensure text starts hidden (opacity 0) - will fade in during entry animation
-    // CSS will handle the transition, but we set initial state explicitly
-    introText.style.opacity = '0';
-    container.appendChild(introText);
+    // Create two separate instructional text elements for independent positioning
+    // Line 1: positioned at bottom of gradient rectangle index 2 (3rd from top)
+    const introTextLine1 = document.createElement('div');
+    introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
+    introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
+    introTextLine1.id = 'gradient-intro-text-line1';
+    // No inline opacity - CSS handles visibility via intro-line transform (slide-up from mask)
+    // Container is always visible (opacity: 1), inner .intro-line starts hidden (translateY: 100%)
+    container.appendChild(introTextLine1);
+    
+    // Line 2: positioned at bottom of gradient rectangle index 3 (4th from top)
+    const introTextLine2 = document.createElement('div');
+    introTextLine2.className = 'gradient-intro-text gradient-intro-text-line2';
+    introTextLine2.innerHTML = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
+    introTextLine2.id = 'gradient-intro-text-line2';
+    // No inline opacity - CSS handles visibility via intro-line transform (slide-up from mask)
+    container.appendChild(introTextLine2);
     
     // Create downward arrow element below START text
     const arrowElement = document.createElement('div');
@@ -7105,6 +8060,16 @@ function initializeGradientIntro() {
     
     // Initial update (will set full-bleed state for 'entering' phase)
     updateGradientIntro();
+    
+    // Initialize logo in hidden state for entrance animation
+    // Logo will rise up from behind the top gradient rectangle before demo starts
+    // We add both classes: logo-intro-hidden (hidden position) and logo-entering (has transition)
+    // When animating, we remove logo-intro-hidden to trigger the transition to final position
+    const logoContainer = document.querySelector('.logo-container');
+    if (logoContainer) {
+        logoContainer.classList.add('logo-intro-hidden');
+        logoContainer.classList.add('logo-entering');
+    }
     
     // Start entry animation after a delay to ensure layout is ready and add extra delay for better UX
     requestAnimationFrame(() => {
@@ -7186,15 +8151,49 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         rect.style.height = `${itemHeight}px`;
     });
     
-    // Position instructional text in the 4th gradient rectangle (index 3) - all three lines
+    // Position instructional text lines - each at the bottom of its respective gradient rectangle
     // Text fades in during entry animation (synced with gradient shrink)
+    const LINE_HEIGHT = 40; // Height of each intro-line element (matches CSS)
+    
+    // Line 1: bottom-aligned to gradient rectangle index 2 (3rd from top)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) {
+        const rectIndex1 = 2; // 3rd gradient from top (0-indexed)
+        // Bottom-aligned: top = bottom edge of rectangle - line height
+        const line1Top = (rectIndex1 + 1) * itemHeight - LINE_HEIGHT;
+        
+        introTextLine1.style.left = `${leftEdge - 150}px`;
+        introTextLine1.style.width = `${width}px`;
+        introTextLine1.style.top = `${line1Top}px`;
+        introTextLine1.style.height = `${LINE_HEIGHT}px`;
+        // CSS handles display, alignItems, justifyContent for slide-up mask effect
+        introTextLine1.style.visibility = 'visible';
+        // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
+    }
+    
+    // Line 2: bottom-aligned to gradient rectangle index 3 (4th from top)
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (introTextLine2) {
+        const rectIndex2 = 3; // 4th gradient from top (0-indexed)
+        // Bottom-aligned: top = bottom edge of rectangle - line height
+        const line2Top = (rectIndex2 + 1) * itemHeight - LINE_HEIGHT;
+        
+        introTextLine2.style.left = `${leftEdge + 250}px`;
+        introTextLine2.style.width = `${width}px`;
+        introTextLine2.style.top = `${line2Top}px`;
+        introTextLine2.style.height = `${LINE_HEIGHT}px`;
+        // CSS handles display, alignItems, justifyContent for slide-up mask effect
+        introTextLine2.style.visibility = 'visible';
+        // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
+    }
+    
+    // Legacy: also check for old single element (for backward compatibility during transition)
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
         const isStartButton = introText.textContent === '[start]';
         
         // For START button, position it in the 4th rectangle (index 3) - 3rd from bottom
-        // For instruction text, use 4th rectangle (index 3)
-        const rectIndex = isStartButton ? 3 : 3;
+        const rectIndex = 3;
         const rectTop = rectIndex * itemHeight;
         
         // Position text in the appropriate rectangle
@@ -7207,14 +8206,10 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         introText.style.flexDirection = 'column';
         
         // For START button, don't set display/visibility here - let setupStartButton() handle it
-        // to allow the animation to work properly
         if (!isStartButton) {
             introText.style.display = 'flex';
             introText.style.visibility = 'visible';
         }
-        // DO NOT set opacity inline - let CSS classes control it for smooth transition
-        // Opacity is controlled by CSS classes (intro-entering = 0, intro-active = 1)
-        // This allows the fade-in to sync with the gradient shrink animation
     }
     
     // Position arrow element below START text (only when START is visible and not entering)
@@ -7371,7 +8366,21 @@ function triggerIntroTransition() {
     // Mark as triggered immediately to prevent multiple triggers
     introTriggered = true;
     
-    // Get intro text and hide it immediately
+    // Hide all intro text elements immediately (both lines and START button)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) {
+        introTextLine1.style.display = 'none';
+        introTextLine1.style.visibility = 'hidden';
+        introTextLine1.style.opacity = '0';
+        introTextLine1.style.pointerEvents = 'none';
+    }
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (introTextLine2) {
+        introTextLine2.style.display = 'none';
+        introTextLine2.style.visibility = 'hidden';
+        introTextLine2.style.opacity = '0';
+        introTextLine2.style.pointerEvents = 'none';
+    }
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
         introText.style.display = 'none';
@@ -7646,11 +8655,19 @@ function initializeCenterScrollTrigger() {
             // Update gradient bar heights progressively
             updateGradientBarHeights(introProgress);
             
+            // Reveal UI rectangles early at 70% progress (before intro fully completes)
+            const uiLayer = document.querySelector('.ui-layer');
+            if (introProgress >= 0.7 && uiLayer && !uiLayer.classList.contains('words-revealed')) {
+                uiLayer.classList.add('words-revealed');
+            }
+            
             // When progress reaches 1 for the first time, lock it
             if (introProgress >= 1 && !introCompleted) {
                 introCompleted = true;
                 // Update UI visibility - UI remains visible after intro is done
                 updateUIVisibility();
+                
+                // Note: UI rectangles are already revealed at 70% progress (see above)
                 
                 // Hide canvas cover to reveal canvas content
                 updateCanvasCoverVisibility();
@@ -7780,7 +8797,26 @@ function reverseIntroTransition() {
     // Update colors for closing phase
     updateGradientIntro();
     
-    // Get or create intro text element
+    // Get or create intro text line elements
+    let introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (!introTextLine1) {
+        introTextLine1 = document.createElement('div');
+        introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
+        introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
+        introTextLine1.id = 'gradient-intro-text-line1';
+        gradientContainer.appendChild(introTextLine1);
+    }
+    
+    let introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (!introTextLine2) {
+        introTextLine2 = document.createElement('div');
+        introTextLine2.className = 'gradient-intro-text gradient-intro-text-line2';
+        introTextLine2.innerHTML = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
+        introTextLine2.id = 'gradient-intro-text-line2';
+        gradientContainer.appendChild(introTextLine2);
+    }
+    
+    // Get or create START button element (legacy gradient-intro-text)
     let introText = document.getElementById('gradient-intro-text');
     if (!introText) {
         introText = document.createElement('div');
@@ -7799,7 +8835,13 @@ function reverseIntroTransition() {
         gradientContainer.appendChild(arrowElement);
     }
     
-    // Hide text and arrow during reverse animation (CSS will also hide them in intro-closing phase)
+    // Hide all text and arrow during reverse animation (CSS will also hide them in intro-closing phase)
+    introTextLine1.style.display = 'none';
+    introTextLine1.style.visibility = 'hidden';
+    introTextLine1.style.opacity = '0';
+    introTextLine2.style.display = 'none';
+    introTextLine2.style.visibility = 'hidden';
+    introTextLine2.style.opacity = '0';
     introText.style.display = 'none';
     introText.style.visibility = 'hidden';
     introText.style.opacity = '0';
@@ -7947,6 +8989,19 @@ function skipDemo() {
     // Cancel all demo animations immediately
     cancelDemoAnimations();
     
+    // Immediately show logo in final position (skip any ongoing entrance animation)
+    const logoContainer = document.querySelector('.logo-container');
+    const uiLayer = document.querySelector('.ui-layer');
+    if (logoContainer) {
+        // Remove any animation classes and set to visible state
+        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering');
+        logoContainer.classList.add('logo-visible');
+    }
+    if (uiLayer) {
+        // Keep logo-animating so logo stays visible (rest of UI still hidden)
+        uiLayer.classList.add('logo-animating');
+    }
+    
     // Mark user interaction
     userInteracted = true;
     
@@ -7962,44 +9017,93 @@ function skipDemo() {
         gradientContainer.classList.remove('demo-active');
     }
     
-    // Show START button immediately (this will set up the text content)
+    // Show START button (after intro lines slide out animation completes - 500ms)
+    // setupStartButton() handles the full animation sequence:
+    // 1. Animate instruction lines out (slide down)
+    // 2. Wait 500ms for animation to complete
+    // 3. Show START button with fade-in animation
     setupStartButton();
     
-    // Use setTimeout to ensure DOM updates and CSS transitions are applied before forcing visibility
-    // This ensures the demo-active class removal has taken effect
-    setTimeout(() => {
-        // Get intro text element and ensure it's visible after setupStartButton
-        const introText = document.getElementById('gradient-intro-text');
-        if (introText) {
-            // Also ensure the container has intro-active class for CSS rules to work
-            if (gradientContainer && !gradientContainer.classList.contains('intro-active')) {
-                gradientContainer.classList.add('intro-active');
-            }
-            
-            // Ensure visibility (but don't force opacity - let CSS animation handle it)
-            // After removing demo-active class, intro-active CSS rule should apply
-            // and the animation will handle the fade-in
-            // Use 'flex' to match setupStartButton() and updateGradientIntro()
-            introText.style.display = 'flex';
-            introText.style.visibility = 'visible';
-            // Don't set opacity - let CSS animation handle the fade-in
-        }
-    }, 0);
+    // Ensure intro-active class exists for CSS rules to work
+    if (gradientContainer && !gradientContainer.classList.contains('intro-active')) {
+        gradientContainer.classList.add('intro-active');
+    }
     
 }
 
 // Shared function to set up START button click handler
 // This ensures consistent behavior whether START appears in initial intro or after returning via logo click
+// First animates the instruction lines out (slide down), then shows START button
 function setupStartButton() {
-    // #region agent log
-    const stack = new Error().stack;
-    fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8026',message:'setupStartButton CALLED',data:{isDemoActive,introTextChanged,initialInstructionTextShown,userInteracted,hasScrolledScrollbar,isProgrammaticScroll,stack:stack.split('\n').slice(0,5).join(' | ')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'start-trigger'})}).catch(()=>{});
-    // #endregion
+    // Get the instruction line elements
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
     
-    const introText = document.getElementById('gradient-intro-text');
+    // Get the inner intro-line elements for the exit animation
+    const line1Inner = introTextLine1?.querySelector('.intro-line');
+    const line2Inner = introTextLine2?.querySelector('.intro-line');
+    
+    // Check if lines are visible (have content and are displayed)
+    const linesAreVisible = (introTextLine1 && introTextLine1.style.display !== 'none') ||
+                            (introTextLine2 && introTextLine2.style.display !== 'none');
+    
+    if (linesAreVisible && (line1Inner || line2Inner)) {
+        // Add exiting class to trigger slide-out animation (both lines together)
+        if (line1Inner) line1Inner.classList.add('intro-line-exiting');
+        if (line2Inner) line2Inner.classList.add('intro-line-exiting');
+        
+        // Wait for animation to complete (800ms), then hide lines and show START
+        setTimeout(() => {
+            // Hide the text line containers after animation
+            if (introTextLine1) {
+                introTextLine1.style.display = 'none';
+                introTextLine1.style.visibility = 'hidden';
+                introTextLine1.style.opacity = '0';
+            }
+            if (introTextLine2) {
+                introTextLine2.style.display = 'none';
+                introTextLine2.style.visibility = 'hidden';
+                introTextLine2.style.opacity = '0';
+            }
+            
+            // Now show the START button
+            showStartButtonElement();
+        }, 800); // 800ms matches the CSS transition duration
+    } else {
+        // Lines are already hidden (e.g., returning via logo click), show START immediately
+        // Still hide them to be safe
+        if (introTextLine1) {
+            introTextLine1.style.display = 'none';
+            introTextLine1.style.visibility = 'hidden';
+            introTextLine1.style.opacity = '0';
+        }
+        if (introTextLine2) {
+            introTextLine2.style.display = 'none';
+            introTextLine2.style.visibility = 'hidden';
+            introTextLine2.style.opacity = '0';
+        }
+        
+        // Show START immediately
+        showStartButtonElement();
+    }
+}
+
+// Helper function that actually displays the START button element
+// Called after the instruction lines have finished their exit animation
+function showStartButtonElement() {
+    // Get or create START button element (uses legacy gradient-intro-text id)
+    let introText = document.getElementById('gradient-intro-text');
     if (!introText) {
-        console.warn('START button setup: intro text element not found');
-        return;
+        // Create the START button element if it doesn't exist
+        const gradientContainer = document.getElementById('gradient-intro-container');
+        if (!gradientContainer) {
+            console.warn('START button setup: gradient container not found');
+            return;
+        }
+        introText = document.createElement('div');
+        introText.className = 'gradient-intro-text';
+        introText.id = 'gradient-intro-text';
+        gradientContainer.appendChild(introText);
     }
     
     // Reset element to initial animation state (same as 3 instruction sentences)
@@ -8082,7 +9186,21 @@ function forwardIntroTransition() {
         return;
     }
     
-    // Hide text and arrow immediately when transition starts
+    // Hide all intro text elements and arrow immediately when transition starts
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) {
+        introTextLine1.style.display = 'none';
+        introTextLine1.style.visibility = 'hidden';
+        introTextLine1.style.opacity = '0';
+        introTextLine1.style.pointerEvents = 'none';
+    }
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (introTextLine2) {
+        introTextLine2.style.display = 'none';
+        introTextLine2.style.visibility = 'hidden';
+        introTextLine2.style.opacity = '0';
+        introTextLine2.style.pointerEvents = 'none';
+    }
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
         introText.style.display = 'none';
@@ -8209,6 +9327,8 @@ function forwardIntroTransition() {
     // Track if UI has been revealed (only once, when animation starts)
     let uiRevealed = false;
     
+    const uiLayer = document.querySelector('.ui-layer');
+    
     // Animation loop for collapse transition
     function animate(currentTime) {
         const elapsed = currentTime - startTime;
@@ -8238,6 +9358,11 @@ function forwardIntroTransition() {
         // Update gradient bar heights using existing collapse logic
         updateGradientBarHeights(introProgress);
         
+        // Reveal UI rectangles early at 70% progress (before animation fully completes)
+        if (introProgress >= 0.7 && uiLayer && !uiLayer.classList.contains('words-revealed')) {
+            uiLayer.classList.add('words-revealed');
+        }
+        
         // Continue animation until progress reaches 1
         if (progress < 1) {
             requestAnimationFrame(animate);
@@ -8248,6 +9373,11 @@ function forwardIntroTransition() {
             
             // Mark intro as completed
             introCompleted = true;
+            
+            // Update UI visibility for final state
+            updateUIVisibility();
+            
+            // Note: UI rectangles are already revealed at 70% progress (see above)
             
             // Ensure we're in closing phase (should already be set)
             if (introPhase !== 'closing') {
@@ -8489,7 +9619,15 @@ function restartIntro() {
         const rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
         rectangles.forEach(rect => rect.remove());
         
-        // Remove intro text if it exists
+        // Remove all intro text elements if they exist
+        const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+        if (introTextLine1) {
+            introTextLine1.remove();
+        }
+        const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+        if (introTextLine2) {
+            introTextLine2.remove();
+        }
         const introText = document.getElementById('gradient-intro-text');
         if (introText) {
             introText.remove();
@@ -8522,38 +9660,49 @@ function restartIntro() {
     // Reset canvas cover visibility (will be visible during intro)
     updateCanvasCoverVisibility();
     
+    // Reset logo entrance animation state
+    // Remove all logo animation classes so it can animate again from hidden
+    const logoContainer = document.querySelector('.logo-container');
+    const uiLayer = document.querySelector('.ui-layer');
+    if (logoContainer) {
+        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering', 'logo-visible');
+    }
+    if (uiLayer) {
+        uiLayer.classList.remove('logo-animating');
+    }
+    
     // Ensure logo remains clickable after restart
-    const logoElement = document.querySelector('.black-rectangle');
-    if (logoElement) {
-        logoElement.style.pointerEvents = 'auto';
-        logoElement.style.cursor = 'pointer';
+    const synElement = document.querySelector('.black-rectangle-syn');
+    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
+    if (synElement) {
+        synElement.style.pointerEvents = 'auto';
+        synElement.style.cursor = 'pointer';
+    }
+    if (ethesiaElement) {
+        ethesiaElement.style.pointerEvents = 'auto';
+        ethesiaElement.style.cursor = 'pointer';
     }
     
     // Re-initialize the gradient intro (this will create new rectangles and start the animation)
+    // This also adds logo-intro-hidden class to reset logo state
     initializeGradientIntro();
     
 }
 
 // Function to initialize logo click handler
 function initializeLogoClickHandler() {
-    const logoElement = document.querySelector('.black-rectangle');
-    if (!logoElement) {
-        console.warn('Logo element (.black-rectangle) not found');
+    const synElement = document.querySelector('.black-rectangle-syn');
+    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
+    
+    if (!synElement && !ethesiaElement) {
+        console.warn('Logo elements (.black-rectangle-syn, .black-rectangle-ethesia) not found');
         return;
     }
     
-    // CRITICAL: Enable pointer events (CSS has pointer-events: none by default)
-    // This allows the logo to receive click events
-    logoElement.style.pointerEvents = 'auto';
-    
-    // Add cursor pointer style to indicate it's clickable
-    logoElement.style.cursor = 'pointer';
-    
-    // Add click handler to go to START checkpoint
-    logoElement.addEventListener('click', (e) => {
+    // Click handler function for both logo rectangles
+    const handleLogoClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
         
         // If intro is completed, go to START checkpoint (no intro restart)
         if (introCompleted) {
@@ -8562,8 +9711,23 @@ function initializeLogoClickHandler() {
             // If intro is not completed, just restart (shouldn't happen normally)
             restartIntro();
         }
-    });
+    };
     
+    // Set up SYN rectangle
+    if (synElement) {
+        // CRITICAL: Enable pointer events (CSS has pointer-events: none by default)
+        synElement.style.pointerEvents = 'auto';
+        synElement.style.cursor = 'pointer';
+        synElement.addEventListener('click', handleLogoClick);
+    }
+    
+    // Set up [esthesia] rectangle
+    if (ethesiaElement) {
+        // CRITICAL: Enable pointer events
+        ethesiaElement.style.pointerEvents = 'auto';
+        ethesiaElement.style.cursor = 'pointer';
+        ethesiaElement.addEventListener('click', handleLogoClick);
+    }
 }
 
 // Function to check if intro text should be updated
@@ -8602,19 +9766,26 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
     const startScrollTop = column.scrollTop;
     const totalScrollDistance = itemHeight * scrollDistance; // Total pixels to scroll
     const startTime = Date.now();
-    const columnId = column.classList.contains('left-column') ? 'left' : 'right';
     
     // Boundaries for wrapping (same as infinite scroll logic)
     const topBoundary = singleSetHeight * 0.5;
     const bottomBoundary = singleSetHeight * 1.5;
     
-    // Track cumulative scroll for wrapping
-    let currentBase = startScrollTop;
-    let lastEase = 0;
+    // Calculate the EXACT target position (where we want to land)
+    // This ensures we end on an exact item boundary, avoiding any visible snap
+    let targetScrollTop = startScrollTop + totalScrollDistance;
+    // Apply wrapping to get target within valid range
+    while (targetScrollTop < topBoundary) {
+        targetScrollTop += singleSetHeight;
+    }
+    while (targetScrollTop > bottomBoundary) {
+        targetScrollTop -= singleSetHeight;
+    }
+    // Round to nearest item boundary (should already be exact, but ensure precision)
+    targetScrollTop = Math.round(targetScrollTop / itemHeight) * itemHeight;
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8620',message:'scrollColumnProgrammatically START',data:{columnId,startScrollTop,totalScrollDistance,scrollDistance,duration,itemHeight,singleSetHeight,topBoundary,bottomBoundary},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
-    // #endregion
+    // Track easing progress for incremental scrolling
+    let lastEase = 0;
     
     // Set programmatic scroll flag to skip user interaction tracking
     // but gradients will still update via scroll handler
@@ -8625,23 +9796,20 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
     // Disable scroll-snap during demo for smooth motion
     column.style.setProperty('scroll-snap-type', 'none', 'important');
     
-    let frameCount = 0;
-    
     // Single continuous animation with strong ease-out
     function animate() {
-        // Check if demo was cancelled - if so, stop immediately
+        // Check if demo was cancelled - if so, jump directly to target and stop
         if (!isDemoActive) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8638',message:'Animation CANCELLED',data:{columnId,frameCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
-            // #endregion
-            // Re-enable scroll-snap
+            // Set scroll directly to target position (no animation remainder)
+            column.scrollTop = targetScrollTop;
+            
+            // Re-enable scroll-snap (now safe since we're at exact target)
             column.style.removeProperty('scroll-snap-type');
             // Reset flags
             isProgrammaticScroll = false;
             return;
         }
         
-        frameCount++;
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
@@ -8681,25 +9849,15 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
         
         column.scrollTop = newScrollTop;
         
-        // Log every 30 frames (~0.5 sec at 60fps) or when wrapped
-        if (frameCount % 30 === 1 || wrapped) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8670',message:'Animation FRAME',data:{columnId,frameCount,elapsed,progress,ease,deltaScroll,newScrollTop,wrapped,actualScrollTop:column.scrollTop},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
-            // #endregion
-        }
-        
         if (progress < 1) {
             const frameId = requestAnimationFrame(animate);
             demoAnimationFrames.push(frameId);
         } else {
-            // Animation complete
-            const finalActual = column.scrollTop;
+            // Animation complete - set scroll position to EXACT target (no accumulated error)
+            column.scrollTop = targetScrollTop;
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8688',message:'Animation COMPLETE',data:{columnId,frameCount,finalActual},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'wrap'})}).catch(()=>{});
-            // #endregion
-            
-            // Re-enable scroll-snap after a small delay to avoid browser snap interference
+            // Re-enable scroll-snap after a small delay
+            // No snap needed since we're already at exact target
             const timeoutId = setTimeout(() => {
                 column.style.removeProperty('scroll-snap-type');
                 isProgrammaticScroll = false;
@@ -8751,15 +9909,8 @@ function scrollBothColumnsProgrammatically(duration) {
     
     // Cleanup after animation fully completes - show text only at the end
     const cleanupTimeout = setTimeout(() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8781',message:'Cleanup timeout START',data:{isDemoActive,introTextChanged,initialInstructionTextShown},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-        // #endregion
-        
         // Check if demo was cancelled
         if (!isDemoActive) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8784',message:'Cleanup SKIPPED - demo was cancelled',data:{isDemoActive},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-            // #endregion
             return;
         }
         
@@ -8779,94 +9930,65 @@ function scrollBothColumnsProgrammatically(duration) {
         // Remove demo-active class to show instruction text again
         const gradientContainer = document.getElementById('gradient-intro-container');
         
-        // #region agent log
-        const classListBefore = gradientContainer ? gradientContainer.className : 'no container';
-        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8789',message:'Before class changes',data:{classListBefore,hasContainer:!!gradientContainer},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'css'})}).catch(()=>{});
-        // #endregion
-        
         if (gradientContainer) {
             gradientContainer.classList.remove('demo-active');
             // Ensure intro-active class is present for CSS rules to work
             if (!gradientContainer.classList.contains('intro-active')) {
                 gradientContainer.classList.add('intro-active');
             }
-            
-            // #region agent log
-            const classListAfter = gradientContainer.className;
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8798',message:'After class changes',data:{classListAfter,hasDemoActive:gradientContainer.classList.contains('demo-active'),hasIntroActive:gradientContainer.classList.contains('intro-active')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'css'})}).catch(()=>{});
-            // #endregion
         }
         
-        // Show instruction text (only if not already changed to START)
-        const introText = document.getElementById('gradient-intro-text');
-        // Check if text exists and either hasn't been changed yet, or current text is not the initial instruction text
-        const currentText = introText ? introText.textContent.trim().toLowerCase() : '';
-        const isCurrentlyStart = currentText === '[start]';
-        const hasInitialText = currentText.includes('synesthesia') || currentText.includes('scroll');
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8805',message:'Intro text check',data:{hasIntroText:!!introText,currentText,isCurrentlyStart,hasInitialText,introTextChanged,willShow:introText&&(!introTextChanged||(!isCurrentlyStart&&!hasInitialText))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-        // #endregion
-        
-        if (introText && (!introTextChanged || (!isCurrentlyStart && !hasInitialText))) {
-            // Restore initial instruction text content
-            introText.innerHTML = INITIAL_INSTRUCTION_TEXT;
-            // Remove any inline styles that might override CSS
-            introText.style.cursor = '';
-            introText.style.pointerEvents = '';
-            // Ensure text is visible (display and visibility) - override any CSS that might hide it
-            introText.style.display = 'flex';
-            introText.style.visibility = 'visible';
-            // Force opacity to be visible (override CSS if needed)
-            introText.style.opacity = '1';
-            // Reset transform to trigger smooth animation
-            introText.style.transform = 'translateY(10px)';
-            // Force reflow to ensure transform reset is applied
-            void introText.offsetHeight;
+        // Show instruction text lines (only if not already changed to START)
+        if (!introTextChanged) {
+            // Show both instruction line elements
+            const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+            const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+            
+            if (introTextLine1) {
+                // Remove any inline styles that might override CSS
+                introTextLine1.style.cursor = '';
+                introTextLine1.style.pointerEvents = '';
+                // Ensure container is visible - CSS handles the slide-up animation via inner .intro-line
+                introTextLine1.style.display = 'flex';
+                introTextLine1.style.visibility = 'visible';
+                // Don't set opacity inline - let CSS handle it via intro-active class
+            }
+            
+            if (introTextLine2) {
+                // Remove any inline styles that might override CSS
+                introTextLine2.style.cursor = '';
+                introTextLine2.style.pointerEvents = '';
+                // Ensure container is visible - CSS handles the slide-up animation via inner .intro-line
+                introTextLine2.style.display = 'flex';
+                introTextLine2.style.visibility = 'visible';
+                // Don't set opacity inline - let CSS handle it via intro-active class
+            }
+            
+            // Hide the START button element if it exists
+            const introText = document.getElementById('gradient-intro-text');
+            if (introText) {
+                introText.style.display = 'none';
+                introText.style.visibility = 'hidden';
+                introText.style.opacity = '0';
+            }
+            
             // Update gradient intro to position text correctly
             updateGradientIntro();
             // Mark that initial instruction text has been shown immediately
             initialInstructionTextShown = true;
-            
-            // #region agent log
-            const computedStyle = window.getComputedStyle(introText);
-            const textRect = introText.getBoundingClientRect();
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8823',message:'Intro text SHOWN',data:{initialInstructionTextShown,textContent:introText.textContent.substring(0,50),computedOpacity:computedStyle.opacity,computedVisibility:computedStyle.visibility,computedDisplay:computedStyle.display,inlineOpacity:introText.style.opacity,inlineDisplay:introText.style.display,position:{top:textRect.top,left:textRect.left,width:textRect.width,height:textRect.height},windowSize:{w:window.innerWidth,h:window.innerHeight},zIndex:computedStyle.zIndex,color:computedStyle.color},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-            // #endregion
-            
-            // Also log after a short delay to see if something changes
-            setTimeout(() => {
-                // #region agent log
-                const delayedComputedStyle = window.getComputedStyle(introText);
-                const delayedRect = introText.getBoundingClientRect();
-                fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8835',message:'Intro text AFTER 100ms',data:{computedOpacity:delayedComputedStyle.opacity,computedVisibility:delayedComputedStyle.visibility,computedDisplay:delayedComputedStyle.display,position:{top:delayedRect.top,left:delayedRect.left,width:delayedRect.width,height:delayedRect.height}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-                // #endregion
-            }, 100);
-            
-            // Remove inline transform to let CSS transition handle the animation
-            // But keep opacity: 1 to ensure text stays visible
-            const transformTimeout = setTimeout(() => {
-                introText.style.transform = '';
-                // DO NOT remove opacity - keep it at 1 to ensure text is always visible
-                // CSS will handle the transition, but we keep opacity: 1 as fallback
-            }, 0);
-            demoTimeouts.push(transformTimeout);
-            // CSS will handle visibility via intro-active class (opacity: 1 !important)
-            // But we keep inline opacity: 1 to ensure text is always visible even if CSS fails
-        } else {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/673ee941-da56-4033-8389-74ba604e06d4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'script.js:8851',message:'Intro text NOT shown - condition failed',data:{hasIntroText:!!introText,introTextChanged,isCurrentlyStart,hasInitialText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'intro'})}).catch(()=>{});
-            // #endregion
+            // CSS handles the slide-up animation via .intro-active class on container
         }
-    }, phaseDuration); // Show text only after animation fully completes
+    }, phaseDuration + 150); // Show text only after animation fully completes (+150ms buffer to ensure animations finish)
     demoTimeouts.push(cleanupTimeout);
 }
 
 // Function to trigger demo when intro is in active phase
 // Note: Text may be hidden by demo-active class, so we don't check text visibility
 function triggerDemo() {
-    const introText = document.getElementById('gradient-intro-text');
-    if (!introText) {
+    // Check if instruction line elements exist (not the START button)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (!introTextLine1 && !introTextLine2) {
         return;
     }
         
@@ -8876,10 +9998,11 @@ function triggerDemo() {
         return;
     }
     
-    // Check if text contains instruction text (not "[start]")
+    // Check if instruction text lines are visible (not the START button)
     // This ensures we only trigger demo for initial instruction text, not START
-    const currentText = introText.textContent.trim().toLowerCase();
-    if (!currentText.includes('synesthesia') && !currentText.includes('scroll')) {
+    const line1Visible = introTextLine1 && introTextLine1.style.display !== 'none';
+    const line2Visible = introTextLine2 && introTextLine2.style.display !== 'none';
+    if (!line1Visible && !line2Visible) {
         return;
     }
     
