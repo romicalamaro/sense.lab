@@ -530,14 +530,17 @@ body:has(.gradient-intro-container:not(.intro-collapsed)) .reel-triangle {
 
 /* Hide text during demo - must override intro-active opacity */
 /* More specific selector ensures it wins when both intro-active and demo-active are present */
+/* IMPORTANT: Use visibility:hidden instead of display:none to allow CSS transitions to work */
+/* When display:none is used, child transforms aren't computed, breaking slide-up animations */
 .gradient-intro-container.intro-active.demo-active .gradient-intro-text,
 .gradient-intro-container.demo-active .gradient-intro-text {
     opacity: 0 !important;
     visibility: hidden !important;
-    display: none !important;
+    /* Removed display:none - use visibility:hidden to keep element in layout for transitions */
 }
 
 /* Also hide the line elements during demo - keep them below mask */
+/* This transform will be animated when demo-active is removed */
 .gradient-intro-container.demo-active .gradient-intro-text-line1 .intro-line,
 .gradient-intro-container.demo-active .gradient-intro-text-line2 .intro-line {
     transform: translateY(45px) !important; /* Keep hidden below mask during demo */

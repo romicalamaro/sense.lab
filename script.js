@@ -9836,15 +9836,10 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
         let newScrollTop = column.scrollTop + deltaScroll;
         
         // Wrap position if we cross boundaries (infinite scroll during animation)
-        let wrapped = false;
         if (newScrollTop < topBoundary) {
-            // Scrolled too far up: wrap forward by one set
             newScrollTop += singleSetHeight;
-            wrapped = true;
         } else if (newScrollTop > bottomBoundary) {
-            // Scrolled too far down: wrap backward by one set
             newScrollTop -= singleSetHeight;
-            wrapped = true;
         }
         
         column.scrollTop = newScrollTop;
@@ -9853,16 +9848,16 @@ function scrollColumnProgrammatically(column, duration, scrollDistance) {
             const frameId = requestAnimationFrame(animate);
             demoAnimationFrames.push(frameId);
         } else {
-            // Animation complete - set scroll position to EXACT target (no accumulated error)
-            column.scrollTop = targetScrollTop;
+            // Animation complete - DON'T jump to target, accept the small error
+            // The error is typically < 10 pixels which is less noticeable than a sudden position change
+            // Scroll-snap will handle final alignment if needed
             
-            // Re-enable scroll-snap after a small delay
-            // No snap needed since we're already at exact target
+            // Re-enable scroll-snap after animation completes
             const timeoutId = setTimeout(() => {
                 column.style.removeProperty('scroll-snap-type');
                 isProgrammaticScroll = false;
                 // Note: isDemoActive is reset in scrollBothColumnsProgrammatically after all animations complete
-            }, 100);
+            }, 100); // Re-enable scroll-snap after brief delay
             demoTimeouts.push(timeoutId);
         }
     }
