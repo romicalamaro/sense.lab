@@ -29,9 +29,13 @@
         <div class="color-item" data-color="#EB4781"></div>
         <div class="color-item" data-color="#293990"></div>
     </div>
-    <!-- Reel triangles for left column -->
-    <div class="reel-triangle reel-triangle-top reel-triangle-left"></div>
-    <div class="reel-triangle reel-triangle-bottom reel-triangle-left"></div>
+    <!-- Reel triangles for left column (wrapped in masks for slide-in animation) -->
+    <div class="reel-triangle-mask reel-triangle-mask-top reel-triangle-mask-left">
+        <div class="reel-triangle reel-triangle-top reel-triangle-left"></div>
+    </div>
+    <div class="reel-triangle-mask reel-triangle-mask-bottom reel-triangle-mask-left">
+        <div class="reel-triangle reel-triangle-bottom reel-triangle-left"></div>
+    </div>
     <div class="column-container right-column">
         <div class="color-item" data-color="#EF4538"></div>
         <div class="color-item" data-color="#891951"></div>
@@ -54,9 +58,13 @@
         <div class="color-item" data-color="#EB4781"></div>
         <div class="color-item" data-color="#293990"></div>
     </div>
-    <!-- Reel triangles for right column -->
-    <div class="reel-triangle reel-triangle-top reel-triangle-right"></div>
-    <div class="reel-triangle reel-triangle-bottom reel-triangle-right"></div>
+    <!-- Reel triangles for right column (wrapped in masks for slide-in animation) -->
+    <div class="reel-triangle-mask reel-triangle-mask-top reel-triangle-mask-right">
+        <div class="reel-triangle reel-triangle-top reel-triangle-right"></div>
+    </div>
+    <div class="reel-triangle-mask reel-triangle-mask-bottom reel-triangle-mask-right">
+        <div class="reel-triangle reel-triangle-bottom reel-triangle-right"></div>
+    </div>
     <div class="intro-layer">
         <div class="gradient-intro-container" id="gradient-intro-container"></div>
     </div>
@@ -117,7 +125,6 @@
     <!-- Canvas container: main white interaction area below gradient header and between scrollbars -->
     <!-- This defines the exact bounds of the canvas area for positioning all interaction content -->
     <div class="canvas-container" id="canvas-container">
-        <div id="p5-container"></div>
         <!-- Shape & Number canvas container -->
         <div id="shape-number-container" class="shape-number-container hidden">
             <canvas id="shape-number-draw-surface"></canvas>
@@ -142,47 +149,54 @@
                 </div>
             </div>
         </div>
-        <!-- Shape & Emotion canvas container -->
-        <div id="shape-emotion-container" class="shape-emotion-container hidden">
-            <canvas id="shape-emotion-draw-surface"></canvas>
-            <!-- Ellipses for Shape & Emotion interaction (SVG for consistent stroke width) -->
-            <div id="shape-emotion-ellipses" class="shape-emotion-ellipses">
-                <div class="emotion-ellipse-wrapper" data-index="0">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+        <!-- Shape + Shape canvas container (ellipses interaction) -->
+        <div id="shape-shape-container" class="shape-shape-container hidden">
+            <!-- Ellipses for Shape + Shape interaction (SVG for consistent stroke width) -->
+            <div id="shape-shape-ellipses" class="shape-shape-ellipses">
+                <div class="shape-ellipse-wrapper" data-index="0">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="1">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="1">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="2">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="2">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="3">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="3">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="4">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="4">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="5">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="5">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="emotion-ellipse-wrapper" data-index="6">
-                    <svg class="emotion-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="emotion-ellipse"/>
+                <div class="shape-ellipse-wrapper" data-index="6">
+                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
                     </svg>
                 </div>
             </div>
+        </div>
+        <!-- Sound & Shape canvas container -->
+        <div id="sound-shape-container" class="sound-shape-container hidden">
+            <canvas id="sound-shape-draw-surface"></canvas>
+            <canvas id="sound-shape-brush-layer"></canvas>
+            <button id="sound-shape-play-btn" class="sound-shape-btn">[play]</button>
+            <button id="sound-shape-reset-btn" class="sound-shape-btn">[reset]</button>
+            <button id="sound-shape-export-btn" class="sound-shape-btn">[export]</button>
         </div>
         <div class="canvas-text-box" id="canvas-text-box"></div>
         <div class="canvas-text-box-syn-backing" id="canvas-text-box-syn-backing"></div>
@@ -313,9 +327,13 @@
                 </g>
             </svg>
         </div>
-        <!-- Container for white circle with black outline on Shape + Color page -->
-        <div class="shape-color-circle-container" id="shape-color-circle-container">
-            <div class="shape-color-circle"></div>
+        <!-- Shape + Color canvas container (drag shapes to create colored gradient trails) -->
+        <div id="shape-color-container" class="shape-color-container hidden">
+            <canvas id="shape-color-draw-surface"></canvas>
+            <canvas id="shape-color-brush-layer"></canvas>
+            <button id="shape-color-play-btn" class="shape-color-btn">[play]</button>
+            <button id="shape-color-reset-btn" class="shape-color-btn">[reset]</button>
+            <button id="shape-color-export-btn" class="shape-color-btn">[export]</button>
         </div>
         <!-- Container for MELODY circle letters on Sound + Letter page -->
         <div class="melody-circle-container" id="melody-circle-container">
@@ -454,6 +472,14 @@
             </svg>
             <button class="sound-wave-mic-btn" id="sound-wave-mic-btn">[enable microphone]</button>
         </div>
+        <!-- SVG for lines from center to each digit (Number + Emotion) -->
+        <svg class="number-emotion-lines-svg hidden" id="number-emotion-lines-svg">
+            <line class="number-emotion-line" id="number-emotion-line-0"></line>
+            <line class="number-emotion-line" id="number-emotion-line-1"></line>
+            <line class="number-emotion-line" id="number-emotion-line-2"></line>
+            <line class="number-emotion-line" id="number-emotion-line-3"></line>
+            <line class="number-emotion-line" id="number-emotion-line-4"></line>
+        </svg>
         <!-- Container for Number + Emotion page digits -->
         <div class="number-emotion-digits-container" id="number-emotion-digits-container">
             <span class="number-emotion-digit" data-digit="1">1</span>
@@ -462,8 +488,181 @@
             <span class="number-emotion-digit" data-digit="4">4</span>
             <span class="number-emotion-digit" data-digit="7">7</span>
         </div>
+        <!-- Container for Letter + Emotion draggable grid -->
+        <div class="letter-emotion-grid-container hidden" id="letter-emotion-grid-container">
+            <!-- 20 cells (4 rows x 5 columns) - WORDS CARRY FEELS, 4th row is empty -->
+            <!-- Row 0: W O R D S -->
+            <div class="letter-emotion-cell" data-row="0" data-col="0">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">W</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="0" data-col="1">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">O</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="0" data-col="2">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">R</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="0" data-col="3">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">D</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="0" data-col="4">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">S</text>
+                </svg>
+            </div>
+            <!-- Row 1: C A R R Y -->
+            <div class="letter-emotion-cell" data-row="1" data-col="0">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">C</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="1" data-col="1">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">A</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="1" data-col="2">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">R</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="1" data-col="3">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">R</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="1" data-col="4">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">Y</text>
+                </svg>
+            </div>
+            <!-- Row 2: F E E L S -->
+            <div class="letter-emotion-cell" data-row="2" data-col="0">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">F</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="2" data-col="1">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">E</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="2" data-col="2">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">E</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="2" data-col="3">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">L</text>
+                </svg>
+            </div>
+            <div class="letter-emotion-cell" data-row="2" data-col="4">
+                <svg class="letter-emotion-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="letter-emotion-letter">S</text>
+                </svg>
+            </div>
+            <!-- Horizontal dividers (2 lines between 3 rows) -->
+            <div class="letter-emotion-divider letter-emotion-divider-h" data-index="0"></div>
+            <div class="letter-emotion-divider letter-emotion-divider-h" data-index="1"></div>
+            <!-- Vertical dividers (4 lines between 5 columns) -->
+            <div class="letter-emotion-divider letter-emotion-divider-v" data-index="0"></div>
+            <div class="letter-emotion-divider letter-emotion-divider-v" data-index="1"></div>
+            <div class="letter-emotion-divider letter-emotion-divider-v" data-index="2"></div>
+            <div class="letter-emotion-divider letter-emotion-divider-v" data-index="3"></div>
+        </div>
+        <!-- Container for Sound + Emotion smiley interaction -->
+        <div id="sound-emotion-container" class="sound-emotion-container hidden">
+            <svg id="sound-emotion-smiley" class="sound-emotion-smiley" preserveAspectRatio="none">
+                <!-- Ellipse face outline -->
+                <ellipse id="smiley-face" class="smiley-face" />
+                <!-- Left eye (ellipse for dynamic squishing) -->
+                <ellipse id="smiley-eye-left" class="smiley-eye smiley-eye-left" />
+                <!-- Right eye (ellipse for dynamic squishing) -->
+                <ellipse id="smiley-eye-right" class="smiley-eye smiley-eye-right" />
+                <!-- Mouth (quadratic bezier curve) -->
+                <path id="smiley-mouth" class="smiley-mouth" />
+            </svg>
+            <input type="range" id="sound-emotion-slider" class="sound-emotion-slider" 
+                   min="-100" max="100" value="0" />
+        </div>
         <!-- Logo hover overlay: darkens and blurs canvas when hovering on SYN logo -->
         <div class="logo-hover-overlay" id="logo-hover-overlay"></div>
+        <!-- Logo hover text boxes: appear when hovering on SYN logo -->
+        <div class="logo-hover-text-box logo-hover-text-box-1" id="logo-hover-text-box-1">
+            <h3 class="logo-hover-text-title">About the process</h3>
+            <p>This website was created as an exploration of synesthesia—an attempt to understand and experience how the world is perceived when senses intertwine. Rather than explaining synesthesia through theory alone, the project translates it into interactive, sensory-based experiences that allow visitors to encounter combinations of perception firsthand. All texts and quotations featured throughout the site are drawn from real testimonies of syntesthetes, collected from personal blogs and firsthand accounts that describe how they experience language, sound, color, shape, and emotion. The site is grounded entirely in these lived experiences, aiming to reflect their subjectivity rather than interpret or simplify it.</p>
+        </div>
+        <div class="logo-hover-text-box logo-hover-text-box-2" id="logo-hover-text-box-2">
+            <h3 class="logo-hover-text-title">Sources & Credits</h3>
+            <p>All synesthetic testimonies are sourced from the Synesthetic Experience Vault by Synesthesia Test (synesthesiatest.org), a public archive of firsthand synesthetic accounts.</p>
+        </div>
+        <!-- Index page overlay: white background shown on INDEX hover -->
+        <div class="index-page-overlay" id="index-page-overlay">
+            <!-- Shutter animation container - 5 horizontal strips that slide up to reveal content -->
+            <div class="index-shutters-container" id="index-shutters-container">
+                <div class="index-shutter" data-shutter="0"></div>
+                <div class="index-shutter" data-shutter="1"></div>
+                <div class="index-shutter" data-shutter="2"></div>
+                <div class="index-shutter" data-shutter="3"></div>
+                <div class="index-shutter" data-shutter="4"></div>
+            </div>
+            <!-- Letter combinations -->
+            <div class="index-item" data-left="0" data-right="2"><span class="index-item-name">[Shape + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/letter + shape.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="1" data-right="2"><span class="index-item-name">[Sound + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + letter.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="2" data-right="3"><span class="index-item-name">[Letter + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="2" data-right="4"><span class="index-item-name">[Letter + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="2" data-right="5"><span class="index-item-name">[Letter + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/letter + color.png" alt=""></div>
+            <div class="index-line"></div>
+            <!-- Number combinations -->
+            <div class="index-item" data-left="0" data-right="3"><span class="index-item-name">[Shape + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="1" data-right="3"><span class="index-item-name">[Sound + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="3" data-right="4"><span class="index-item-name">[Number + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="3" data-right="5"><span class="index-item-name">[Number + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <!-- Shape combinations -->
+            <div class="index-item" data-left="0" data-right="1"><span class="index-item-name">[Shape + Sound]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + shape.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="0" data-right="4"><span class="index-item-name">[Shape + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + shape.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="0" data-right="5"><span class="index-item-name">[Shape + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <!-- Sound combinations -->
+            <div class="index-item" data-left="1" data-right="4"><span class="index-item-name">[Sound + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="1" data-right="5"><span class="index-item-name">[Sound + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + color.png" alt=""></div>
+            <div class="index-line"></div>
+            <!-- Color combinations -->
+            <div class="index-item" data-left="4" data-right="5"><span class="index-item-name">[Emotion + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <!-- Same-sense combinations -->
+            <div class="index-item" data-left="2" data-right="2"><span class="index-item-name">[Letter + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="3" data-right="3"><span class="index-item-name">[Number + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + number.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="0" data-right="0"><span class="index-item-name">[Shape + Shape]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="1" data-right="1"><span class="index-item-name">[Sound + Sound]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + sound.png" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="5" data-right="5"><span class="index-item-name">[Color + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+            <div class="index-item" data-left="4" data-right="4"><span class="index-item-name">[Emotion + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-line"></div>
+        </div>
     </div>
     <div class="line line-outer-left"></div>
     <div class="line line-inner-left"></div>
@@ -472,7 +671,6 @@
     <div class="line line-horizontal"></div>
     <div class="container">
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

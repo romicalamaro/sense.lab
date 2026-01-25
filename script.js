@@ -7,8 +7,8 @@ const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
 // Split into two lines for independent positioning on different gradient rectangles
-const INTRO_LINE_1_TEXT = 'An experience where one sense triggers another';
-const INTRO_LINE_2_TEXT = 'Scroll the bars to combine senses';
+const INTRO_LINE_1_TEXT = '[an experience where one sense triggers another]';
+const INTRO_LINE_2_TEXT = '[scroll the bars to combine senses]';
 // Legacy constant for backward compatibility (used in some checks)
 const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span><div style="margin-top: 21px;"><span class="intro-line">' + INTRO_LINE_2_TEXT + '</span></div>';
 
@@ -50,15 +50,12 @@ let introCompleted = false; // Lock: true when progress reaches 1, prevents reve
 let horizontalExpansionStarted = false; // Track if horizontal expansion has started
 let hasExpandedToScrollbars = false; // Track when gradients have fully expanded to scrollbar edges (UI becomes visible only after this)
 let startClickTransitionActive = false; // Track if START click transition is active (disables scroll-based trigger)
+let scrollHintAnimationTriggered = false; // Flag to prevent multiple scroll hint animations
+let scrollHintAnimationActive = false; // Flag to track if scroll hint animation is currently running
 const SCROLL_THRESHOLD = 3000; // Threshold for full collapse (3x slower: requires ~3 scroll gestures to complete collapse)
 
 // Initialize columns
 document.addEventListener('DOMContentLoaded', () => {
-    // Verify p5.js is loaded globally
-    if (typeof window.p5 === 'undefined') {
-        console.error('p5.js is not loaded globally. Make sure p5.js is included before script.js');
-    }
-    
     const leftColumn = document.querySelector('.left-column');
     const rightColumn = document.querySelector('.right-column');
     
@@ -95,8 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Number + Number circle visibility
     updateNumberNumberCircle(initialPageId);
     
-    // Initialize Shape + Color circle visibility
-    updateShapeColorCircle(initialPageId);
+    // Initialize Shape + Color canvas (drag shapes with colored gradient trails)
+    initializeShapeColorCanvas();
+    
+    // Initialize Shape + Color canvas visibility
+    updateShapeColorCanvasVisibility(initialPageId);
     
     // Initialize MELODY circle visibility (Sound + Letter page)
     updateMelodyCircle(initialPageId);
@@ -116,31 +116,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Number + Emotion digits visibility
     updateNumberEmotionDigits(initialPageId);
     
-    // Initialize Shape & Emotion canvas visibility
-    updateShapeEmotionCanvasVisibility(initialPageId);
+    // Initialize Shape + Shape canvas visibility (ellipses interaction)
+    updateShapeShapeCanvasVisibility(initialPageId);
     
     // Initialize Shape & Number canvas (not using p5.js)
     initializeShapeNumberCanvas();
     
-    // Initialize Shape & Emotion canvas (not using p5.js)
-    initializeShapeEmotionCanvas();
+    // Initialize Sound & Shape canvas (not using p5.js)
+    initializeSoundShapeCanvas();
     
-    // Initialize p5.js sketch
-    initializeP5Sketch();
+    // Initialize Sound & Shape visibility
+    updateSoundShapeCanvasVisibility(initialPageId);
     
-    // Set initial pageId in p5 instance after it's created
-    // Use a small delay to ensure p5 instance is ready
-    setTimeout(() => {
-        if (p5Instance) {
-            p5Instance._currentPageId = initialPageId;
-        }
-    }, 200);
+    // Initialize Sound + Emotion smiley visibility
+    updateSoundEmotionVisibility(initialPageId);
     
     // Initialize SYN logo hover effect
     initializeSynHoverEffect();
     
     // Initialize color key click effect
     initializeColorKeyClickEffect();
+    
+    // Initialize INDEX hover effect (shows white overlay on canvas)
+    initializeIndexHoverEffect();
     
     // Initialize per-line text highlights
     initializePerLineHighlights();
@@ -180,6 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize canvas text box resize and font load handlers
     initializeCanvasTextBoxHandlers();
+    
+    // Initialize index quote previews
+    initializeIndexQuotePreviews();
 });
 
 // Initialize resize and font load handlers for canvas text box
@@ -202,6 +203,27 @@ function initializeCanvasTextBoxHandlers() {
             }, 100);
         });
     }
+}
+
+// Initialize index quote previews - populate each index item with a truncated quote
+function initializeIndexQuotePreviews() {
+    const indexItems = document.querySelectorAll('.index-item');
+    
+    indexItems.forEach(item => {
+        const leftIndex = item.dataset.left;
+        const rightIndex = item.dataset.right;
+        const pageId = `${leftIndex}-${rightIndex}`;
+        
+        // Get the quote text for this page
+        const quoteText = canvasTextBoxContent[pageId] || '';
+        
+        // Find the quote span element
+        const quoteSpan = item.querySelector('.index-item-quote');
+        if (quoteSpan && quoteText) {
+            // Set the full quote text - CSS will handle truncation with ellipsis
+            quoteSpan.textContent = quoteText;
+        }
+    });
 }
 
 function initializeColumn(column, side) {
@@ -670,12 +692,14 @@ function initializeColumn(column, side) {
     }, { passive: true });
 }
 
-// Prevent page scrolling with mouse wheel when not over a column
+// Prevent page scrolling with mouse wheel when not over a column or index overlay
 document.addEventListener('wheel', (e) => {
     const target = e.target;
     const isInColumn = target.closest('.column-container');
+    const isInIndexOverlay = target.closest('.index-page-overlay');
     
-    if (!isInColumn) {
+    // Allow scrolling on columns and on the visible index overlay
+    if (!isInColumn && !isInIndexOverlay) {
         e.preventDefault();
     }
 }, { passive: false });
@@ -781,29 +805,33 @@ const canvasTextBoxContent = {
     '1-2': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
     '2-1': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
     
-    // 15. Emotion + Number (רגש + ספרות) - emotion=4, number=3
+    // 15. Sound + Number (סאונד + ספרה) - sound=1, number=3
+    '1-3': '"For me, the world of sounds is a world of visual mathematics. When I hear a drum beat, I see a sequence of numbers flashing to the rhythm of the music. Every sound has a numerical \'value\'- sharp, high-pitched sounds feel like the numbers 1 or 4, while deeper sounds look like larger, rounder numbers like 8 or 0. When I listen to a song, every musical note is immediately translated into a different digit."',
+    '3-1': '"For me, the world of sounds is a world of visual mathematics. When I hear a drum beat, I see a sequence of numbers flashing to the rhythm of the music. Every sound has a numerical \'value\'- sharp, high-pitched sounds feel like the numbers 1 or 4, while deeper sounds look like larger, rounder numbers like 8 or 0. When I listen to a song, every musical note is immediately translated into a different digit."',
+    
+    // 16. Emotion + Number (רגש + ספרות) - emotion=4, number=3
     '4-3': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row."',
     
     // ==================
     // SAME-TYPE PAGES (Definition Texts)
     // ==================
     
-    // 16. Shape + Shape (צורה + צורה) - shape=0, shape=0
+    // 17. Shape + Shape (צורה + צורה) - shape=0, shape=0
     '0-0': 'Shape is the external appearance or outline of an object, defining the boundary with its surroundings. It focuses on geometric structures like circles or squares, regardless of color or material. This "silhouette" allows our eyes to identify and distinguish different objects in space. Categorizing these outlines helps us effectively organize and interpret the physical world.',
     
-    // 17. Sound + Sound (סאונד + סאונד) - sound=1, sound=1
+    // 18. Sound + Sound (סאונד + סאונד) - sound=1, sound=1
     '1-1': 'Sound is a physical vibration traveling as a wave through matter until reaching the ear. The brain translates these waves into hearing, allowing us to perceive voices and noises. Characterized by varying frequencies, it is a fundamental element of communication and environmental awareness. This sensory input enables music, conversation, and alertness to changes in our surroundings.',
     
-    // 18. Letter + Letter (אות + אות) - letter=2, letter=2
+    // 19. Letter + Letter (אות + אות) - letter=2, letter=2
     '2-2': 'A letter is a graphic symbol serving as the basic building block of writing and language. It represents specific speech sounds, translating spoken language into a visual form. Combinations of letters create words and sentences for conveying information and knowledge. Through standardized symbols, humans record history and communicate across vast distances and time.',
     
-    // 19. Number + Number (ספרה + ספרה) - number=3, number=3
+    // 20. Number + Number (ספרה + ספרה) - number=3, number=3
     '3-3': 'A number is an abstract concept describing quantity, measurement, counting, or position within a series. Digits are specific symbols representing these values visually. As a fundamental tool in logic and mathematics, numbers help organize data and perform calculations. Beyond counting, numerical systems provide the framework for scientific discovery and modern global infrastructure.',
     
-    // 20. Emotion + Emotion (רגש + רגש) - emotion=4, emotion=4
+    // 21. Emotion + Emotion (רגש + רגש) - emotion=4, emotion=4
     '4-4': 'Emotion is an internal reaction triggered by thoughts, events, or social interactions. Expressed through subjective feelings like joy or fear, it is often accompanied by physiological changes. Emotions help us evaluate situations, make decisions, and respond to our world. While personal, these states are expressed through facial and body language, fostering empathy and connection.',
     
-    // 21. Color + Color (צבע + צבע) - color=5, color=5
+    // 22. Color + Color (צבע + צבע) - color=5, color=5
     '5-5': 'Color is a visual experience where the brain interprets how objects reflect or emit light. The human eye detects electromagnetic wavelengths, translating them into the visible hues we see. This element helps us distinguish details, identify objects, and provide aesthetic meaning. Cultural and biological factors influence perception, attaching symbolic meanings like danger or peace to specific shades.'
 };
 
@@ -1709,18 +1737,8 @@ function updateSoundShapeInstructionText(pageId) {
     const instructionText = document.getElementById('canvas-instruction-text');
     if (!instructionText) return;
     
-    // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
-    // Check for SHAPE & COLOR pages (pageId "0-5" or "5-0")
-    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
-    
-    if (isShapeColorPage) {
-        // Show instruction text for SHAPE & COLOR pages
-        instructionText.textContent = '[click to create shapes]';
-        instructionText.classList.add('visible');
-    } else {
-        // Hide instruction text for all other pages
-        instructionText.classList.remove('visible');
-    }
+    // Always hide instruction text (removed for SHAPE & COLOR pages)
+    instructionText.classList.remove('visible');
 }
 
 // ==================
@@ -2678,6 +2696,7 @@ const DIGIT7_ANIMATION_INTERVAL = 3000; // 3 seconds between animations
 // Function to update Number + Emotion digits visibility
 function updateNumberEmotionDigits(pageId) {
     const digitsContainer = document.getElementById('number-emotion-digits-container');
+    const linesSvg = document.getElementById('number-emotion-lines-svg');
     if (!digitsContainer) return;
     
     // Show digits only for Number + Emotion pages (pageId "3-4" or "4-3")
@@ -2686,6 +2705,7 @@ function updateNumberEmotionDigits(pageId) {
     
     if (isNumberEmotionPage) {
         digitsContainer.classList.add('visible');
+        if (linesSvg) linesSvg.classList.remove('hidden');
         // Initialize drag functionality when page becomes visible
         requestAnimationFrame(() => {
             initializeNumberEmotionDrag();
@@ -2694,8 +2714,328 @@ function updateNumberEmotionDigits(pageId) {
         });
     } else {
         digitsContainer.classList.remove('visible');
+        if (linesSvg) linesSvg.classList.add('hidden');
         // Reset positions when leaving the page
         resetNumberEmotionPositions();
+    }
+}
+
+// ==================
+// LETTER + EMOTION GRID
+// ==================
+// Draggable 3x5 grid with letters in each cell
+
+// State variables for Letter + Emotion grid
+let letterEmotionGridContainer = null;
+let letterEmotionCells = [];
+let letterEmotionDividersH = []; // Horizontal dividers (3)
+let letterEmotionDividersV = []; // Vertical dividers (4)
+// Asymmetric default layout matching the design
+let letterEmotionRowHeights = [28, 12, 45, 15]; // WORDS medium, CARRY compressed, FEELS tall, empty small
+let letterEmotionColWidths = [10, 35, 15, 25, 15]; // O/A/E column wide, others narrower
+const LETTER_EMOTION_MIN_SIZE = 5; // Minimum percentage for row/column
+
+// Drag state for grid dividers
+let letterEmotionIsDragging = false;
+let letterEmotionDragType = null; // 'h' for horizontal, 'v' for vertical
+let letterEmotionDragIndex = -1;
+let letterEmotionDragStartPos = 0;
+let letterEmotionGridInitialized = false;
+
+// Function to update Letter + Emotion grid visibility
+function updateLetterEmotionGrid(pageId) {
+    const gridContainer = document.getElementById('letter-emotion-grid-container');
+    if (!gridContainer) return;
+    
+    // Show grid only for Letter + Emotion pages (pageId "2-4" or "4-2")
+    // Parameter indices: 2=letter, 4=emotion
+    const isLetterEmotionPage = pageId === '2-4' || pageId === '4-2';
+    
+    if (isLetterEmotionPage) {
+        gridContainer.classList.remove('hidden');
+        // Initialize grid when page becomes visible
+        requestAnimationFrame(() => {
+            initializeLetterEmotionGrid();
+        });
+    } else {
+        gridContainer.classList.add('hidden');
+    }
+}
+
+// Initialize Letter + Emotion grid
+function initializeLetterEmotionGrid() {
+    letterEmotionGridContainer = document.getElementById('letter-emotion-grid-container');
+    if (!letterEmotionGridContainer) return;
+    
+    // Get all cells and dividers
+    letterEmotionCells = Array.from(letterEmotionGridContainer.querySelectorAll('.letter-emotion-cell'));
+    letterEmotionDividersH = Array.from(letterEmotionGridContainer.querySelectorAll('.letter-emotion-divider-h'));
+    letterEmotionDividersV = Array.from(letterEmotionGridContainer.querySelectorAll('.letter-emotion-divider-v'));
+    
+    // Reset to asymmetric initial sizes matching the design (3 rows only)
+    letterEmotionRowHeights = [28, 12, 60]; // WORDS medium, CARRY compressed, FEELS tall
+    letterEmotionColWidths = [10, 35, 15, 25, 15]; // O/A/E column wide, others narrower
+    
+    // Apply initial layout
+    updateLetterEmotionGridLayout();
+    
+    // Only add event listeners once
+    if (letterEmotionGridInitialized) return;
+    letterEmotionGridInitialized = true;
+    
+    // Add mouse event listeners for dividers
+    letterEmotionDividersH.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => handleLetterEmotionDividerMouseDown(e, 'h', index));
+    });
+    
+    letterEmotionDividersV.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => handleLetterEmotionDividerMouseDown(e, 'v', index));
+    });
+    
+    // Add document-level mouse move and up handlers
+    document.addEventListener('mousemove', handleLetterEmotionDividerMouseMove);
+    document.addEventListener('mouseup', handleLetterEmotionDividerMouseUp);
+    
+    // Add touch event listeners for dividers
+    letterEmotionDividersH.forEach((divider, index) => {
+        divider.addEventListener('touchstart', (e) => handleLetterEmotionDividerTouchStart(e, 'h', index), { passive: false });
+    });
+    
+    letterEmotionDividersV.forEach((divider, index) => {
+        divider.addEventListener('touchstart', (e) => handleLetterEmotionDividerTouchStart(e, 'v', index), { passive: false });
+    });
+    
+    document.addEventListener('touchmove', handleLetterEmotionDividerTouchMove, { passive: false });
+    document.addEventListener('touchend', handleLetterEmotionDividerTouchEnd);
+}
+
+// Update the visual layout of the grid based on current row heights and column widths
+function updateLetterEmotionGridLayout() {
+    if (!letterEmotionGridContainer) return;
+    
+    const containerRect = letterEmotionGridContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calculate cumulative positions for rows
+    let rowPositions = [0]; // Start positions for each row
+    for (let i = 0; i < letterEmotionRowHeights.length; i++) {
+        rowPositions.push(rowPositions[i] + letterEmotionRowHeights[i]);
+    }
+    
+    // Calculate cumulative positions for columns
+    let colPositions = [0]; // Start positions for each column
+    for (let i = 0; i < letterEmotionColWidths.length; i++) {
+        colPositions.push(colPositions[i] + letterEmotionColWidths[i]);
+    }
+    
+    // Position each cell
+    letterEmotionCells.forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        
+        const top = (rowPositions[row] / 100) * containerHeight;
+        const left = (colPositions[col] / 100) * containerWidth;
+        const height = (letterEmotionRowHeights[row] / 100) * containerHeight;
+        const width = (letterEmotionColWidths[col] / 100) * containerWidth;
+        
+        cell.style.top = `${top}px`;
+        cell.style.left = `${left}px`;
+        cell.style.height = `${height}px`;
+        cell.style.width = `${width}px`;
+    });
+    
+    // Position horizontal dividers (between rows)
+    letterEmotionDividersH.forEach((divider, index) => {
+        const top = (rowPositions[index + 1] / 100) * containerHeight - 1; // Center the 2px line
+        divider.style.top = `${top}px`;
+    });
+    
+    // Position vertical dividers (between columns)
+    letterEmotionDividersV.forEach((divider, index) => {
+        const left = (colPositions[index + 1] / 100) * containerWidth - 1; // Center the 2px line
+        divider.style.left = `${left}px`;
+    });
+}
+
+// Mouse down handler for dividers
+function handleLetterEmotionDividerMouseDown(e, type, index) {
+    e.preventDefault();
+    
+    letterEmotionIsDragging = true;
+    letterEmotionDragType = type;
+    letterEmotionDragIndex = index;
+    letterEmotionDragStartPos = type === 'h' ? e.clientY : e.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' ? letterEmotionDividersH[index] : letterEmotionDividersV[index];
+    divider.classList.add('active');
+    letterEmotionGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+}
+
+// Mouse move handler for dividers
+function handleLetterEmotionDividerMouseMove(e) {
+    if (!letterEmotionIsDragging) return;
+    
+    e.preventDefault();
+    
+    const containerRect = letterEmotionGridContainer.getBoundingClientRect();
+    
+    if (letterEmotionDragType === 'h') {
+        // Horizontal divider - affects row heights
+        const deltaY = e.clientY - letterEmotionDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeLetterEmotionRows(letterEmotionDragIndex, deltaPercent);
+        letterEmotionDragStartPos = e.clientY;
+    } else {
+        // Vertical divider - affects column widths
+        const deltaX = e.clientX - letterEmotionDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeLetterEmotionColumns(letterEmotionDragIndex, deltaPercent);
+        letterEmotionDragStartPos = e.clientX;
+    }
+    
+    updateLetterEmotionGridLayout();
+}
+
+// Mouse up handler for dividers
+function handleLetterEmotionDividerMouseUp(e) {
+    if (!letterEmotionIsDragging) return;
+    
+    // Remove visual feedback
+    const divider = letterEmotionDragType === 'h' 
+        ? letterEmotionDividersH[letterEmotionDragIndex] 
+        : letterEmotionDividersV[letterEmotionDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    letterEmotionGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    letterEmotionIsDragging = false;
+    letterEmotionDragType = null;
+    letterEmotionDragIndex = -1;
+}
+
+// Touch start handler for dividers
+function handleLetterEmotionDividerTouchStart(e, type, index) {
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    letterEmotionIsDragging = true;
+    letterEmotionDragType = type;
+    letterEmotionDragIndex = index;
+    letterEmotionDragStartPos = type === 'h' ? touch.clientY : touch.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' ? letterEmotionDividersH[index] : letterEmotionDividersV[index];
+    divider.classList.add('active');
+    letterEmotionGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+}
+
+// Touch move handler for dividers
+function handleLetterEmotionDividerTouchMove(e) {
+    if (!letterEmotionIsDragging) return;
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const containerRect = letterEmotionGridContainer.getBoundingClientRect();
+    
+    if (letterEmotionDragType === 'h') {
+        const deltaY = touch.clientY - letterEmotionDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeLetterEmotionRows(letterEmotionDragIndex, deltaPercent);
+        letterEmotionDragStartPos = touch.clientY;
+    } else {
+        const deltaX = touch.clientX - letterEmotionDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeLetterEmotionColumns(letterEmotionDragIndex, deltaPercent);
+        letterEmotionDragStartPos = touch.clientX;
+    }
+    
+    updateLetterEmotionGridLayout();
+}
+
+// Touch end handler for dividers
+function handleLetterEmotionDividerTouchEnd(e) {
+    if (!letterEmotionIsDragging) return;
+    
+    // Remove visual feedback
+    const divider = letterEmotionDragType === 'h' 
+        ? letterEmotionDividersH[letterEmotionDragIndex] 
+        : letterEmotionDividersV[letterEmotionDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    letterEmotionGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    letterEmotionIsDragging = false;
+    letterEmotionDragType = null;
+    letterEmotionDragIndex = -1;
+}
+
+// Resize adjacent rows (accordion style)
+function resizeLetterEmotionRows(dividerIndex, deltaPercent) {
+    // Divider at index i is between row i and row i+1
+    const topRowIndex = dividerIndex;
+    const bottomRowIndex = dividerIndex + 1;
+    
+    // Calculate new heights
+    let newTopHeight = letterEmotionRowHeights[topRowIndex] + deltaPercent;
+    let newBottomHeight = letterEmotionRowHeights[bottomRowIndex] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newTopHeight < LETTER_EMOTION_MIN_SIZE) {
+        const adjustment = LETTER_EMOTION_MIN_SIZE - newTopHeight;
+        newTopHeight = LETTER_EMOTION_MIN_SIZE;
+        newBottomHeight -= adjustment;
+    }
+    
+    if (newBottomHeight < LETTER_EMOTION_MIN_SIZE) {
+        const adjustment = LETTER_EMOTION_MIN_SIZE - newBottomHeight;
+        newBottomHeight = LETTER_EMOTION_MIN_SIZE;
+        newTopHeight -= adjustment;
+    }
+    
+    // Final clamp
+    if (newTopHeight >= LETTER_EMOTION_MIN_SIZE && newBottomHeight >= LETTER_EMOTION_MIN_SIZE) {
+        letterEmotionRowHeights[topRowIndex] = newTopHeight;
+        letterEmotionRowHeights[bottomRowIndex] = newBottomHeight;
+    }
+}
+
+// Resize adjacent columns (accordion style)
+function resizeLetterEmotionColumns(dividerIndex, deltaPercent) {
+    // Divider at index i is between column i and column i+1
+    const leftColIndex = dividerIndex;
+    const rightColIndex = dividerIndex + 1;
+    
+    // Calculate new widths
+    let newLeftWidth = letterEmotionColWidths[leftColIndex] + deltaPercent;
+    let newRightWidth = letterEmotionColWidths[rightColIndex] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newLeftWidth < LETTER_EMOTION_MIN_SIZE) {
+        const adjustment = LETTER_EMOTION_MIN_SIZE - newLeftWidth;
+        newLeftWidth = LETTER_EMOTION_MIN_SIZE;
+        newRightWidth -= adjustment;
+    }
+    
+    if (newRightWidth < LETTER_EMOTION_MIN_SIZE) {
+        const adjustment = LETTER_EMOTION_MIN_SIZE - newRightWidth;
+        newRightWidth = LETTER_EMOTION_MIN_SIZE;
+        newLeftWidth -= adjustment;
+    }
+    
+    // Final clamp
+    if (newLeftWidth >= LETTER_EMOTION_MIN_SIZE && newRightWidth >= LETTER_EMOTION_MIN_SIZE) {
+        letterEmotionColWidths[leftColIndex] = newLeftWidth;
+        letterEmotionColWidths[rightColIndex] = newRightWidth;
     }
 }
 
@@ -2716,6 +3056,72 @@ function updateNumberEmotionDigitPosition(digit, index) {
     
     const pos = numberEmotionDigitPositions[index];
     digit.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+    
+    // Update the line connecting this digit to center
+    updateNumberEmotionLine(digit, index);
+}
+
+// Update the SVG line connecting center to a specific digit
+function updateNumberEmotionLine(digitElement, index) {
+    const line = document.getElementById(`number-emotion-line-${index}`);
+    if (!line) return;
+    
+    // Get canvas container for center calculation and coordinate reference
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!canvasContainer) return;
+    
+    const canvasRect = canvasContainer.getBoundingClientRect();
+    
+    // Center of canvas (relative to canvas container since SVG is positioned absolutely within it)
+    const centerX = canvasRect.width / 2;
+    const centerY = canvasRect.height / 2;
+    
+    // Get digit center (screen coordinates)
+    const digitRect = digitElement.getBoundingClientRect();
+    const digitCenterX = digitRect.left + digitRect.width / 2;
+    const digitCenterY = digitRect.top + digitRect.height / 2;
+    
+    // Convert digit position to canvas-container relative coordinates
+    const digitRelativeX = digitCenterX - canvasRect.left;
+    const digitRelativeY = digitCenterY - canvasRect.top;
+    
+    // Calculate end point - shorten only for digit 4 (index 3)
+    let endX = digitRelativeX;
+    let endY = digitRelativeY;
+    
+    if (index === 3) {
+        // Only shorten the line for digit 4
+        const dx = digitRelativeX - centerX;
+        const dy = digitRelativeY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Shorten by 38% of digit width
+        const shortenAmount = digitRect.width * 0.38;
+        
+        if (distance > shortenAmount) {
+            const normX = dx / distance;
+            const normY = dy / distance;
+            endX = digitRelativeX - normX * shortenAmount;
+            endY = digitRelativeY - normY * shortenAmount;
+        }
+    }
+    
+    // Set line coordinates (relative to canvas-container)
+    line.setAttribute('x1', centerX);
+    line.setAttribute('y1', centerY);
+    line.setAttribute('x2', endX);
+    line.setAttribute('y2', endY);
+}
+
+// Update all number-emotion lines
+function updateAllNumberEmotionLines() {
+    const container = document.getElementById('number-emotion-digits-container');
+    if (!container) return;
+    
+    const digits = container.querySelectorAll('.number-emotion-digit');
+    digits.forEach((digit, index) => {
+        updateNumberEmotionLine(digit, index);
+    });
 }
 
 // Initialize drag functionality for Number + Emotion digits
@@ -2734,6 +3140,11 @@ function initializeNumberEmotionDrag() {
     // Apply initial positions
     digits.forEach((digit, index) => {
         updateNumberEmotionDigitPosition(digit, index);
+    });
+    
+    // Update lines after a short delay to ensure DOM is ready
+    requestAnimationFrame(() => {
+        updateAllNumberEmotionLines();
     });
     
     // Only add event listeners once
@@ -2987,6 +3398,8 @@ function triggerDigit7Animation() {
         if (numberEmotionDigitPositions && numberEmotionDigitPositions[4]) {
             digit7.style.transform = `translate(${numberEmotionDigitPositions[4].x}px, ${numberEmotionDigitPositions[4].y}px)`;
         }
+        // Update line after animation ends
+        updateNumberEmotionLine(digit7, 4);
     }, 1000);
 }
 
@@ -3016,6 +3429,9 @@ function updateNumberEmotionBehaviors() {
     
     // Update digit 3 bouncing behavior (applies the transform with bounce offset)
     updateDigit3Bouncing(digits);
+    
+    // Update all lines to stay connected to digits
+    updateAllNumberEmotionLines();
     
     // Continue the loop
     numberEmotionAnimationId = requestAnimationFrame(updateNumberEmotionBehaviors);
@@ -3249,6 +3665,9 @@ function updateDigit3Bouncing(digits) {
     // Apply the transform with both the stored position and the bounce offset
     const pos = numberEmotionDigitPositions[digit3Index];
     digit3.style.transform = `translate(${pos.x}px, ${pos.y + bounceOffset}px)`;
+    
+    // Update the line for digit 3 after bounce
+    updateNumberEmotionLine(digit3, digit3Index);
 }
 
 // Digit 4 Repulsion: grows to 2x and keeps digit 3 at minimum distance
@@ -3331,6 +3750,19 @@ function updateDigit4Repulsion(digits) {
         pos3.y = Math.max(maxTop, Math.min(maxBottom, pos3.y));
     }
 }
+
+// Recalculate Number + Emotion lines on window resize
+let numberEmotionResizeTimeout = null;
+window.addEventListener('resize', () => {
+    if (numberEmotionResizeTimeout) clearTimeout(numberEmotionResizeTimeout);
+    numberEmotionResizeTimeout = setTimeout(() => {
+        // Only update if digits container is visible
+        const container = document.getElementById('number-emotion-digits-container');
+        if (container && container.classList.contains('visible')) {
+            updateAllNumberEmotionLines();
+        }
+    }, 150);
+});
 
 // ==================
 // SOUND + COLOR Squares State
@@ -4453,631 +4885,880 @@ window.addEventListener('resize', () => {
     }, 150);
 });
 
-// State for Shape + Color page click interaction
-let shapeColorClickHandler = null;
-let previousCirclePosition = null; // Store position of previous circle for line drawing
-let shapeColorSequence = []; // Array לשמירת סדר הצורות שנוצרו
-let shapeColorAnimationInterval = null; // Reference לאנימציית הלופ
-let currentAnimationIndex = 0; // Index של הצורה הנוכחית באנימציה
-let lastShapeType = null; // Track the last shape type to prevent duplicates
-let shapeDistribution = { // Track distribution of each shape type for uniform selection
-    'circle': 0,
-    'square': 0,
-    'ellipse': 0,
-    'triangle': 0,
-    'pentagon': 0,
-    'star': 0
+// ==================
+// SHAPE + COLOR CANVAS (drag colored shapes to create gradient trails)
+// ==================
+// Shape + Color canvas implementation - colored shapes with gradient trails
+
+// State variables for Shape + Color canvas
+let shapeColorContainer = null;
+let shapeColorDrawCanvas = null;
+let shapeColorDrawCtx = null;
+let shapeColorBrushCanvas = null;
+let shapeColorBrushCtx = null;
+let shapeColorPlayBtn = null;
+let shapeColorResetBtn = null;
+let shapeColorExportBtn = null;
+let shapeColorResizeObserver = null;
+let shapeColorAnimationId = null;
+
+// Config
+const SHAPE_COLOR_SIZE = 40;        // Size of draggable shapes
+const SHAPE_COLOR_STAMP_SIZE = 40;  // Size of stamps (trail)
+const SHAPE_COLOR_STEP_DIST = 8;    // Distance between stamps (smaller = denser trail)
+const SHAPE_COLOR_STROKE_W = 3;     // Stroke weight
+const SHAPE_COLOR_EASING = 0.4;     // Smoothing factor (higher = follows mouse faster)
+const SHAPE_COLOR_SPACING = 70;     // Vertical spacing between shapes
+const SHAPE_COLOR_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
+
+// Colors for each shape type
+const SHAPE_COLOR_COLORS = {
+    0: '#293990', // circle - blue
+    1: '#EF4538', // square - orange
+    2: '#FAB01B', // triangle - yellow
+    3: '#007A6F', // ellipse - green
+    4: '#891951', // star - purple
+    5: '#EB4781'  // pentagon - pink
 };
 
-// Function to get or create SVG element for drawing lines
-function getShapeColorLinesSVG(container) {
-    let svg = container.querySelector('.shape-color-lines-svg');
-    if (!svg) {
-        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.className = 'shape-color-lines-svg';
-        svg.style.position = 'absolute';
-        svg.style.top = '0';
-        svg.style.left = '0';
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        svg.style.pointerEvents = 'none';
-        svg.style.zIndex = '1'; // Below circles (which are at z-index: 2)
-        container.insertBefore(svg, container.firstChild); // Insert before circles
-    }
-    return svg;
-}
+// Background color
+const SHAPE_COLOR_BG_COLOR = '#FFFFFF';
 
-// Function to get original color for a shape type
-function getShapeOriginalColor(shapeType) {
-    switch(shapeType) {
-        case 'circle':
-            return 'linear-gradient(135deg, #1e3a8a 0%, #0ea5e9 100%)'; // Deep blue to cyan gradient
-        case 'square':
-            return '#EF4538'; // Orange color
-        case 'ellipse':
-            return 'linear-gradient(135deg, #891951 0%, #EB4781 100%)'; // Purple to pink gradient
-        case 'triangle':
-            return '#FAB01B'; // Yellow color
-        case 'pentagon':
-            // Return gradient ID pattern - will be replaced with actual gradient ID
-            return 'pentagon-gradient';
-        case 'star':
-            // Return gradient ID pattern - will be replaced with actual gradient ID
-            return 'star-gradient';
-        default:
-            return '#ffffff'; // White as fallback
-    }
-}
+// State
+let shapeColorPositions = [];       // { x, y, shapeType }
+let shapeColorDraggedIndex = -1;    // -1 means no shape is being dragged
+let shapeColorDragOffsetX = 0;
+let shapeColorDragOffsetY = 0;
+let shapeColorRecordedPoints = [];  // { x, y, shape, color } for playback
+let shapeColorIsReplaying = false;
+let shapeColorReplayIndex = 0;
+let shapeColorActive = false;       // Whether the canvas is active
 
-// Function to apply color to a shape element (ensuring no transparency)
-function applyShapeColor(shapeEntry, color) {
-    const { element, type } = shapeEntry;
+// State storage for persistence across page switches
+let shapeColorStateStorage = {};
+
+// Function to convert hex color to HSL
+function hexToHSL(hex) {
+    // Remove # if present
+    hex = hex.replace(/^#/, '');
     
-    if (type === 'circle' || type === 'square' || type === 'ellipse') {
-        // CSS shapes - change background (ensure no transparency, instant change)
-        // No transition needed - instant color change
-        if (color.startsWith('linear-gradient')) {
-            element.style.background = color;
-            element.style.backgroundColor = 'transparent'; // Allow gradient to show
-        } else {
-            element.style.backgroundColor = color;
-            element.style.background = color; // Also set background for consistency
-            element.style.backgroundImage = 'none'; // Remove any gradient
-        }
-    } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
-        // SVG shapes - change fill attribute (ensure no transparency, instant change)
-        const path = element.querySelector('svg path');
-        if (path) {
-            // No transition needed - instant color change
-            path.setAttribute('fill', color);
-            path.style.fill = color; // Also set via style for consistency
+    // Parse hex to RGB
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    
+    if (max === min) {
+        h = s = 0; // achromatic
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+            case g: h = ((b - r) / d + 2) / 6; break;
+            case b: h = ((r - g) / d + 4) / 6; break;
         }
     }
+    
+    return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
-// Function to reset all shapes to white (ensuring no transparency, instant reset)
-function resetAllShapesToWhite() {
-    shapeColorSequence.forEach(shapeEntry => {
-        const { element, type } = shapeEntry;
+// Function to convert HSL to hex color
+function hslToHex(h, s, l) {
+    h = h / 360;
+    s = s / 100;
+    l = l / 100;
+    
+    let r, g, b;
+    
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
         
-        if (type === 'circle' || type === 'square' || type === 'ellipse') {
-            // Disable transition temporarily for instant reset
-            element.style.transition = 'none'; // No transition for reset
-            
-            // Ensure both background and backgroundColor are set to white (no transparency)
-            element.style.background = '#ffffff';
-            element.style.backgroundColor = '#ffffff';
-            element.style.backgroundImage = 'none'; // Remove any gradient
-            
-            // Restore transition after a brief moment (for next color application)
-            setTimeout(() => {
-                element.style.transition = '';
-            }, 10);
-        } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
-            const path = element.querySelector('svg path');
-            if (path) {
-                // Disable transition temporarily for instant reset
-                path.style.transition = 'none'; // No transition for reset
-                
-                // Set fill to white, ensuring it's not transparent
-                path.setAttribute('fill', '#ffffff');
-                path.style.fill = '#ffffff'; // Also set via style for consistency
-                
-                // Restore transition after a brief moment (for next color application)
-                setTimeout(() => {
-                    path.style.transition = '';
-                }, 10);
-            }
-        }
-    });
-}
-
-// Function to start shape color animation loop
-function startShapeColorAnimation() {
-    // Stop existing animation if running
-    if (shapeColorAnimationInterval) {
-        clearInterval(shapeColorAnimationInterval);
-        shapeColorAnimationInterval = null;
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
     }
     
-    // Don't start if no shapes
-    if (shapeColorSequence.length === 0) {
+    const toHex = x => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    };
+    
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
+// Function to get a random shade variation of a color
+function getRandomShadeColor(baseColor) {
+    const hsl = hexToHSL(baseColor);
+    
+    // Vary lightness by -20% to +20%
+    const lightnessVariation = (Math.random() - 0.5) * 40;
+    let newLightness = hsl.l + lightnessVariation;
+    
+    // Clamp lightness to valid range (10-90 to avoid pure black/white)
+    newLightness = Math.max(10, Math.min(90, newLightness));
+    
+    // Also slightly vary saturation for more natural feel
+    const saturationVariation = (Math.random() - 0.5) * 20;
+    let newSaturation = hsl.s + saturationVariation;
+    newSaturation = Math.max(20, Math.min(100, newSaturation));
+    
+    return hslToHex(hsl.h, newSaturation, newLightness);
+}
+
+// Initialize Shape + Color canvas
+function initializeShapeColorCanvas() {
+    shapeColorContainer = document.getElementById('shape-color-container');
+    if (!shapeColorContainer) {
+        console.error('Shape + Color container not found');
         return;
     }
     
-    // Reset all shapes to white first (ensure all are white before starting)
-    resetAllShapesToWhite();
-    currentAnimationIndex = 0;
+    shapeColorDrawCanvas = document.getElementById('shape-color-draw-surface');
+    shapeColorBrushCanvas = document.getElementById('shape-color-brush-layer');
+    shapeColorPlayBtn = document.getElementById('shape-color-play-btn');
+    shapeColorResetBtn = document.getElementById('shape-color-reset-btn');
+    shapeColorExportBtn = document.getElementById('shape-color-export-btn');
     
-    // Start animation loop - show shapes one by one in sequence, very fast
-    // Each shape appears colored for 0.2 seconds, then returns to white
-    shapeColorAnimationInterval = setInterval(() => {
-        // Ensure we have shapes to animate
-        if (shapeColorSequence.length === 0) {
+    if (!shapeColorDrawCanvas || !shapeColorBrushCanvas) {
+        console.error('Shape + Color canvas elements not found');
+        return;
+    }
+    
+    shapeColorDrawCtx = shapeColorDrawCanvas.getContext('2d');
+    shapeColorBrushCtx = shapeColorBrushCanvas.getContext('2d');
+    
+    // Set up event listeners
+    shapeColorDrawCanvas.addEventListener('mousedown', handleShapeColorMouseDown);
+    shapeColorDrawCanvas.addEventListener('mousemove', handleShapeColorMouseMove);
+    shapeColorDrawCanvas.addEventListener('mouseup', handleShapeColorMouseUp);
+    shapeColorDrawCanvas.addEventListener('mouseleave', handleShapeColorMouseUp);
+    
+    // Touch support
+    shapeColorDrawCanvas.addEventListener('touchstart', handleShapeColorTouchStart);
+    shapeColorDrawCanvas.addEventListener('touchmove', handleShapeColorTouchMove);
+    shapeColorDrawCanvas.addEventListener('touchend', handleShapeColorTouchEnd);
+    
+    // Keyboard handler for reset
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'c' || e.key === 'C') && shapeColorActive) {
+            resetShapeColorCanvas();
+        }
+    });
+    
+    // Play button
+    if (shapeColorPlayBtn) {
+        shapeColorPlayBtn.addEventListener('click', handleShapeColorPlayClick);
+    }
+    
+    // Reset button
+    if (shapeColorResetBtn) {
+        shapeColorResetBtn.addEventListener('click', resetShapeColorCanvas);
+    }
+    
+    // Export button
+    if (shapeColorExportBtn) {
+        shapeColorExportBtn.addEventListener('click', exportShapeColorCanvas);
+    }
+    
+    // Resize handler
+    if (window.ResizeObserver) {
+        shapeColorResizeObserver = new ResizeObserver(() => {
+            resizeShapeColorCanvas();
+        });
+        shapeColorResizeObserver.observe(shapeColorContainer);
+    } else {
+        window.addEventListener('resize', resizeShapeColorCanvas);
+    }
+    
+    // Initial setup
+    resizeShapeColorCanvas();
+}
+
+// Resize canvas to match container
+function resizeShapeColorCanvas() {
+    if (!shapeColorContainer || !shapeColorDrawCanvas || !shapeColorBrushCanvas) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const containerW = containerRect.width;
+    const containerH = containerRect.height;
+    
+    if (containerW <= 0 || containerH <= 0) return;
+    
+    // Match device pixel ratio for crisp lines
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    
+    // Resize draw canvas
+    shapeColorDrawCanvas.width = Math.floor(containerW * dpr);
+    shapeColorDrawCanvas.height = Math.floor(containerH * dpr);
+    shapeColorDrawCanvas.style.width = containerW + 'px';
+    shapeColorDrawCanvas.style.height = containerH + 'px';
+    shapeColorDrawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Resize brush canvas
+    shapeColorBrushCanvas.width = Math.floor(containerW * dpr);
+    shapeColorBrushCanvas.height = Math.floor(containerH * dpr);
+    shapeColorBrushCanvas.style.width = containerW + 'px';
+    shapeColorBrushCanvas.style.height = containerH + 'px';
+    shapeColorBrushCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Initialize shape positions
+    initializeShapeColorPositions();
+    
+    // Clear and redraw
+    clearShapeColorBrushLayer();
+    renderShapeColorFrame();
+}
+
+// Initialize draggable shape positions (centered column)
+function initializeShapeColorPositions() {
+    if (!shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    shapeColorPositions = [];
+    
+    const centerX = w / 2;
+    const totalHeight = (SHAPE_COLOR_TYPES.length - 1) * SHAPE_COLOR_SPACING;
+    const startY = (h - totalHeight) / 2 - 60; // Shifted 60px up
+    
+    for (let i = 0; i < SHAPE_COLOR_TYPES.length; i++) {
+        shapeColorPositions.push({
+            x: centerX,
+            y: startY + i * SHAPE_COLOR_SPACING,
+            shapeType: i
+        });
+    }
+}
+
+// Clear the brush layer (accumulated strokes)
+function clearShapeColorBrushLayer() {
+    if (!shapeColorBrushCtx || !shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    shapeColorBrushCtx.fillStyle = SHAPE_COLOR_BG_COLOR;
+    shapeColorBrushCtx.fillRect(0, 0, w, h);
+}
+
+// Render a single frame
+function renderShapeColorFrame() {
+    if (!shapeColorDrawCtx || !shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    if (w <= 0 || h <= 0) return;
+    
+    // Clear draw canvas
+    shapeColorDrawCtx.clearRect(0, 0, w, h);
+    
+    // Draw brush layer onto draw canvas
+    shapeColorDrawCtx.drawImage(shapeColorBrushCanvas, 0, 0, w, h);
+    
+    // Draw draggable shapes on top
+    drawShapeColorDraggableShapes();
+}
+
+// Draw all draggable shapes (and their mirrors)
+function drawShapeColorDraggableShapes() {
+    if (!shapeColorDrawCtx || !shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const centerX = w / 2;
+    
+    for (let i = 0; i < shapeColorPositions.length; i++) {
+        const shape = shapeColorPositions[i];
+        const isBeingDragged = (i === shapeColorDraggedIndex);
+        const fillColor = SHAPE_COLOR_COLORS[shape.shapeType];
+        
+        // Draw shape on left side
+        drawShapeColorDraggable(shapeColorDrawCtx, shape.x, shape.y, SHAPE_COLOR_SIZE, shape.shapeType, isBeingDragged, fillColor);
+        
+        // Draw mirrored shape on right side (if not at center)
+        const mirroredX = w - shape.x;
+        if (Math.abs(shape.x - centerX) > 5) {
+            drawShapeColorDraggable(shapeColorDrawCtx, mirroredX, shape.y, SHAPE_COLOR_SIZE, shape.shapeType, isBeingDragged, fillColor);
+        }
+    }
+}
+
+// Draw a single draggable shape with color (fill only, no stroke)
+function drawShapeColorDraggable(ctx, x, y, baseSize, shapeType, isBeingDragged, fillColor) {
+    // Size multipliers for different shapes
+    const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3]; // circle, square, triangle, ellipse, star, pentagon
+    let size = baseSize * (multipliers[shapeType] || 1.0);
+    
+    if (isBeingDragged) {
+        size *= 1.1;
+    }
+    
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = fillColor;
+    
+    drawShapeColorByType(ctx, 0, 0, size, shapeType, false); // false = no stroke
+    
+    ctx.restore();
+}
+
+// Draw shape by type at origin (assumes translate already applied)
+// withStroke parameter controls whether to draw the outline (default: false for fill only)
+function drawShapeColorByType(ctx, x, y, size, shapeType, withStroke = false) {
+    ctx.beginPath();
+    
+    if (shapeType === 0) {
+        // Circle
+        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    } else if (shapeType === 1) {
+        // Square
+        ctx.rect(x - size / 2, y - size / 2, size, size);
+    } else if (shapeType === 2) {
+        // Triangle
+        const h = size * 0.9;
+        ctx.moveTo(x, y - h / 2);
+        ctx.lineTo(x - h / 2, y + h / 2);
+        ctx.lineTo(x + h / 2, y + h / 2);
+        ctx.closePath();
+    } else if (shapeType === 3) {
+        // Ellipse
+        ctx.ellipse(x, y, size * 0.75, size * 0.45, 0, 0, Math.PI * 2);
+    } else if (shapeType === 4) {
+        // Star (5-pointed)
+        for (let i = 0; i < 10; i++) {
+            const angle = (i * Math.PI) / 5 - Math.PI / 2;
+            const r = (i % 2 === 0) ? size / 2 : size / 4;
+            const px = x + Math.cos(angle) * r;
+            const py = y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    } else if (shapeType === 5) {
+        // Pentagon
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+            const px = x + Math.cos(angle) * (size / 2);
+            const py = y + Math.sin(angle) * (size / 2);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    }
+    
+    ctx.fill();
+    if (withStroke) {
+        ctx.stroke();
+    }
+}
+
+// Draw stamp on brush layer (for trails) with gradient color variation (fill only, no stroke)
+function drawShapeColorStamp(x, y, shapeType, color) {
+    if (!shapeColorBrushCtx) return;
+    
+    // Size multipliers for stamps
+    const multipliers = [1.0, 1.5, 2.0, 1.8, 1.3, 1.4]; // circle, square, triangle, ellipse, star, pentagon
+    const size = SHAPE_COLOR_STAMP_SIZE * (multipliers[shapeType] || 1.0);
+    
+    shapeColorBrushCtx.save();
+    shapeColorBrushCtx.translate(x, y);
+    shapeColorBrushCtx.fillStyle = color;
+    
+    drawShapeColorByType(shapeColorBrushCtx, 0, 0, size, shapeType, false); // false = no stroke
+    
+    shapeColorBrushCtx.restore();
+}
+
+// Stamp trail from one point to another with gradient colors
+function stampShapeColorTrail(x1, y1, x2, y2, shapeType, recordIt) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist === 0) return;
+    
+    // Use smaller step distance for smoother trails
+    const stepDist = 8;
+    const steps = Math.max(1, Math.floor(dist / stepDist));
+    
+    // Get base color for this shape type
+    const baseColor = SHAPE_COLOR_COLORS[shapeType];
+    
+    // Draw stamps along the path, including at endpoints
+    for (let i = 0; i <= steps; i++) {
+        const f = steps > 0 ? i / steps : 0;
+        const x = x1 + (x2 - x1) * f;
+        const y = y1 + (y2 - y1) * f;
+        
+        // Get random shade variation of the base color
+        const stampColor = getRandomShadeColor(baseColor);
+        
+        drawShapeColorStamp(x, y, shapeType, stampColor);
+        
+        if (recordIt) {
+            shapeColorRecordedPoints.push({ x, y, shape: shapeType, color: stampColor });
+        }
+    }
+}
+
+// Get mouse position relative to canvas
+function getShapeColorMousePos(e) {
+    const rect = shapeColorDrawCanvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+// Get touch position relative to canvas
+function getShapeColorTouchPos(e) {
+    const rect = shapeColorDrawCanvas.getBoundingClientRect();
+    const touch = e.touches[0] || e.changedTouches[0];
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+// Find shape at position
+function getShapeColorAtPosition(mx, my) {
+    const hitRadius = SHAPE_COLOR_SIZE * 0.7;
+    
+    for (let i = shapeColorPositions.length - 1; i >= 0; i--) {
+        const shape = shapeColorPositions[i];
+        const dx = mx - shape.x;
+        const dy = my - shape.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < hitRadius) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Function to hide Shape + Color instruction text
+function hideShapeColorInstructionText() {
+    const instructionText = document.getElementById('canvas-instruction-text');
+    if (!instructionText) return;
+    
+    instructionText.classList.remove('visible');
+}
+
+// Mouse event handlers
+function handleShapeColorMouseDown(e) {
+    if (!shapeColorActive) return;
+    
+    const pos = getShapeColorMousePos(e);
+    const shapeIndex = getShapeColorAtPosition(pos.x, pos.y);
+    
+    if (shapeIndex >= 0) {
+        shapeColorDraggedIndex = shapeIndex;
+        const shape = shapeColorPositions[shapeIndex];
+        shapeColorDragOffsetX = pos.x - shape.x;
+        shapeColorDragOffsetY = pos.y - shape.y;
+        
+        // Hide instruction text
+        hideShapeColorInstructionText();
+    }
+}
+
+function handleShapeColorMouseMove(e) {
+    if (!shapeColorActive || shapeColorDraggedIndex < 0) return;
+    
+    const pos = getShapeColorMousePos(e);
+    const shape = shapeColorPositions[shapeColorDraggedIndex];
+    
+    const newX = pos.x - shapeColorDragOffsetX;
+    const newY = pos.y - shapeColorDragOffsetY;
+    
+    // Apply easing
+    const targetX = shape.x + (newX - shape.x) * SHAPE_COLOR_EASING;
+    const targetY = shape.y + (newY - shape.y) * SHAPE_COLOR_EASING;
+    
+    // Calculate movement
+    const dx = targetX - shape.x;
+    const dy = targetY - shape.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 2) {
+        const containerRect = shapeColorContainer.getBoundingClientRect();
+        const w = containerRect.width;
+        
+        // Stamp trail on left side
+        stampShapeColorTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
+        
+        // Mirror stamp on right side
+        stampShapeColorTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+    }
+    
+    // Update position
+    shape.x = targetX;
+    shape.y = targetY;
+    
+    // Redraw
+    renderShapeColorFrame();
+}
+
+function handleShapeColorMouseUp(e) {
+    if (shapeColorDraggedIndex >= 0) {
+        // Save state after drawing
+        saveShapeColorState();
+    }
+    shapeColorDraggedIndex = -1;
+}
+
+// Touch event handlers
+function handleShapeColorTouchStart(e) {
+    e.preventDefault();
+    if (!shapeColorActive) return;
+    
+    const pos = getShapeColorTouchPos(e);
+    const shapeIndex = getShapeColorAtPosition(pos.x, pos.y);
+    
+    if (shapeIndex >= 0) {
+        shapeColorDraggedIndex = shapeIndex;
+        const shape = shapeColorPositions[shapeIndex];
+        shapeColorDragOffsetX = pos.x - shape.x;
+        shapeColorDragOffsetY = pos.y - shape.y;
+        
+        hideShapeColorInstructionText();
+    }
+}
+
+function handleShapeColorTouchMove(e) {
+    e.preventDefault();
+    if (!shapeColorActive || shapeColorDraggedIndex < 0) return;
+    
+    const pos = getShapeColorTouchPos(e);
+    const shape = shapeColorPositions[shapeColorDraggedIndex];
+    
+    const newX = pos.x - shapeColorDragOffsetX;
+    const newY = pos.y - shapeColorDragOffsetY;
+    
+    const targetX = shape.x + (newX - shape.x) * SHAPE_COLOR_EASING;
+    const targetY = shape.y + (newY - shape.y) * SHAPE_COLOR_EASING;
+    
+    const dx = targetX - shape.x;
+    const dy = targetY - shape.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 2) {
+        const containerRect = shapeColorContainer.getBoundingClientRect();
+        const w = containerRect.width;
+        
+        stampShapeColorTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
+        stampShapeColorTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+    }
+    
+    shape.x = targetX;
+    shape.y = targetY;
+    
+    renderShapeColorFrame();
+}
+
+function handleShapeColorTouchEnd(e) {
+    e.preventDefault();
+    if (shapeColorDraggedIndex >= 0) {
+        saveShapeColorState();
+    }
+    shapeColorDraggedIndex = -1;
+}
+
+// Playback functions
+function handleShapeColorPlayClick() {
+    if (shapeColorIsReplaying) {
+        // Stop playback
+        shapeColorIsReplaying = false;
+        if (shapeColorPlayBtn) {
+            shapeColorPlayBtn.textContent = '[play]';
+        }
+        if (shapeColorAnimationId) {
+            cancelAnimationFrame(shapeColorAnimationId);
+            shapeColorAnimationId = null;
+        }
+    } else {
+        // Start playback
+        if (shapeColorRecordedPoints.length === 0) return;
+        
+        clearShapeColorBrushLayer();
+        shapeColorReplayIndex = 0;
+        shapeColorIsReplaying = true;
+        
+        if (shapeColorPlayBtn) {
+            shapeColorPlayBtn.textContent = '[stop]';
+        }
+        
+        replayShapeColorDrawing();
+    }
+}
+
+function replayShapeColorDrawing() {
+    if (!shapeColorIsReplaying || !shapeColorActive) {
+        shapeColorIsReplaying = false;
+        return;
+    }
+    
+    const pointsPerFrame = 10;
+    
+    for (let i = 0; i < pointsPerFrame; i++) {
+        const point = shapeColorRecordedPoints[shapeColorReplayIndex];
+        
+        if (!point) {
+            // Loop: restart from beginning
+            shapeColorReplayIndex = 0;
+            clearShapeColorBrushLayer();
+            shapeColorAnimationId = requestAnimationFrame(replayShapeColorDrawing);
             return;
         }
         
-        // Ensure currentAnimationIndex is within bounds (in case sequence changed)
-        if (currentAnimationIndex >= shapeColorSequence.length) {
-            currentAnimationIndex = 0;
-            resetAllShapesToWhite();
-        }
+        const containerRect = shapeColorContainer.getBoundingClientRect();
+        const w = containerRect.width;
         
-        // First, reset the previous shape to white (if we're not at the first shape or after reset)
-        if (currentAnimationIndex > 0) {
-            const previousShape = shapeColorSequence[currentAnimationIndex - 1];
-            if (previousShape) {
-                resetShapeToWhite(previousShape);
-            }
-        } else if (currentAnimationIndex === 0 && shapeColorSequence.length > 1) {
-            // If we're back at the start, reset the last shape from previous cycle
-            const lastShape = shapeColorSequence[shapeColorSequence.length - 1];
-            if (lastShape) {
-                resetShapeToWhite(lastShape);
-            }
-        }
+        // Draw stamp and its mirror (use recorded color)
+        drawShapeColorStamp(point.x, point.y, point.shape, point.color);
+        drawShapeColorStamp(w - point.x, point.y, point.shape, point.color);
         
-        // Apply color to current shape (only one shape colored at a time)
-        const currentShape = shapeColorSequence[currentAnimationIndex];
-        if (currentShape) {
-            applyShapeColor(currentShape, currentShape.originalColor);
-        }
-        
-        // Move to next shape
-        currentAnimationIndex++;
-        
-        // If we've shown all shapes, reset all and start over
-        // This uses shapeColorSequence.length dynamically, so new shapes are automatically included
-        if (currentAnimationIndex >= shapeColorSequence.length) {
-            // Reset all shapes to white before starting new cycle
-            resetAllShapesToWhite();
-            // Start from beginning
-            currentAnimationIndex = 0;
-        }
-    }, 200); // 0.2 seconds = 200ms - very fast, no delay between shapes
+        shapeColorReplayIndex++;
+    }
+    
+    renderShapeColorFrame();
+    shapeColorAnimationId = requestAnimationFrame(replayShapeColorDrawing);
 }
 
-// Helper function to reset a single shape to white (instant, no transition)
-function resetShapeToWhite(shapeEntry) {
-    const { element, type } = shapeEntry;
+// Reset canvas
+function resetShapeColorCanvas() {
+    // Clear saved state
+    const pageId = getCurrentShapeColorPageId();
+    if (pageId && shapeColorStateStorage[pageId]) {
+        delete shapeColorStateStorage[pageId];
+    }
     
-    if (type === 'circle' || type === 'square' || type === 'ellipse') {
-        // Disable transition temporarily for instant reset
-        const originalTransition = element.style.transition;
-        element.style.transition = 'none'; // No transition for reset
+    // Clear visual
+    clearShapeColorBrushLayer();
+    shapeColorRecordedPoints = [];
+    shapeColorIsReplaying = false;
+    shapeColorReplayIndex = 0;
+    shapeColorDraggedIndex = -1;
+    
+    if (shapeColorAnimationId) {
+        cancelAnimationFrame(shapeColorAnimationId);
+        shapeColorAnimationId = null;
+    }
+    
+    // Reset play button
+    if (shapeColorPlayBtn) {
+        shapeColorPlayBtn.textContent = '[play]';
+    }
+    
+    // Reinitialize shape positions
+    initializeShapeColorPositions();
+    
+    // Redraw
+    renderShapeColorFrame();
+}
+
+// Export canvas as PNG image
+function exportShapeColorCanvas() {
+    if (!shapeColorBrushCanvas || !shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    if (w <= 0 || h <= 0) return;
+    
+    // Create a temporary canvas to combine layers
+    const exportCanvas = document.createElement('canvas');
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    exportCanvas.width = Math.floor(w * dpr);
+    exportCanvas.height = Math.floor(h * dpr);
+    
+    const exportCtx = exportCanvas.getContext('2d');
+    exportCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Draw white background
+    exportCtx.fillStyle = SHAPE_COLOR_BG_COLOR;
+    exportCtx.fillRect(0, 0, w, h);
+    
+    // Draw the brush layer (accumulated strokes)
+    exportCtx.drawImage(shapeColorBrushCanvas, 0, 0, w, h);
+    
+    // Draw the draggable shapes on top (fill only, no stroke)
+    const centerX = w / 2;
+    for (let i = 0; i < shapeColorPositions.length; i++) {
+        const shape = shapeColorPositions[i];
+        const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3];
+        const size = SHAPE_COLOR_SIZE * (multipliers[shape.shapeType] || 1.0);
+        const fillColor = SHAPE_COLOR_COLORS[shape.shapeType];
         
-        // Ensure both background and backgroundColor are set to white (no transparency)
-        element.style.background = '#ffffff';
-        element.style.backgroundColor = '#ffffff';
-        element.style.backgroundImage = 'none'; // Remove any gradient
+        // Draw shape on left side
+        exportCtx.save();
+        exportCtx.translate(shape.x, shape.y);
+        exportCtx.fillStyle = fillColor;
+        drawShapeColorByType(exportCtx, 0, 0, size, shape.shapeType, false); // no stroke
+        exportCtx.restore();
         
-        // Restore transition after a brief moment (for next color application)
-        setTimeout(() => {
-            element.style.transition = originalTransition || '';
-        }, 10);
-    } else if (type === 'triangle' || type === 'pentagon' || type === 'star') {
-        const path = element.querySelector('svg path');
-        if (path) {
-            // Disable transition temporarily for instant reset
-            const originalTransition = path.style.transition;
-            path.style.transition = 'none'; // No transition for reset
-            
-            // Set fill to white, ensuring it's not transparent
-            path.setAttribute('fill', '#ffffff');
-            path.style.fill = '#ffffff'; // Also set via style for consistency
-            
-            // Restore transition after a brief moment (for next color application)
-            setTimeout(() => {
-                path.style.transition = originalTransition || '';
-            }, 10);
+        // Draw mirrored shape on right side
+        const mirroredX = w - shape.x;
+        if (Math.abs(shape.x - centerX) > 5) {
+            exportCtx.save();
+            exportCtx.translate(mirroredX, shape.y);
+            exportCtx.fillStyle = fillColor;
+            drawShapeColorByType(exportCtx, 0, 0, size, shape.shapeType, false); // no stroke
+            exportCtx.restore();
         }
+    }
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `synesthesia-shapecolor-${timestamp}.png`;
+    
+    // Create download link and trigger download
+    const dataUrl = exportCanvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+}
+
+// State persistence
+function getCurrentShapeColorPageId() {
+    // Get current page ID from selected colors
+    return `${selectedLeftIndex}-${selectedRightIndex}`;
+}
+
+function saveShapeColorState() {
+    const pageId = getCurrentShapeColorPageId();
+    if (!pageId) return;
+    
+    try {
+        // Save brush layer as image data
+        let imageData = null;
+        if (shapeColorBrushCanvas) {
+            imageData = shapeColorBrushCanvas.toDataURL('image/png');
+        }
+        
+        shapeColorStateStorage[pageId] = {
+            imageData: imageData,
+            recordedPoints: [...shapeColorRecordedPoints]
+        };
+    } catch (e) {
+        console.warn('Failed to save shape color state:', e);
     }
 }
 
-// Function to handle clicks on Shape + Color page and add circles or squares
-function handleShapeColorClick(event) {
-    const circleContainer = document.getElementById('shape-color-circle-container');
-    if (!circleContainer) return;
-    
-    // Check if click is on an element that should block interaction (UI, columns, text boxes)
-    // Use elementFromPoint to check what's actually at the click position
-    const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
-    if (elementAtPoint && (
-        elementAtPoint.closest('.ui-layer') || 
-        elementAtPoint.closest('.column-container') || 
-        elementAtPoint.closest('.canvas-text-box') ||
-        elementAtPoint.closest('.black-corner-rectangle') ||
-        elementAtPoint.closest('.black-bottom-rectangle-left') ||
-        elementAtPoint.closest('.black-bottom-rectangle-right') ||
-        elementAtPoint.closest('.black-middle-rectangle') ||
-        elementAtPoint.closest('.logo-container') ||
-        elementAtPoint.closest('.color-item'))) {
-        return; // Let the click pass through to those elements
+function restoreShapeColorState() {
+    const pageId = getCurrentShapeColorPageId();
+    if (!pageId) {
+        clearShapeColorBrushLayer();
+        shapeColorRecordedPoints = [];
+        return false;
     }
     
-    // Hide instruction text after first click on Shape + Color page
-    const instructionText = document.getElementById('canvas-instruction-text');
-    if (instructionText && instructionText.classList.contains('visible')) {
-        // Check if this is the Shape + Color instruction text
-        if (instructionText.textContent === '[click to create shapes]') {
-            instructionText.classList.remove('visible');
-        }
+    const savedState = shapeColorStateStorage[pageId];
+    if (!savedState) {
+        clearShapeColorBrushLayer();
+        shapeColorRecordedPoints = [];
+        return false;
     }
     
-    // Get click coordinates relative to the circle container
-    const rect = circleContainer.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    // Draw line from previous shape to new shape (if previous shape exists)
-    if (previousCirclePosition) {
-        const svg = getShapeColorLinesSVG(circleContainer);
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', previousCirclePosition.x);
-        line.setAttribute('y1', previousCirclePosition.y);
-        line.setAttribute('x2', x);
-        line.setAttribute('y2', y);
-        line.setAttribute('stroke', '#2C2C2C'); // Black color matching UI
-        line.setAttribute('stroke-width', '3'); // 3 pixels thick
-        svg.appendChild(line);
-    }
-    
-    // Update previous shape position for next line
-    previousCirclePosition = { x: x, y: y };
-    
-    // Array of all available shape types
-    const shapeTypes = ['circle', 'square', 'ellipse', 'triangle', 'pentagon', 'star'];
-    
-    // Filter out the last shape type to prevent consecutive duplicates
-    const availableShapes = lastShapeType 
-        ? shapeTypes.filter(shape => shape !== lastShapeType)
-        : shapeTypes;
-    
-    // Find the minimum count in distribution to maintain uniform distribution
-    const minCount = Math.min(...availableShapes.map(shape => shapeDistribution[shape]));
-    
-    // Filter to only shapes with the minimum count (to maintain uniform distribution)
-    const leastUsedShapes = availableShapes.filter(shape => shapeDistribution[shape] === minCount);
-    
-    // Randomly choose from the least used shapes
-    const randomShapeType = leastUsedShapes[Math.floor(Math.random() * leastUsedShapes.length)];
-    
-    // Update distribution counter and last shape type
-    shapeDistribution[randomShapeType]++;
-    lastShapeType = randomShapeType;
-    
-    // Create a new shape element
-    const shape = document.createElement('div');
-    shape.className = 'shape-color-' + randomShapeType;
-    shape.style.left = x + 'px';
-    shape.style.top = y + 'px';
-    shape.style.transform = 'translate(-50%, -50%)'; // Center the shape on the click point
-    
-    // Ensure CSS shapes start with white fill (not transparent)
-    if (randomShapeType === 'circle' || randomShapeType === 'square' || randomShapeType === 'ellipse') {
-        shape.style.background = '#ffffff';
-        shape.style.backgroundColor = '#ffffff';
-        shape.style.backgroundImage = 'none';
-    }
-    
-    // For complex shapes (triangle, pentagon, star), use SVG instead of clip-path for better border support
-    if (randomShapeType === 'triangle' || randomShapeType === 'pentagon' || randomShapeType === 'star') {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        // Stars are 30% smaller (70% of 135 = 94.5), triangles are 50% smaller (50% of 135 = 67.5), other shapes remain 135
-        const svgSize = randomShapeType === 'star' ? '94.5' : (randomShapeType === 'triangle' ? '67.5' : '135');
-        svg.setAttribute('width', svgSize);
-        svg.setAttribute('height', svgSize);
-        svg.setAttribute('viewBox', '-10 -10 155 155');
-        svg.style.position = 'absolute';
-        svg.style.top = '0';
-        svg.style.left = '0';
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        svg.style.pointerEvents = 'none';
-        
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        let pathData = '';
-        let gradientId = null;
-        
-        // Create gradients for star and pentagon
-        if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
-            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-            
-            if (randomShapeType === 'star') {
-                gradientId = 'star-gradient-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                gradient.setAttribute('id', gradientId);
-                gradient.setAttribute('x1', '0%');
-                gradient.setAttribute('y1', '0%');
-                gradient.setAttribute('x2', '100%');
-                gradient.setAttribute('y2', '100%');
-                
-                // Pink at edges
-                const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                stop1.setAttribute('offset', '0%');
-                stop1.setAttribute('stop-color', '#EB4781'); // Pink color matching scrollbar rectangles
-                gradient.appendChild(stop1);
-                
-                // Silver in the middle
-                const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                stop2.setAttribute('offset', '50%');
-                stop2.setAttribute('stop-color', '#C0C0C0'); // Silver
-                gradient.appendChild(stop2);
-                
-                // Pink at edges
-                const stop3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                stop3.setAttribute('offset', '100%');
-                stop3.setAttribute('stop-color', '#EB4781'); // Pink color matching scrollbar rectangles
-                gradient.appendChild(stop3);
-            } else if (randomShapeType === 'pentagon') {
-                gradientId = 'pentagon-gradient-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                gradient.setAttribute('id', gradientId);
-                gradient.setAttribute('x1', '0%');
-                gradient.setAttribute('y1', '0%');
-                gradient.setAttribute('x2', '100%');
-                gradient.setAttribute('y2', '100%');
-                
-                // Dark green (from scrollbar)
-                const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                stop1.setAttribute('offset', '0%');
-                stop1.setAttribute('stop-color', '#007A6F'); // Green color matching scrollbar rectangles
-                gradient.appendChild(stop1);
-                
-                // Bright green
-                const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                stop2.setAttribute('offset', '100%');
-                stop2.setAttribute('stop-color', '#00B894'); // Brighter green
-                gradient.appendChild(stop2);
-            }
-            
-            defs.appendChild(gradient);
-            svg.appendChild(defs);
-        }
-        
-        if (randomShapeType === 'triangle') {
-            pathData = 'M 77.5 10 L 10 145 L 145 145 Z';
-        } else if (randomShapeType === 'pentagon') {
-            pathData = 'M 77.5 10 L 145 61.3 L 120.7 145 L 34.3 145 L 10 61.3 Z';
-        } else if (randomShapeType === 'star') {
-            pathData = 'M 77.5 10 L 92.35 57.25 L 145 57.25 L 101.8 86.5 L 116.65 133.75 L 77.5 104.5 L 38.35 133.75 L 53.2 86.5 L 10 57.25 L 62.65 57.25 Z';
-        }
-        
-        path.setAttribute('d', pathData);
-        // Set fill color to white by default (will change to original color on hover)
-        path.setAttribute('fill', '#ffffff'); // White fill by default
-        // Store original fill color/gradient as data attribute for hover restoration
-        if (randomShapeType === 'triangle') {
-            path.setAttribute('data-original-fill', '#FAB01B'); // Yellow color matching scrollbar rectangles
-        } else if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
-            // Store gradient reference for hover
-            path.setAttribute('data-original-fill', 'url(#' + gradientId + ')');
-            path.setAttribute('data-gradient-id', gradientId); // Store gradient ID for reference
-        }
-        path.setAttribute('stroke', '#2C2C2C');
-        // Calculate stroke-width in viewBox space to ensure 3px on screen
-        // For stars: scale = 94.5/135 = 0.7, so stroke-width = 3/0.7 = 4.286
-        // For triangles: scale = 67.5/135 = 0.5, so stroke-width = 3/0.5 = 6
-        // For pentagon: scale = 135/135 = 1, so stroke-width = 3
-        let strokeWidthInViewBox = '3';
-        if (randomShapeType === 'star') {
-            strokeWidthInViewBox = '4.286'; // Exact value: 3 / (94.5 / 135) = 4.286
-        } else if (randomShapeType === 'triangle') {
-            strokeWidthInViewBox = '6'; // Exact value: 3 / (67.5 / 135) = 6
-        } else if (randomShapeType === 'pentagon') {
-            strokeWidthInViewBox = '3'; // Exact value: 3 / (135 / 135) = 3
-        }
-        path.setAttribute('stroke-width', strokeWidthInViewBox); // Ensures 3px on screen regardless of shape size
-        // Add smooth line joins and caps for consistent outline at corners
-        path.setAttribute('stroke-linejoin', 'round'); // Round joins for smooth corners
-        path.setAttribute('stroke-linecap', 'round'); // Round caps for smooth line ends
-        path.setAttribute('stroke-miterlimit', '10'); // High miter limit for round joins
-        // Ensure path is closed properly
-        if (!pathData.endsWith('Z') && !pathData.endsWith('z')) {
-            pathData += ' Z';
-            path.setAttribute('d', pathData);
-        }
-        path.style.transition = 'fill 0.3s ease'; // Smooth color transition for animation
-        // Ensure fill is explicitly set to white (not transparent)
-        path.style.fill = '#ffffff';
-        svg.appendChild(path);
-        
-        shape.appendChild(svg);
-    }
-    
-    // Add the shape to the container
-    circleContainer.appendChild(shape);
-    
-    // Determine original color for this shape
-    let originalColor;
-    if (randomShapeType === 'star' || randomShapeType === 'pentagon') {
-        // For gradient shapes, get the gradient URL from the path's data attribute
-        const pathElement = shape.querySelector('svg path');
-        if (pathElement) {
-            originalColor = pathElement.getAttribute('data-original-fill') || getShapeOriginalColor(randomShapeType);
+    try {
+        // Restore recorded points
+        if (savedState.recordedPoints && savedState.recordedPoints.length > 0) {
+            shapeColorRecordedPoints = [...savedState.recordedPoints];
         } else {
-            originalColor = getShapeOriginalColor(randomShapeType);
+            shapeColorRecordedPoints = [];
         }
-    } else {
-        originalColor = getShapeOriginalColor(randomShapeType);
-    }
-    
-    // Add shape to sequence
-    const newShapeEntry = {
-        element: shape,
-        type: randomShapeType,
-        originalColor: originalColor
-    };
-    shapeColorSequence.push(newShapeEntry);
-    
-    // Ensure the new shape starts white (not colored)
-    resetShapeToWhite(newShapeEntry);
-    
-    // Start animation if this is the first shape
-    if (shapeColorSequence.length === 1) {
-        currentAnimationIndex = 0;
-        startShapeColorAnimation();
-    } else if (!shapeColorAnimationInterval) {
-        // If animation stopped for some reason, restart it
-        currentAnimationIndex = 0;
-        startShapeColorAnimation();
-    } else {
-        // Animation is already running - ensure the new shape will be included
-        // The interval callback checks shapeColorSequence.length on each iteration,
-        // so the new shape will be included in the next cycle automatically
-        // No need to restart - just ensure currentAnimationIndex is valid
-        if (currentAnimationIndex >= shapeColorSequence.length) {
-            // If we're past the end, reset to start (this includes the new shape)
-            currentAnimationIndex = 0;
-            resetAllShapesToWhite();
-        }
-    }
-}
-
-// Function to clear all shapes from Shape + Color page
-function clearShapeColorCircles() {
-    // Stop animation if running
-    if (shapeColorAnimationInterval) {
-        clearInterval(shapeColorAnimationInterval);
-        shapeColorAnimationInterval = null;
-    }
-    
-    // Reset animation state
-    currentAnimationIndex = 0;
-    shapeColorSequence = [];
-    
-    // Reset shape selection state
-    lastShapeType = null;
-    shapeDistribution = {
-        'circle': 0,
-        'square': 0,
-        'ellipse': 0,
-        'triangle': 0,
-        'pentagon': 0,
-        'star': 0
-    };
-    
-    const circleContainer = document.getElementById('shape-color-circle-container');
-    if (!circleContainer) return;
-    
-    // Remove all child elements from the container (this includes all shapes and SVG)
-    // This is the most reliable way to clear everything
-    while (circleContainer.firstChild) {
-        circleContainer.removeChild(circleContainer.firstChild);
-    }
-    
-    // Also explicitly remove SVG elements using querySelector (in case they're not direct children)
-    const svgElements = circleContainer.querySelectorAll('.shape-color-lines-svg');
-    svgElements.forEach((svg) => {
-        svg.remove();
-    });
-    
-    // Remove all shapes explicitly as well (double-check)
-    const shapeTypes = ['circle', 'square', 'ellipse', 'triangle', 'pentagon', 'star'];
-    shapeTypes.forEach((shapeType) => {
-        const shapes = circleContainer.querySelectorAll('.shape-color-' + shapeType);
-        shapes.forEach((shape) => {
-            shape.remove();
-        });
-    });
-    
-    // Reset previous shape position
-    previousCirclePosition = null;
-}
-
-// Function to update existing shapes' stroke properties and viewBox
-function updateExistingShapesStroke() {
-    const circleContainer = document.getElementById('shape-color-circle-container');
-    if (!circleContainer) return;
-    
-    // Update all SVG elements in existing shapes
-    const svgElements = circleContainer.querySelectorAll('svg');
-    svgElements.forEach(svg => {
-        // Update viewBox to include stroke area
-        svg.setAttribute('viewBox', '-10 -10 155 155');
         
-        // Update path coordinates to match new viewBox (shift by 10,10)
-        const path = svg.querySelector('path');
-        if (path) {
-            const pathData = path.getAttribute('d');
-            if (pathData) {
-                // Identify shape type by checking parent container class
-                const container = svg.closest('.shape-color-triangle, .shape-color-pentagon, .shape-color-star');
-                let updatedPathData = '';
-                
-                if (container && container.classList.contains('shape-color-triangle')) {
-                    updatedPathData = 'M 77.5 10 L 10 145 L 145 145 Z';
-                } else if (container && container.classList.contains('shape-color-pentagon')) {
-                    updatedPathData = 'M 77.5 10 L 145 61.3 L 120.7 145 L 34.3 145 L 10 61.3 Z';
-                } else if (container && container.classList.contains('shape-color-star')) {
-                    updatedPathData = 'M 77.5 10 L 92.35 57.25 L 145 57.25 L 101.8 86.5 L 116.65 133.75 L 77.5 104.5 L 38.35 133.75 L 53.2 86.5 L 10 57.25 L 62.65 57.25 Z';
-                } else {
-                    // Fallback: try to shift coordinates by 10
-                    updatedPathData = pathData.replace(/\b(\d+\.?\d*)\s+(\d+\.?\d*)\b/g, (match, x, y) => {
-                        return (parseFloat(x) + 10) + ' ' + (parseFloat(y) + 10);
-                    });
-                }
-                
-                if (updatedPathData) {
-                    path.setAttribute('d', updatedPathData);
-                }
-            }
-            
-            // Update stroke properties for consistent rendering
-            path.setAttribute('stroke-linejoin', 'round');
-            path.setAttribute('stroke-linecap', 'round');
-            path.setAttribute('stroke-miterlimit', '10');
-            // Ensure stroke color is correct
-            path.setAttribute('stroke', '#2C2C2C');
+        // Restore brush layer image
+        if (savedState.imageData && shapeColorBrushCtx) {
+            const img = new Image();
+            img.onload = () => {
+                const containerRect = shapeColorContainer.getBoundingClientRect();
+                shapeColorBrushCtx.drawImage(img, 0, 0, containerRect.width, containerRect.height);
+                renderShapeColorFrame();
+            };
+            img.src = savedState.imageData;
         }
-    });
+        
+        return true;
+    } catch (e) {
+        console.warn('Failed to restore shape color state:', e);
+        clearShapeColorBrushLayer();
+        shapeColorRecordedPoints = [];
+        return false;
+    }
 }
 
-// Function to update Shape + Color circle visibility
-function updateShapeColorCircle(pageId) {
-    const circleContainer = document.getElementById('shape-color-circle-container');
-    if (!circleContainer) return;
+// Visibility update function
+function updateShapeColorCanvasVisibility(pageId) {
+    if (!shapeColorContainer) return;
     
-    // Show circle only for Shape + Color page (pageId "0-5" or "5-0")
-    // Parameter indices: 0=shape, 5=color
+    // Show for pages "0-5" or "5-0" (Shape + Color)
     const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
     if (isShapeColorPage) {
-        circleContainer.classList.add('visible');
-        // Update existing shapes when page becomes visible
-        updateExistingShapesStroke();
-        // Keep pointer-events: none on container, but add click handler to canvas-container
-        // This allows clicks to pass through to elements above (UI, columns, text boxes)
-        // but still capture clicks in empty areas to create shapes
-        circleContainer.style.pointerEvents = 'none';
+        shapeColorContainer.classList.remove('hidden');
+        shapeColorActive = true;
         
-        // Get canvas container to attach click handler
-        const canvasContainer = document.getElementById('canvas-container');
-        if (canvasContainer) {
-            // Remove existing click handler if any
-            if (shapeColorClickHandler) {
-                canvasContainer.removeEventListener('click', shapeColorClickHandler);
+        // Stop any ongoing replay first
+        if (shapeColorIsReplaying) {
+            shapeColorIsReplaying = false;
+            if (shapeColorAnimationId) {
+                cancelAnimationFrame(shapeColorAnimationId);
+                shapeColorAnimationId = null;
             }
-            
-            // Add click handler to canvas container instead
-            shapeColorClickHandler = handleShapeColorClick;
-            canvasContainer.addEventListener('click', shapeColorClickHandler);
+            if (shapeColorPlayBtn) {
+                shapeColorPlayBtn.textContent = '[play]';
+            }
         }
         
-        // Clear any existing circles when entering the page (reset state)
-        clearShapeColorCircles();
+        // Resize and restore state after a brief delay
+        setTimeout(() => {
+            resizeShapeColorCanvas();
+            restoreShapeColorState();
+            renderShapeColorFrame();
+        }, 50);
     } else {
-        // When leaving the page, clear everything immediately
-        clearShapeColorCircles();
+        // Save state before hiding
+        if (shapeColorActive) {
+            saveShapeColorState();
+        }
         
-        circleContainer.classList.remove('visible');
-        // Disable pointer events when not on this page
-        circleContainer.style.pointerEvents = 'none';
+        shapeColorContainer.classList.add('hidden');
+        shapeColorActive = false;
         
-        // Remove click handler from canvas container
-        const canvasContainer = document.getElementById('canvas-container');
-        if (canvasContainer && shapeColorClickHandler) {
-            canvasContainer.removeEventListener('click', shapeColorClickHandler);
-            shapeColorClickHandler = null;
+        // Stop replay
+        if (shapeColorIsReplaying) {
+            shapeColorIsReplaying = false;
+            if (shapeColorAnimationId) {
+                cancelAnimationFrame(shapeColorAnimationId);
+                shapeColorAnimationId = null;
+            }
+            if (shapeColorPlayBtn) {
+                shapeColorPlayBtn.textContent = '[play]';
+            }
         }
     }
 }
@@ -5106,7 +5787,6 @@ function rerenderCanvasTextBox() {
 function updateShapeNumberCanvasVisibility(pageId) {
     const shapeNumberContainer = document.getElementById('shape-number-container');
     const shapeNumberPanel = document.getElementById('shape-number-panel');
-    const p5Container = document.getElementById('p5-container');
     
     if (!shapeNumberContainer) return;
     
@@ -5114,13 +5794,8 @@ function updateShapeNumberCanvasVisibility(pageId) {
     const isShapeNumberPage = pageId === '0-3' || pageId === '3-0';
     
     if (isShapeNumberPage) {
-        // Show Shape & Number container, hide p5 container
+        // Show Shape & Number container
         shapeNumberContainer.classList.remove('hidden');
-        if (p5Container) {
-            p5Container.style.opacity = '0';
-            p5Container.style.visibility = 'hidden';
-            p5Container.style.pointerEvents = 'none';
-        }
         // Trigger render and slide in panel after a brief delay to ensure container is visible
         setTimeout(() => {
             if (shapeNumberContainer && !shapeNumberContainer.classList.contains('hidden')) {
@@ -5136,13 +5811,8 @@ function updateShapeNumberCanvasVisibility(pageId) {
         if (shapeNumberPanel) {
             shapeNumberPanel.classList.remove('visible');
         }
-        // Hide Shape & Number container, show p5 container
+        // Hide Shape & Number container
         shapeNumberContainer.classList.add('hidden');
-        if (p5Container) {
-            p5Container.style.opacity = '';
-            p5Container.style.visibility = '';
-            p5Container.style.pointerEvents = '';
-        }
     }
 }
 
@@ -5172,8 +5842,8 @@ function updateActivePage(pageId, reason) {
     // Update Number + Number circle visibility
     updateNumberNumberCircle(pageId);
     
-    // Update Shape + Color circle visibility
-    updateShapeColorCircle(pageId);
+    // Update Shape + Color canvas visibility
+    updateShapeColorCanvasVisibility(pageId);
     
     // Update MELODY circle visibility (Sound + Letter page)
     updateMelodyCircle(pageId);
@@ -5193,162 +5863,20 @@ function updateActivePage(pageId, reason) {
     // Update Number + Emotion digits visibility
     updateNumberEmotionDigits(pageId);
     
+    // Update Letter + Emotion grid visibility
+    updateLetterEmotionGrid(pageId);
+    
     // Update Shape & Number canvas visibility
     updateShapeNumberCanvasVisibility(pageId);
     
-    // Update Shape & Emotion canvas visibility
-    updateShapeEmotionCanvasVisibility(pageId);
+    // Update Shape + Shape canvas visibility (ellipses interaction)
+    updateShapeShapeCanvasVisibility(pageId);
     
-    // Check if we need to switch to a different canvas sketch
-    // Skip p5.js canvas creation for Shape & Number pages (0-3, 3-0) - they use native Canvas API
-    // Skip p5.js canvas creation for Shape & Emotion pages (0-4, 4-0) - they use native Canvas API
-    const isShapeNumberPage = pageId === '0-3' || pageId === '3-0';
-    const wasShapeNumberPage = previousPageId === '0-3' || previousPageId === '3-0';
-    const isShapeEmotionPage = pageId === '0-4' || pageId === '4-0';
-    const wasShapeEmotionPage = previousPageId === '0-4' || previousPageId === '4-0';
+    // Update Sound & Shape canvas visibility
+    updateSoundShapeCanvasVisibility(pageId);
     
-    let needsNewCanvas = false;
-    let newSketchFactory = null;
-    
-    // If switching to or from Shape & Number page, handle p5.js canvas accordingly
-    if (isShapeNumberPage) {
-        // Switching to Shape & Number page - unmount p5.js if it exists
-        if (p5Instance && !wasShapeNumberPage) {
-            unmountP5();
-        }
-        // Don't create p5.js canvas for Shape & Number pages
-    } else if (isShapeEmotionPage) {
-        // Switching to Shape & Emotion page - unmount p5.js if it exists
-        if (p5Instance && !wasShapeEmotionPage) {
-            unmountP5();
-        }
-        // Don't create p5.js canvas for Shape & Emotion pages
-    } else if ((wasShapeNumberPage || wasShapeEmotionPage) && !isShapeNumberPage && !isShapeEmotionPage) {
-        // Switching from Shape & Number page to a different page - need to create p5.js canvas
-        needsNewCanvas = true;
-        // Check if new page has a registered canvas
-        if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
-            newSketchFactory = window.CanvasRegistry.get(pageId);
-        } else {
-            newSketchFactory = createP5Cell01Sketch; // Use default sketch factory
-        }
-    } else if (window.CanvasRegistry && window.CanvasRegistry.has(pageId)) {
-        // Regular page with registered canvas
-        newSketchFactory = window.CanvasRegistry.get(pageId);
-        // Check if we need a new canvas (if the current canvas is not the one for this pageId)
-        if (p5Instance) {
-            // Determine if current canvas is the default or a registered one
-            const currentPageIdForCanvas = p5Instance._currentPageId || previousPageId;
-            const currentHasRegisteredCanvas = window.CanvasRegistry.has(currentPageIdForCanvas);
-            const newHasRegisteredCanvas = window.CanvasRegistry.has(pageId);
-            
-            // Need new canvas if:
-            // 1. New page has a registered canvas and current doesn't, OR
-            // 2. Both have registered canvases but they're different (different factory functions)
-            if (newHasRegisteredCanvas && (!currentHasRegisteredCanvas || currentPageIdForCanvas !== pageId)) {
-                needsNewCanvas = true;
-            }
-        } else {
-            // No current instance, but we have a registered canvas - create it
-            needsNewCanvas = true;
-        }
-    } else {
-        // New page doesn't have a registered canvas
-        // But if current page has a registered canvas, we need to switch to default
-        if (p5Instance && previousPageId) {
-            const currentPageIdForCanvas = p5Instance._currentPageId || previousPageId;
-            const currentHasRegisteredCanvas = window.CanvasRegistry && window.CanvasRegistry.has(currentPageIdForCanvas);
-            
-            // If current page has a registered canvas but new page doesn't, we need to switch to default
-            if (currentHasRegisteredCanvas) {
-                needsNewCanvas = true;
-                newSketchFactory = createP5Cell01Sketch; // Use default sketch factory
-            }
-        }
-    }
-    
-    // If we need a new canvas, create it
-    if (needsNewCanvas && newSketchFactory) {
-        // Save current state before switching
-        if (p5Instance && previousPageId !== null && previousPageId !== pageId && typeof p5Instance.saveState === 'function') {
-            p5Instance._currentPageId = previousPageId;
-            p5Instance.saveState();
-        }
-        
-        // Remove old canvas instance using helper
-        unmountP5();
-        
-        // Create new canvas with the registered sketch
-        const container = document.getElementById('p5-container');
-        const whiteRegion = document.getElementById('white-region');
-        
-        if (container && whiteRegion) {
-            requestAnimationFrame(() => {
-                let width = container.offsetWidth || container.clientWidth || 0;
-                let height = container.offsetHeight || container.clientHeight || 0;
-                
-                if (width <= 0 || height <= 0) {
-                    width = whiteRegion.offsetWidth || whiteRegion.clientWidth || 0;
-                    height = whiteRegion.offsetHeight || whiteRegion.clientHeight || 0;
-                }
-                
-                if (width <= 0) {
-                    const viewportWidth = window.innerWidth;
-                    const leftBoundary = 50;
-                    const rightBoundary = viewportWidth - 50;
-                    width = Math.max(400, rightBoundary - leftBoundary);
-                }
-                if (height <= 0) {
-                    height = Math.max(300, (window.innerHeight - 50));
-                }
-                
-                const sketch = newSketchFactory(
-                    container,
-                    width,
-                    height,
-                    p5SketchActive,
-                    pageId,
-                    p5StateStorage
-                );
-                
-                // Create p5 instance (Shape & Number pages don't reach here)
-                p5Instance = new p5(sketch, container);
-                
-                if (p5Instance) {
-                    p5Instance._currentPageId = pageId;
-                    
-                    // Restore state for the new page
-                    if (typeof p5Instance.restoreState === 'function') {
-                        p5Instance.restoreState();
-                    }
-                }
-                
-            });
-        }
-    } else {
-        // Update p5 sketch to use the new pageId for state storage (existing canvas)
-        if (p5Instance) {
-            // Save current state before switching (if we had a previous page and p5 is ready)
-            if (previousPageId !== null && previousPageId !== pageId && typeof p5Instance.saveState === 'function') {
-                // Store the previous pageId temporarily so saveState can use it
-                p5Instance._currentPageId = previousPageId;
-                p5Instance.saveState();
-            }
-            
-            // Update the current pageId in the p5 instance
-            // The sketch's saveState/restoreState will use this pageId instead of cellId
-            p5Instance._currentPageId = pageId;
-            
-            // Restore state for the new page (if it exists)
-            if (typeof p5Instance.restoreState === 'function') {
-                const restored = p5Instance.restoreState();
-                // If no state was restored (new page), the canvas will be empty (which is correct)
-                // The restoreState function handles image loading asynchronously, so it should redraw automatically
-                // If we need to clear the canvas for a new page, restoreState should handle it
-                // But since brushLayer is per-sketch, switching pages should show the correct state
-            }
-        }
-    }
+    // Update Sound + Emotion smiley visibility
+    updateSoundEmotionVisibility(pageId);
     
     // Also update visibility based on colors (for orange+yellow combination)
     const leftColor = getColorFromIndex(selectedLeftIndex);
@@ -5478,123 +6006,20 @@ function isOrangeBlueCombination(leftColor, rightColor) {
     return hasOrange && hasPurple;
 }
 
-// Function to update visibility of text box and p5.js sketch based on color combination
+// Function to update visibility of text box based on color combination
 function updateVisibilityBasedOnColors(leftColor, rightColor) {
     const textBox = document.getElementById('text-box');
-    const p5Container = document.getElementById('p5-container');
     
-    if (!textBox || !p5Container) return;
-    
-    const shouldBeVisible = isOrangeBlueCombination(leftColor, rightColor);
-    
-    const leftIndex = colors.indexOf(leftColor);
-    const rightIndex = colors.indexOf(rightColor);
-    const pageKey = getPageIdFromColors(leftIndex, rightIndex);
+    if (!textBox) return;
     
     // Update text box visibility
-    // Text box is always hidden - only interaction is shown for Shape Sound page
+    // Text box is always hidden - only interaction is shown for interactive pages
     // Use display: none to remove it from layout flow so it doesn't take up space
     textBox.style.display = 'none';
     textBox.style.visibility = 'hidden';
     textBox.style.opacity = '0';
-    
-    // Update p5.js sketch visibility and activity
-    if (shouldBeVisible) {
-        // Make the container visible
-        p5Container.style.visibility = 'visible';
-        p5Container.style.opacity = '1';
-        p5Container.style.pointerEvents = 'auto';
-        
-        // Activate the sketch
-        if (p5SketchActive) {
-            p5SketchActive.value = true;
-        }
-        
-        // Resize canvas - use requestAnimationFrame to ensure layout is complete
-        requestAnimationFrame(() => {
-            resizeP5Canvas();
-            
-            // Ensure canvas element is visible and properly styled
-            const canvas = p5Container.querySelector('canvas');
-            if (canvas) {
-                canvas.style.display = 'block';
-                canvas.style.visibility = 'visible';
-                canvas.style.opacity = '1';
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0';
-                canvas.style.left = '0';
-                canvas.style.zIndex = '11';
-            }
-            
-            // Force a redraw by triggering window resize if p5 instance exists
-            if (p5Instance && typeof p5Instance.windowResized === 'function') {
-                p5Instance.windowResized();
-            }
-        });
-    } else {
-        // Hide but keep dimensions (don't use display: none)
-        p5Container.style.visibility = 'hidden';
-        p5Container.style.opacity = '0';
-        p5Container.style.pointerEvents = 'none';
-        
-        // Deactivate the sketch to stop rendering (but don't destroy it)
-        if (p5SketchActive) {
-            p5SketchActive.value = false;
-        }
-    }
 }
 
-
-// p5.js sketch instance (will be set when sketch is created)
-let p5Instance = null;
-
-// State management for p5 sketch
-let p5SketchActive = { value: true };
-let p5StateStorage = {};
-
-
-// ==================
-// P5 HELPER FUNCTIONS
-// ==================
-/**
- * Mount a p5.js sketch in a container element
- * @param {Function} sketchFn - The p5 sketch function
- * @param {HTMLElement} containerEl - The container element to mount the sketch in
- * @returns {p5} The p5 instance, or null if p5 is not available
- */
-function mountP5(sketchFn, containerEl) {
-    // Verify p5 is available globally
-    if (typeof window.p5 === 'undefined') {
-        console.error('p5.js is not loaded. Make sure p5.js is included before script.js');
-        return null;
-    }
-    
-    if (!containerEl) {
-        console.error('mountP5: container element is required');
-        return null;
-    }
-    
-    // Create new p5 instance in instance mode
-    const instance = new p5(sketchFn, containerEl);
-    return instance;
-}
-
-/**
- * Unmount a p5.js sketch instance
- * @param {p5} instance - The p5 instance to unmount (optional, uses global p5Instance if not provided)
- */
-function unmountP5(instance) {
-    const targetInstance = instance || p5Instance;
-    
-    if (targetInstance && typeof targetInstance.remove === 'function') {
-        targetInstance.remove();
-    }
-    
-    // Clear global reference if it was the global instance
-    if (!instance && p5Instance === targetInstance) {
-        p5Instance = null;
-    }
-}
 
 // ==================
 // SHAPE & NUMBER CANVAS
@@ -6314,52 +6739,40 @@ function drawOnShapeEmotionCanvas(x, y) {
     lastY = y;
 }
 
-// Function to update Shape & Emotion canvas visibility
-function updateShapeEmotionCanvasVisibility(pageId) {
-    const shapeEmotionContainer = document.getElementById('shape-emotion-container');
-    const p5Container = document.getElementById('p5-container');
+// Function to update Shape + Shape canvas visibility (ellipses interaction)
+function updateShapeShapeCanvasVisibility(pageId) {
+    const shapeShapeContainer = document.getElementById('shape-shape-container');
     
-    if (!shapeEmotionContainer) return;
+    if (!shapeShapeContainer) return;
     
-    // Show Shape & Emotion canvas only for pageIds "0-4" or "4-0"
-    // Parameter indices: 0=shape, 4=emotion
-    const isShapeEmotionPage = pageId === '0-4' || pageId === '4-0';
+    // Show Shape + Shape canvas only for pageId "0-0"
+    // Parameter indices: 0=shape, 0=shape
+    const isShapeShapePage = pageId === '0-0';
     
-    if (isShapeEmotionPage) {
-        // Show Shape & Emotion container, hide p5 container
-        shapeEmotionContainer.classList.remove('hidden');
-        if (p5Container) {
-            p5Container.style.opacity = '0';
-            p5Container.style.visibility = 'hidden';
-            p5Container.style.pointerEvents = 'none';
-        }
-        // Resize canvas after a brief delay to ensure container is visible
+    if (isShapeShapePage) {
+        // Show Shape + Shape container
+        shapeShapeContainer.classList.remove('hidden');
+        // Initialize ellipses after a brief delay to ensure container is visible
         setTimeout(() => {
-            if (shapeEmotionContainer && !shapeEmotionContainer.classList.contains('hidden')) {
-                resizeShapeEmotionCanvas();
+            if (shapeShapeContainer && !shapeShapeContainer.classList.contains('hidden')) {
                 // Initialize ellipses when page becomes visible
-                initializeEmotionEllipses();
+                initializeShapeEllipses();
             }
         }, 50);
     } else {
-        // Hide Shape & Emotion container, show p5 container
-        shapeEmotionContainer.classList.add('hidden');
-        if (p5Container) {
-            p5Container.style.opacity = '';
-            p5Container.style.visibility = '';
-            p5Container.style.pointerEvents = '';
-        }
+        // Hide Shape + Shape container
+        shapeShapeContainer.classList.add('hidden');
     }
 }
 
 // ==================
-// SHAPE & EMOTION ELLIPSES INTERACTION
+// SHAPE + SHAPE ELLIPSES INTERACTION
 // ==================
-// 6 vertical ellipses with drag-to-resize accordion behavior
+// 7 vertical ellipses with drag-to-resize accordion behavior
 
 // State variables for ellipse interaction
-let emotionEllipsesContainer = null;
-let emotionEllipses = [];
+let shapeEllipsesContainer = null;
+let shapeEllipses = [];
 // Varied initial widths to hint at resize capability (total = 100%)
 let ellipseWidths = [20, 8, 18, 12, 30, 6, 6]; // Percentages
 const MIN_ELLIPSE_WIDTH = 5; // Minimum width percentage
@@ -6368,59 +6781,59 @@ const MAX_ELLIPSE_WIDTH = 60; // Maximum width percentage
 // Drag state
 let isDraggingEllipse = false;
 let dragStartX = 0;
-let dragEdgeIndex = -1; // The index of the edge being dragged (0-4, where edge i is between ellipse i and i+1)
+let dragEdgeIndex = -1; // The index of the edge being dragged (0-5, where edge i is between ellipse i and i+1)
 
 // Initialize ellipses interaction
-function initializeEmotionEllipses() {
-    emotionEllipsesContainer = document.getElementById('shape-emotion-ellipses');
-    if (!emotionEllipsesContainer) return;
+function initializeShapeEllipses() {
+    shapeEllipsesContainer = document.getElementById('shape-shape-ellipses');
+    if (!shapeEllipsesContainer) return;
     
     // Select the wrapper elements (not the SVG ellipses themselves)
-    emotionEllipses = Array.from(emotionEllipsesContainer.querySelectorAll('.emotion-ellipse-wrapper'));
-    if (emotionEllipses.length !== 7) return;
+    shapeEllipses = Array.from(shapeEllipsesContainer.querySelectorAll('.shape-ellipse-wrapper'));
+    if (shapeEllipses.length !== 7) return;
     
     // Varied initial widths to hint at resize capability (total = 100%)
     ellipseWidths = [20, 8, 18, 12, 30, 6, 6];
     updateEllipseWidths();
     
     // Remove old event listeners if any (to prevent duplicates)
-    emotionEllipsesContainer.removeEventListener('mousedown', handleEllipseMouseDown);
+    shapeEllipsesContainer.removeEventListener('mousedown', handleEllipseMouseDown);
     document.removeEventListener('mousemove', handleEllipseMouseMove);
     document.removeEventListener('mouseup', handleEllipseMouseUp);
     
     // Add mouse event listeners
-    emotionEllipsesContainer.addEventListener('mousedown', handleEllipseMouseDown);
+    shapeEllipsesContainer.addEventListener('mousedown', handleEllipseMouseDown);
     document.addEventListener('mousemove', handleEllipseMouseMove);
     document.addEventListener('mouseup', handleEllipseMouseUp);
     
     // Add touch event listeners
-    emotionEllipsesContainer.removeEventListener('touchstart', handleEllipseTouchStart);
+    shapeEllipsesContainer.removeEventListener('touchstart', handleEllipseTouchStart);
     document.removeEventListener('touchmove', handleEllipseTouchMove);
     document.removeEventListener('touchend', handleEllipseTouchEnd);
     
-    emotionEllipsesContainer.addEventListener('touchstart', handleEllipseTouchStart, { passive: false });
+    shapeEllipsesContainer.addEventListener('touchstart', handleEllipseTouchStart, { passive: false });
     document.addEventListener('touchmove', handleEllipseTouchMove, { passive: false });
     document.addEventListener('touchend', handleEllipseTouchEnd);
 }
 
 // Update ellipse widths in the DOM
 function updateEllipseWidths() {
-    if (!emotionEllipses || emotionEllipses.length !== 7) return;
+    if (!shapeEllipses || shapeEllipses.length !== 7) return;
     
-    emotionEllipses.forEach((ellipse, index) => {
+    shapeEllipses.forEach((ellipse, index) => {
         ellipse.style.flex = `0 0 ${ellipseWidths[index]}%`;
     });
 }
 
 // Detect which edge is being clicked (returns edge index 0-5, or -1 if not on edge)
 function detectEdge(clientX, clientY) {
-    if (!emotionEllipses || emotionEllipses.length !== 7) return -1;
+    if (!shapeEllipses || shapeEllipses.length !== 7) return -1;
     
     const edgeZone = 15; // Pixels from edge that count as "on edge"
     
     // Check each ellipse (except the last) for right edge proximity
-    for (let i = 0; i < emotionEllipses.length - 1; i++) {
-        const rect = emotionEllipses[i].getBoundingClientRect();
+    for (let i = 0; i < shapeEllipses.length - 1; i++) {
+        const rect = shapeEllipses[i].getBoundingClientRect();
         const rightEdge = rect.right;
         
         // Check if click is near the right edge of this ellipse (which is the left edge of the next)
@@ -6442,7 +6855,7 @@ function handleEllipseMouseDown(e) {
     dragStartX = e.clientX;
     dragEdgeIndex = edgeIndex;
     
-    emotionEllipsesContainer.classList.add('dragging');
+    shapeEllipsesContainer.classList.add('dragging');
 }
 
 function handleEllipseMouseMove(e) {
@@ -6452,7 +6865,7 @@ function handleEllipseMouseMove(e) {
     const deltaX = e.clientX - dragStartX;
     
     // Calculate width change as percentage of container
-    const containerWidth = emotionEllipsesContainer.getBoundingClientRect().width;
+    const containerWidth = shapeEllipsesContainer.getBoundingClientRect().width;
     const deltaPercent = (deltaX / containerWidth) * 100;
     
     // Apply the change to the two adjacent ellipses
@@ -6468,8 +6881,8 @@ function handleEllipseMouseUp(e) {
     isDraggingEllipse = false;
     dragEdgeIndex = -1;
     
-    if (emotionEllipsesContainer) {
-        emotionEllipsesContainer.classList.remove('dragging');
+    if (shapeEllipsesContainer) {
+        shapeEllipsesContainer.classList.remove('dragging');
     }
 }
 
@@ -6486,7 +6899,7 @@ function handleEllipseTouchStart(e) {
     dragStartX = touch.clientX;
     dragEdgeIndex = edgeIndex;
     
-    emotionEllipsesContainer.classList.add('dragging');
+    shapeEllipsesContainer.classList.add('dragging');
 }
 
 function handleEllipseTouchMove(e) {
@@ -6498,7 +6911,7 @@ function handleEllipseTouchMove(e) {
     const deltaX = touch.clientX - dragStartX;
     
     // Calculate width change as percentage of container
-    const containerWidth = emotionEllipsesContainer.getBoundingClientRect().width;
+    const containerWidth = shapeEllipsesContainer.getBoundingClientRect().width;
     const deltaPercent = (deltaX / containerWidth) * 100;
     
     // Apply the change to the two adjacent ellipses
@@ -6514,8 +6927,8 @@ function handleEllipseTouchEnd(e) {
     isDraggingEllipse = false;
     dragEdgeIndex = -1;
     
-    if (emotionEllipsesContainer) {
-        emotionEllipsesContainer.classList.remove('dragging');
+    if (shapeEllipsesContainer) {
+        shapeEllipsesContainer.classList.remove('dragging');
     }
 }
 
@@ -6566,988 +6979,1223 @@ function resizeAdjacentEllipses(edgeIndex, deltaPercent) {
 
 // Handle window resize - maintain ellipse proportions
 window.addEventListener('resize', () => {
-    if (emotionEllipsesContainer && !emotionEllipsesContainer.closest('.hidden')) {
+    if (shapeEllipsesContainer && !shapeEllipsesContainer.closest('.hidden')) {
         updateEllipseWidths();
     }
 });
 
 // ==================
-// P5 CELL 01 SKETCH FACTORY
+// SOUND & SHAPE CANVAS
 // ==================
-// Interactive drawing sketch with draggable shape stamps and sound
-function createP5Cell01Sketch(containerElement, containerWidth, containerHeight, p5SketchActive, cellId, stateStorage) {
-    return function(p) {
-        // Verify p is valid
-        if (!p || typeof p.createCanvas !== 'function') {
-            console.error('Invalid p5 instance');
-            return;
-        }
-        
-        // Store container element and dimensions for use in the sketch
-        const container = containerElement;
-        let containerW = containerWidth;
-        let containerH = containerHeight;
-        let cnv;
-        
-        // ==================
-        // CONFIG
-        // ==================
-        let shapeSize = 26;        // Base size for shapes (trail stamps)
-        let stepDist = 14;         // Distance between stamps
-        let outlinePx = 3;         // Stroke weight
-        let easing = 0.25;         // Smoothing factor
-        
-        // Draggable shape config
-        const DRAGGABLE_SHAPE_SIZE = 40;  // Size of draggable shapes on canvas
-        const SHAPE_SPACING = 70;          // Vertical spacing between shapes
-        const SHAPE_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
+// Sound & Shape canvas implementation using native Canvas API (not p5.js)
 
-        // colors
-        const bgHex = "#E0E0E0";
-        const fillHex = "#FFFFFF";
-        const strokeHex = "#000000";
+// State variables for Sound & Shape canvas
+let soundShapeContainer = null;
+let soundShapeDrawCanvas = null;
+let soundShapeDrawCtx = null;
+let soundShapeBrushCanvas = null;
+let soundShapeBrushCtx = null;
+let soundShapePlayBtn = null;
+let soundShapeResetBtn = null;
+let soundShapeExportBtn = null;
+let soundShapeResizeObserver = null;
+let soundShapeAnimationId = null;
 
-        // ==================
-        // STATE
-        // ==================
-        let brushX, brushY, prevX, prevY;
-        let drawing = false;
+// Config
+const SOUND_SHAPE_SIZE = 40;        // Size of draggable shapes
+const SOUND_SHAPE_STAMP_SIZE = 40;  // Size of stamps (trail)
+const SOUND_SHAPE_STEP_DIST = 8;    // Distance between stamps (smaller = denser trail)
+const SOUND_SHAPE_STROKE_W = 3;     // Stroke weight
+const SOUND_SHAPE_EASING = 0.4;     // Smoothing factor (higher = follows mouse faster)
+const SOUND_SHAPE_SPACING = 70;     // Vertical spacing between shapes
+const SOUND_SHAPE_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
 
-        // layers
-        let brushLayer;
+// Colors
+const SOUND_SHAPE_BG_COLOR = '#FFFFFF';
+const SOUND_SHAPE_FILL_COLOR = '#FFFFFF';
+const SOUND_SHAPE_STROKE_COLOR = '#000000';
 
-        // playback
-        let recordedPoints = []; // {x,y,shape}
-        let isReplaying = false;
-        let replayIndex = 0;
+// State
+let soundShapePositions = [];       // { x, y, shapeType }
+let soundShapeDraggedIndex = -1;    // -1 means no shape is being dragged
+let soundShapeDragOffsetX = 0;
+let soundShapeDragOffsetY = 0;
+let soundShapeRecordedPoints = [];  // { x, y, shape } for playback
+let soundShapeIsReplaying = false;
+let soundShapeReplayIndex = 0;
+let soundShapeActive = false;       // Whether the canvas is active
 
-        // Draggable shapes state
-        // Each shape has: { x, y, shapeType (0-5) }
-        let shapePositions = [];
-        let draggedShapeIndex = -1;  // -1 means no shape is being dragged
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+// Sound state (Web Audio API)
+let soundShapeAudioCtx = null;
+let soundShapeMasterGain = null;
+let soundShapeLastSoundTime = 0;
 
-        // UI
-        let playStopButton = null;
+// State storage for persistence across page switches
+let soundShapeStateStorage = {};
 
-        // ==================
-        // SOUND (Web Audio, no p5.sound)
-        // ==================
-        let audioCtx = null;
-        let masterGain = null;
-        let lastSoundTime = 0;
-
-        function ensureAudio() {
-          if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = 0.9;
-            masterGain.connect(audioCtx.destination);
-          }
-          if (audioCtx.state === "suspended") {
-            // Must be called inside a user gesture (mouse press / button click)
-            audioCtx.resume();
-          }
-        }
-
-        function midiToFreqLocal(midi) {
-          return 440 * Math.pow(2, (midi - 69) / 12);
-        }
-
-        function triggerSound(x, y, shapeType) {
-          const nowMs = p.millis();
-          if (nowMs - lastSoundTime < 70) return;
-          lastSoundTime = nowMs;
-
-          ensureAudio();
-          if (!audioCtx || audioCtx.state !== "running") return;
-
-          // pitch לפי Y
-          const midiNote = Math.floor(p.map(y, p.height, 0, 48, 84));
-          let freq = midiToFreqLocal(midiNote);
-
-          // shape "character" - כל צורה עם צליל שונה מאוד
-          let oscType = "sine";
-          let amp = 0.30;
-          let dur = 0.14;
-          let attackTime = 0.01;
-          let decayTime = 0.13;
-          let filterFreq = null; // אם null, אין פילטר
-
-          if (shapeType === 0) {
-            // Circle - גל סינוס רך ונמוך
-            oscType = "sine";
-            freq = freq * 0.85; // נמוך יותר
-            amp = 0.50; // הוגדל מ-0.25 ל-0.50 - חזק יותר לצליל נמוך
-            dur = 0.20; // ארוך יותר
-            attackTime = 0.02; // התקפה רכה
-            decayTime = 0.18;
-          } else if (shapeType === 1) {
-            // Square - גל מרובע חד וחזק
-            oscType = "square";
-            freq = freq * 1.15; // גבוה יותר
-            amp = 0.45;
-            dur = 0.08; // קצר וחד
-            attackTime = 0.005; // התקפה מהירה
-            decayTime = 0.075;
-          } else if (shapeType === 2) {
-            // Triangle - גל משולש בינוני
-            oscType = "triangle";
-            freq = freq * 1.25; // גבוה יותר
-            amp = 0.32;
-            dur = 0.15;
-            attackTime = 0.01;
-            decayTime = 0.14;
-          } else if (shapeType === 3) {
-            // Ellipse - גל סינוס רחב עם פילטר
-            oscType = "sine";
-            freq = freq * 0.75; // נמוך יותר מהעיגול
-            amp = 0.55; // הוגדל מ-0.28 ל-0.55 - חזק מאוד לצליל הנמוך ביותר
-            dur = 0.25; // ארוך מאוד
-            attackTime = 0.03; // התקפה רכה מאוד
-            decayTime = 0.22;
-            filterFreq = freq * 0.5; // פילטר נמוך לעומק
-          } else if (shapeType === 4) {
-            // Star - גל משור (sawtooth) חד וחזק
-            oscType = "sawtooth";
-            freq = freq * 1.35; // גבוה מאוד
-            amp = 0.50; // חזק מאוד
-            dur = 0.06; // קצר מאוד
-            attackTime = 0.002; // התקפה מהירה מאוד
-            decayTime = 0.058;
-          } else if (shapeType === 5) {
-            // Pentagon - גל מרובע עם תדירות בינונית
-            oscType = "square";
-            freq = freq * 0.95; // נמוך יותר מהמרובע
-            amp = 0.48; // הוגדל מ-0.38 ל-0.48 - חזק יותר לצליל נמוך-בינוני
-            dur = 0.12;
-            attackTime = 0.008;
-            decayTime = 0.112;
-            filterFreq = freq * 1.5; // פילטר גבוה לחדות
-          }
-
-          const t0 = audioCtx.currentTime;
-
-          const osc = audioCtx.createOscillator();
-          osc.type = oscType;
-          osc.frequency.setValueAtTime(freq, t0);
-
-          const g = audioCtx.createGain();
-          g.gain.setValueAtTime(0.0001, t0);
-
-          // envelope מותאם לכל צורה
-          g.gain.linearRampToValueAtTime(amp, t0 + attackTime);
-          g.gain.linearRampToValueAtTime(0.0001, t0 + attackTime + decayTime);
-
-          // חיבור עם פילטר אם יש
-          let filter = null;
-          if (filterFreq !== null) {
-            filter = audioCtx.createBiquadFilter();
-            filter.type = shapeType === 3 ? "lowpass" : "highpass";
-            filter.frequency.setValueAtTime(filterFreq, t0);
-            filter.Q.setValueAtTime(1, t0);
-            
-            osc.connect(g);
-            g.connect(filter);
-            filter.connect(masterGain);
-          } else {
-            osc.connect(g);
-            g.connect(masterGain);
-          }
-
-          osc.start(t0);
-          osc.stop(t0 + dur + 0.02);
-
-          osc.onended = () => {
-            try { osc.disconnect(); } catch {}
-            try { g.disconnect(); } catch {}
-            if (filter !== null) {
-              try { filter.disconnect(); } catch {}
-            }
-          };
-        }
-
-        // ==================
-        // STATE PERSISTENCE
-        // ==================
-        // Save current canvas state to storage
-        function saveState() {
-            // Use pageId if available (for dynamic page switching), otherwise use cellId
-            const storageKey = p._currentPageId !== undefined ? p._currentPageId : (cellId !== null && cellId !== undefined ? cellId : null);
-            if (!stateStorage || storageKey === null || storageKey === undefined) return;
-            
-            try {
-                // Save brushLayer as image data URL
-                let imageData = null;
-                if (brushLayer && brushLayer.canvas) {
-                    imageData = brushLayer.canvas.toDataURL('image/png');
-                }
-                
-                // Save both image and recorded points
-                stateStorage[storageKey] = {
-                    imageData: imageData,
-                    recordedPoints: recordedPoints ? [...recordedPoints] : []
-                };
-            } catch (e) {
-                console.warn('Failed to save cell state:', e);
-            }
-        }
-        
-        // Restore canvas state from storage
-        function restoreState() {
-            // Use pageId if available (for dynamic page switching), otherwise use cellId
-            const storageKey = p._currentPageId !== undefined ? p._currentPageId : (cellId !== null && cellId !== undefined ? cellId : null);
-            if (!stateStorage || storageKey === null || storageKey === undefined) {
-                // No storage key - clear canvas for new page
-                if (brushLayer) {
-                    clearVisualOnly();
-                }
-                recordedPoints = [];
-                return false;
-            }
-            
-            const savedState = stateStorage[storageKey];
-            if (!savedState) {
-                // No saved state for this page - clear canvas
-                if (brushLayer) {
-                    clearVisualOnly();
-                }
-                recordedPoints = [];
-                return false;
-            }
-            
-            try {
-                // Clear current state first
-                if (brushLayer) {
-                    clearVisualOnly();
-                }
-                recordedPoints = [];
-                
-                // Restore recorded points
-                if (savedState.recordedPoints && savedState.recordedPoints.length > 0) {
-                    recordedPoints = [...savedState.recordedPoints];
-                }
-                
-                // Restore brushLayer image if available
-                if (savedState.imageData && brushLayer) {
-                    // Use p5's loadImage which works with data URLs
-                    p.loadImage(savedState.imageData, 
-                        (loadedImg) => {
-                            // Success callback: draw the image to brushLayer
-                            if (loadedImg && brushLayer) {
-                                brushLayer.image(loadedImg, 0, 0, brushLayer.width, brushLayer.height);
-                            }
-                        },
-                        (error) => {
-                            // Error callback
-                            console.warn('Failed to restore image state:', error);
-                        }
-                    );
-                }
-                
-                return true;
-            } catch (e) {
-                console.warn('Failed to restore cell state:', e);
-                // On error, clear canvas
-                if (brushLayer) {
-                    clearVisualOnly();
-                }
-                recordedPoints = [];
-                return false;
-            }
-        }
-        
-        // Expose saveState function to p5 instance for external access
-        p.saveState = saveState;
-
-        // ==================
-        // SETUP
-        // ==================
-        p.setup = function() {
-            // Safety check: ensure p5 is valid
-            if (!p || typeof p.createCanvas !== 'function') {
-                return;
-            }
-            
-            // Get container dimensions - use offsetWidth/offsetHeight as fallback
-            // These work even when visibility is hidden
-            let w = container.clientWidth || container.offsetWidth || containerW;
-            let h = container.clientHeight || container.offsetHeight || containerH;
-            
-            // Ensure minimum dimensions (at least 1px to avoid p5 errors)
-            if (w <= 0) w = Math.max(1, containerW || 400);
-            if (h <= 0) h = Math.max(1, containerH || 300);
-            
-            // Create canvas matching container size (not fullscreen)
-            cnv = p.createCanvas(w, h);
-            // Attach canvas to the container element
-            cnv.parent(container);
-            
-            // Ensure canvas is visible and properly styled
-            if (cnv && cnv.elt) {
-                cnv.elt.style.display = 'block';
-                cnv.elt.style.visibility = 'visible';
-                cnv.elt.style.opacity = '1';
-                cnv.elt.style.position = 'absolute';
-                cnv.elt.style.top = '0';
-                cnv.elt.style.left = '0';
-                cnv.elt.style.zIndex = '11';
-                cnv.elt.style.pointerEvents = 'auto';
-                // Ensure canvas doesn't get clipped
-                cnv.elt.style.maxWidth = '100%';
-                cnv.elt.style.maxHeight = '100%';
-            }
-            
-            // Store reference for resizing (already set globally, but ensure it's set)
-            if (!p5Instance) {
-                p5Instance = p;
-            }
-            
-            brushLayer = p.createGraphics(w, h);
-            brushLayer.clear();
-
-            paintBackground();
-            
-            // Initialize draggable shape positions in centered vertical column
-            initializeShapePositions();
-            
-            // Restore saved state if available (after creating brushLayer)
-            restoreState();
-            
-            createUI();
-        };
-        
-        // ==================
-        // INITIALIZE DRAGGABLE SHAPES
-        // ==================
-        function initializeShapePositions() {
-            shapePositions = [];
-            
-            // Calculate center X position (exact center of canvas - on the divider line)
-            const centerX = p.width / 2;  // Exact center
-            
-            // Calculate total height of all shapes
-            const totalHeight = (SHAPE_TYPES.length - 1) * SHAPE_SPACING;
-            
-            // Calculate starting Y position to center the column vertically (shifted 60px up)
-            const startY = (p.height - totalHeight) / 2 - 60;
-            
-            // Create shape positions: circle, square, triangle, ellipse, star, pentagon
-            for (let i = 0; i < SHAPE_TYPES.length; i++) {
-                shapePositions.push({
-                    x: centerX,
-                    y: startY + i * SHAPE_SPACING,
-                    shapeType: i
-                });
-            }
-        }
-
-        // ==================
-        // DRAW
-        // ==================
-        p.draw = function() {
-            // Safety check: exit if sketch is no longer active
-            if (!p5SketchActive.value || !p || typeof p.background !== 'function') {
-                return;
-            }
-            
-            if (isReplaying) {
-                replayDrawing();
-                p.image(brushLayer, 0, 0);
-                // Draw draggable shapes on top during replay
-                drawDraggableShapes();
-                return;
-            }
-
-            // Handle shape dragging
-            if (draggedShapeIndex >= 0 && p.mouseIsPressed) {
-                const shape = shapePositions[draggedShapeIndex];
-                const newX = p.mouseX - dragOffsetX;
-                const newY = p.mouseY - dragOffsetY;
-                
-                // Apply easing for smooth movement
-                const targetX = shape.x + (newX - shape.x) * easing;
-                const targetY = shape.y + (newY - shape.y) * easing;
-                
-                // Calculate movement for stamping
-                const dx = targetX - shape.x;
-                const dy = targetY - shape.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                // Only stamp if moved enough distance
-                if (dist > 2) {
-                    // Stamp trail on left side (skipEnds=true so we don't draw at start/end where draggable shape is)
-                    // Use DRAGGABLE_SHAPE_SIZE for consistent size with the draggable shapes
-                    stampShapeWithType(shape.x, shape.y, targetX, targetY, true, shape.shapeType, true, DRAGGABLE_SHAPE_SIZE);
-                    
-                    // Mirror stamp on right side (skipEnds=true since mirrored draggable shape is there too)
-                    stampShapeWithType(p.width - shape.x, shape.y, p.width - targetX, targetY, false, shape.shapeType, true, DRAGGABLE_SHAPE_SIZE);
-                }
-                
-                // Update shape position
-                shape.x = targetX;
-                shape.y = targetY;
-            }
-
-            p.image(brushLayer, 0, 0);
-            
-            // Draw draggable shapes on top of everything
-            drawDraggableShapes();
-        };
-        
-        // ==================
-        // DRAW DRAGGABLE SHAPES
-        // ==================
-        function drawDraggableShapes() {
-            for (let i = 0; i < shapePositions.length; i++) {
-                const shape = shapePositions[i];
-                const isBeingDragged = (i === draggedShapeIndex);
-                
-                // Draw shape on left side
-                drawDraggableShape(p, shape.x, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
-                
-                // Draw mirrored shape on right side (same size)
-                // Only draw if not at center to avoid double-drawing
-                const mirroredX = p.width - shape.x;
-                const centerX = p.width / 2;
-                if (Math.abs(shape.x - centerX) > 5) {
-                    drawDraggableShape(p, mirroredX, shape.y, DRAGGABLE_SHAPE_SIZE, shape.shapeType, isBeingDragged);
-                }
-            }
-        }
-        
-        // Draw a single draggable shape (larger, with hover effect)
-        function drawDraggableShape(g, x, y, baseS, shapeType, isBeingDragged) {
-            let mult = 1.0;
-            if (shapeType === 1) mult = 1.3; // Square
-            if (shapeType === 2) mult = 1.5; // Triangle
-            if (shapeType === 3) mult = 1.4; // Ellipse
-            if (shapeType === 4) mult = 1.2; // Star
-            if (shapeType === 5) mult = 1.3; // Pentagon
-
-            let s = baseS * mult;
-            
-            // Scale up when being dragged
-            if (isBeingDragged) {
-                s *= 1.1;
-            }
-
-            g.push();
-            g.translate(x, y);
-            g.fill(fillHex);
-            g.stroke(strokeHex);
-            g.strokeWeight(outlinePx);
-
-            if (shapeType === 0) {
-                // Circle
-                g.circle(0, 0, s);
-            } else if (shapeType === 1) {
-                // Square
-                g.rectMode(p.CENTER);
-                g.rect(0, 0, s, s);
-            } else if (shapeType === 2) {
-                // Triangle
-                let h = s * 0.9;
-                g.triangle(
-                    0, -h / 2,
-                    -h / 2, h / 2,
-                    h / 2, h / 2
-                );
-            } else if (shapeType === 3) {
-                // Ellipse
-                g.ellipse(0, 0, s * 1.5, s * 0.9);
-            } else if (shapeType === 4) {
-                // Star (5-pointed)
-                g.beginShape();
-                for (let i = 0; i < 10; i++) {
-                    let angle = (i * g.PI) / 5 - g.PI / 2;
-                    let r = (i % 2 === 0) ? s / 2 : s / 4;
-                    let px = g.cos(angle) * r;
-                    let py = g.sin(angle) * r;
-                    g.vertex(px, py);
-                }
-                g.endShape(g.CLOSE);
-            } else if (shapeType === 5) {
-                // Pentagon
-                g.beginShape();
-                for (let i = 0; i < 5; i++) {
-                    let angle = (i * g.TWO_PI) / 5 - g.PI / 2;
-                    let px = g.cos(angle) * (s / 2);
-                    let py = g.sin(angle) * (s / 2);
-                    g.vertex(px, py);
-                }
-                g.endShape(g.CLOSE);
-            }
-
-            g.pop();
-        }
-
-        // ==================
-        // BRUSH STAMP
-        // ==================
-        // Stamp shape with explicit shape type (for draggable shapes)
-        // skipEnds: if true, don't draw at start or end positions (because draggable shape was/will be there)
-        // customSize: optional custom size for the stamps (defaults to shapeSize)
-        function stampShapeWithType(x1, y1, x2, y2, recordIt, shapeType, skipEnds = false, customSize = null) {
-            let dx = x2 - x1;
-            let dy = y2 - y1;
-            let distSeg = p.sqrt(dx * dx + dy * dy);
-            if (distSeg === 0) return;
-
-            let steps = p.max(1, p.floor(distSeg / stepDist));
-            
-            // If skipEnds is true, skip first and last positions (draggable shape handles those)
-            let startStep = skipEnds ? 1 : 0;
-            let endStep = skipEnds ? steps - 1 : steps;
-            
-            // Make sure we have steps to draw
-            if (startStep > endStep) {
-                // Not enough distance for intermediate stamps, just record and trigger sound
-                if (recordIt) {
-                    triggerSound(x2, y2, shapeType);
-                }
-                return;
-            }
-            
-            // Use custom size if provided, otherwise use default shapeSize
-            const stampSize = customSize !== null ? customSize : shapeSize;
-
-            for (let i = startStep; i <= endStep; i++) {
-                let f = i / steps;
-                let x = p.lerp(x1, x2, f);
-                let y = p.lerp(y1, y2, f);
-
-                drawShape(brushLayer, x, y, stampSize, shapeType);
-
-                if (recordIt) {
-                    recordedPoints.push({ x, y, shape: shapeType });
-                }
-            }
-
-            // Sound only on original drawing (not mirror)
-            if (recordIt) triggerSound(x2, y2, shapeType);
-        }
-
-        // ==================
-        // DRAW SHAPE (גדלים שונים)
-        // ==================
-        function drawShape(g, x, y, baseS, shapeType) {
-            let mult = 1.0;
-            if (shapeType === 1) mult = 1.5; // ריבוע
-            if (shapeType === 2) mult = 2.0; // משולש
-            if (shapeType === 3) mult = 1.8; // אליפסה (מוגדלת)
-            if (shapeType === 4) mult = 1.3; // כוכב
-            if (shapeType === 5) mult = 1.4; // מחומש
-
-            let s = baseS * mult;
-
-            g.push();
-            g.translate(x, y);
-            g.fill(fillHex);
-            g.stroke(strokeHex);
-            g.strokeWeight(outlinePx);
-
-            if (shapeType === 0) {
-                // Circle
-                g.circle(0, 0, s);
-            } else if (shapeType === 1) {
-                // Square
-                g.rectMode(p.CENTER);
-                g.rect(0, 0, s, s);
-            } else if (shapeType === 2) {
-                // Triangle
-                let h = s * 0.9;
-                g.triangle(
-                    0, -h / 2,
-                    -h / 2, h / 2,
-                    h / 2, h / 2
-                );
-            } else if (shapeType === 3) {
-                // Ellipse (larger)
-                g.ellipse(0, 0, s * 1.6, s * 1.0);
-            } else if (shapeType === 4) {
-                // Star (5-pointed)
-                g.beginShape();
-                for (let i = 0; i < 10; i++) {
-                    let angle = (i * p.PI) / 5 - p.PI / 2;
-                    let r = (i % 2 === 0) ? s / 2 : s / 4;
-                    let px = p.cos(angle) * r;
-                    let py = p.sin(angle) * r;
-                    g.vertex(px, py);
-                }
-                g.endShape(p.CLOSE);
-            } else if (shapeType === 5) {
-                // Pentagon
-                g.beginShape();
-                for (let i = 0; i < 5; i++) {
-                    let angle = (i * p.TWO_PI) / 5 - p.PI / 2;
-                    let px = p.cos(angle) * (s / 2);
-                    let py = p.sin(angle) * (s / 2);
-                    g.vertex(px, py);
-                }
-                g.endShape(p.CLOSE);
-            }
-
-            g.pop();
-        }
-
-        // ==================
-        // PLAYBACK
-        // ==================
-        function replayDrawing() {
-            if (!recordedPoints.length) return;
-
-            let pointsPerFrame = 10;
-
-            for (let i = 0; i < pointsPerFrame; i++) {
-                let point = recordedPoints[replayIndex];
-
-                if (!point) {
-                    // לופ: מתחילים מחדש (מנקה רק ויזואלית)
-                    replayIndex = 0;
-                    clearVisualOnly();
-                    return;
-                }
-
-                drawShape(brushLayer, point.x, point.y, shapeSize, point.shape);
-                drawShape(brushLayer, p.width - point.x, point.y, shapeSize, point.shape);
-
-                // בסאונד של פלייבק — משתמשים בצורה שהוקלטה
-                triggerSound(point.x, point.y, point.shape);
-
-                replayIndex++;
-            }
-        }
-
-        // ==================
-        // UI
-        // ==================
-        function createUI() {
-            // Create simple play/stop toggle button at bottom right
-            playStopButton = document.createElement("button");
-            playStopButton.textContent = "[play]";
-            playStopButton.style.position = "absolute";
-            playStopButton.style.right = "10px";
-            playStopButton.style.bottom = "50px"; // Above the parameter text area
-            playStopButton.style.padding = "8px 12px";
-            playStopButton.style.fontFamily = "'JetBrains Mono NL', monospace";
-            playStopButton.style.fontSize = "15px";
-            playStopButton.style.letterSpacing = "0.03em";
-            playStopButton.style.lineHeight = "1";
-            playStopButton.style.borderRadius = "0";
-            playStopButton.style.border = "none";
-            playStopButton.style.background = "#2C2C2C";
-            playStopButton.style.color = "#ffffff";
-            playStopButton.style.cursor = "pointer";
-            playStopButton.style.zIndex = "1000";
-            // Slide-in animation
-            playStopButton.style.transform = "translateX(100%)";
-            playStopButton.style.transition = "transform 0.3s ease";
-            container.appendChild(playStopButton);
-            
-            // Trigger slide-in animation after a brief delay
-            setTimeout(() => {
-                playStopButton.style.transform = "translateX(0)";
-            }, 50);
-
-            playStopButton.addEventListener("click", () => {
-                if (isReplaying) {
-                    // Stop playback
-                    isReplaying = false;
-                    playStopButton.textContent = "[play]";
-                } else {
-                    // Start playback
-                    if (!recordedPoints.length) return;
-
-                    // Start audio safely
-                    ensureAudio();
-
-                    clearVisualOnly();
-                    replayIndex = 0;
-                    lastSoundTime = 0;
-                    isReplaying = true;
-                    playStopButton.textContent = "[stop]";
-                }
-            });
-        }
-        
-        // ==================
-        // SHAPE HIT DETECTION
-        // ==================
-        function getShapeAtPosition(mx, my) {
-            // Check shapes in reverse order (topmost first)
-            for (let i = shapePositions.length - 1; i >= 0; i--) {
-                const shape = shapePositions[i];
-                const hitRadius = DRAGGABLE_SHAPE_SIZE * 0.7; // Generous hit area
-                
-                const dx = mx - shape.x;
-                const dy = my - shape.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist < hitRadius) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        // ==================
-        // BACKGROUND
-        // ==================
-        function paintBackground() {
-            // Background removed - canvas is transparent to show page background
-            // No divider line - shapes are mirrored seamlessly
-        }
-
-        // ==================
-        // RESET / CLEAR / RESIZE
-        // ==================
-        function clearVisualOnly() {
-            // Properly clear the brushLayer by recreating it
-            if (brushLayer && p) {
-                // Get current dimensions
-                const w = brushLayer.width;
-                const h = brushLayer.height;
-                // Create a new empty graphics layer
-                brushLayer = p.createGraphics(w, h);
-                brushLayer.clear();
-            }
-            // Redraw the background/divider on main canvas
-            paintBackground();
-        }
-
-        function resetCanvas() {
-            // Clear saved state FIRST before clearing visual
-            // Use pageId if available (for dynamic page switching), otherwise use cellId
-            const storageKey = p._currentPageId !== undefined ? p._currentPageId : (cellId !== null && cellId !== undefined ? cellId : null);
-            if (stateStorage && storageKey !== null && storageKey !== undefined) {
-                delete stateStorage[storageKey];
-            }
-            
-            // Now clear the visual canvas
-            clearVisualOnly();
-            recordedPoints = [];
-            isReplaying = false;
-            replayIndex = 0;
-            
-            // Reset drawing state
-            drawing = false;
-            brushX = undefined;
-            brushY = undefined;
-            prevX = undefined;
-            prevY = undefined;
-            
-            // Reset draggable shapes to initial positions
-            initializeShapePositions();
-            
-            // Reset play/stop button text
-            if (playStopButton) {
-                playStopButton.textContent = "[play]";
-            }
-        }
-
-        p.keyPressed = function() {
-            if (p.key === "c" || p.key === "C") resetCanvas();
-        };
-
-        // Mouse press handler - detect shape clicks and start dragging
-        p.mousePressed = function() {
-            ensureAudio();
-            
-            // Check if clicking on a draggable shape
-            const shapeIndex = getShapeAtPosition(p.mouseX, p.mouseY);
-            if (shapeIndex >= 0) {
-                draggedShapeIndex = shapeIndex;
-                const shape = shapePositions[shapeIndex];
-                dragOffsetX = p.mouseX - shape.x;
-                dragOffsetY = p.mouseY - shape.y;
-                
-                // Hide instruction text when user starts interacting
-                hideSoundShapeInstructionText();
-            }
-        };
-        
-        // Mouse release handler - stop dragging
-        p.mouseReleased = function() {
-            if (draggedShapeIndex >= 0) {
-                // Save state after drawing
-                saveState();
-            }
-            draggedShapeIndex = -1;
-        };
-        
-        // Window resize handler - resize to container size
-        p.windowResized = function() {
-            // Safety check: ensure p5 is valid (don't check p5SketchActive here - canvas should always be resizable)
-            if (!p || typeof p.resizeCanvas !== 'function') {
-                return;
-            }
-            
-            // Get updated container dimensions directly from container
-            let updatedWidth = container.clientWidth || container.offsetWidth || containerW;
-            let updatedHeight = container.clientHeight || container.offsetHeight || containerH;
-            
-            // Fallback to white region dimensions if container dimensions are 0
-            if (updatedWidth <= 0 || updatedHeight <= 0) {
-                const whiteRegion = document.getElementById('white-region');
-                if (whiteRegion) {
-                    updatedWidth = whiteRegion.offsetWidth || whiteRegion.clientWidth || containerW;
-                    updatedHeight = whiteRegion.offsetHeight || whiteRegion.clientHeight || containerH;
-                }
-            }
-            
-            // Ensure minimum dimensions
-            if (updatedWidth <= 0) updatedWidth = Math.max(1, containerW || 400);
-            if (updatedHeight <= 0) updatedHeight = Math.max(1, containerH || 300);
-            
-            containerW = updatedWidth;
-            containerH = updatedHeight;
-            p.resizeCanvas(containerW, containerH);
-            
-            // Recreate brushLayer with new dimensions
-            if (brushLayer) {
-                brushLayer = p.createGraphics(containerW, containerH);
-                brushLayer.clear();
-                paintBackground();
-            }
-            
-            // Reinitialize shape positions for new canvas size
-            initializeShapePositions();
-        };
-    };
-}
-
-// Function to get p5 container dimensions
-function getP5ContainerDimensions() {
-    const container = document.getElementById('p5-container');
-    if (!container) return { width: 0, height: 0 };
-    
-    return {
-        width: container.offsetWidth,
-        height: container.offsetHeight
-    };
-}
-
-// Function to resize p5 canvas
-function resizeP5Canvas() {
-    if (!p5Instance) return;
-    
-    const container = document.getElementById('p5-container');
-    const whiteRegion = document.getElementById('white-region');
-    
-    if (!container || !whiteRegion) return;
-    
-    // Get dimensions from p5 container itself
-    // offsetWidth/offsetHeight work even when visibility is hidden
-    let width = container.offsetWidth || container.clientWidth || 0;
-    let height = container.offsetHeight || container.clientHeight || 0;
-    
-    // Fallback to white region dimensions if container dimensions are 0
-    if (width <= 0 || height <= 0) {
-        width = whiteRegion.offsetWidth || whiteRegion.clientWidth || 0;
-        height = whiteRegion.offsetHeight || whiteRegion.clientHeight || 0;
+// Initialize Sound & Shape canvas
+function initializeSoundShapeCanvas() {
+    soundShapeContainer = document.getElementById('sound-shape-container');
+    if (!soundShapeContainer) {
+        console.error('Sound & Shape container not found');
+        return;
     }
     
-    // Ensure minimum dimensions (p5 needs non-zero dimensions)
-    if (width <= 0) width = 400;
-    if (height <= 0) height = 300;
+    soundShapeDrawCanvas = document.getElementById('sound-shape-draw-surface');
+    soundShapeBrushCanvas = document.getElementById('sound-shape-brush-layer');
+    soundShapePlayBtn = document.getElementById('sound-shape-play-btn');
+    soundShapeResetBtn = document.getElementById('sound-shape-reset-btn');
+    soundShapeExportBtn = document.getElementById('sound-shape-export-btn');
     
-    // Only resize if dimensions have actually changed
-    const canvas = container.querySelector('canvas');
-    if (canvas && (canvas.width !== width || canvas.height !== height)) {
-        // Resize the canvas using p5's resizeCanvas method
-        if (p5Instance.resizeCanvas) {
-            p5Instance.resizeCanvas(width, height);
-        }
-        
-        // Ensure canvas is properly styled and visible
-        canvas.style.display = 'block';
-        canvas.style.visibility = 'visible';
-        canvas.style.opacity = '1';
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.zIndex = '11';
-        canvas.style.pointerEvents = 'auto';
+    if (!soundShapeDrawCanvas || !soundShapeBrushCanvas) {
+        console.error('Sound & Shape canvas elements not found');
+        return;
     }
-}
-
-// Function to initialize p5.js sketch
-function initializeP5Sketch() {
-    const container = document.getElementById('p5-container');
-    const whiteRegion = document.getElementById('white-region');
     
-    if (!container || !whiteRegion) return;
+    soundShapeDrawCtx = soundShapeDrawCanvas.getContext('2d');
+    soundShapeBrushCtx = soundShapeBrushCanvas.getContext('2d');
     
-    // Wait for layout to be ready, then create sketch
-    // Use requestAnimationFrame for better timing with layout
-    requestAnimationFrame(() => {
-        // Get dimensions from container itself - offsetWidth/offsetHeight work even when hidden
-        let width = container.offsetWidth || container.clientWidth || 0;
-        let height = container.offsetHeight || container.clientHeight || 0;
-        
-        // Fallback to white region dimensions
-        if (width <= 0 || height <= 0) {
-            width = whiteRegion.offsetWidth || whiteRegion.clientWidth || 0;
-            height = whiteRegion.offsetHeight || whiteRegion.clientHeight || 0;
-        }
-        
-        // Ensure minimum dimensions (p5 needs non-zero dimensions)
-        // Use reasonable defaults based on viewport
-        if (width <= 0) {
-            const viewportWidth = window.innerWidth;
-            const leftBoundary = 50;
-            const rightBoundary = viewportWidth - 50;
-            width = Math.max(400, rightBoundary - leftBoundary);
-        }
-        if (height <= 0) {
-            height = Math.max(300, (window.innerHeight - 50));
-        }
-        
-        // Check if there's a registered canvas for the initial pageId
-        // Skip p5.js canvas creation for Shape & Number pages (0-3, 3-0) - they use native Canvas API
-        // Skip p5.js canvas creation for Shape & Emotion pages (0-4, 4-0) - they use native Canvas API
-        const initialPageId = getPageIdFromColors(selectedLeftIndex, selectedRightIndex);
-        const isShapeNumberPage = initialPageId === '0-3' || initialPageId === '3-0';
-        const isShapeEmotionPage = initialPageId === '0-4' || initialPageId === '4-0';
-        
-        if (isShapeNumberPage || isShapeEmotionPage) {
-            // Don't create p5.js sketch for Shape & Number or Shape & Emotion pages
-            return;
-        }
-        
-        // If not Shape & Number page, proceed with p5.js sketch creation
-        let sketchFactory = null;
-        
-        if (window.CanvasRegistry && window.CanvasRegistry.has(initialPageId)) {
-            sketchFactory = window.CanvasRegistry.get(initialPageId);
-        }
-        
-        // If no registered canvas found, use the default canvas
-        if (!sketchFactory) {
-            sketchFactory = createP5Cell01Sketch;
-        }
-        
-        // Create p5 sketch using the factory function
-        // Parameters: container, width, height, active flag, pageId, state storage
-        const sketch = sketchFactory(
-            container,
-            width,
-            height,
-            p5SketchActive,
-            initialPageId, // Use pageId instead of cellId for new canvases
-            p5StateStorage // state storage object
-        );
-        
-        // Create p5 instance - always create it once, even if initially hidden
-        p5Instance = new p5(sketch, container);
-        
-        if (p5Instance) {
-            p5Instance._currentPageId = initialPageId;
+    // Set up event listeners
+    soundShapeDrawCanvas.addEventListener('mousedown', handleSoundShapeMouseDown);
+    soundShapeDrawCanvas.addEventListener('mousemove', handleSoundShapeMouseMove);
+    soundShapeDrawCanvas.addEventListener('mouseup', handleSoundShapeMouseUp);
+    soundShapeDrawCanvas.addEventListener('mouseleave', handleSoundShapeMouseUp);
+    
+    // Touch support
+    soundShapeDrawCanvas.addEventListener('touchstart', handleSoundShapeTouchStart);
+    soundShapeDrawCanvas.addEventListener('touchmove', handleSoundShapeTouchMove);
+    soundShapeDrawCanvas.addEventListener('touchend', handleSoundShapeTouchEnd);
+    
+    // Keyboard handler for reset
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'c' || e.key === 'C') && soundShapeActive) {
+            resetSoundShapeCanvas();
         }
     });
+    
+    // Play button
+    if (soundShapePlayBtn) {
+        soundShapePlayBtn.addEventListener('click', handleSoundShapePlayClick);
+    }
+    
+    // Reset button
+    if (soundShapeResetBtn) {
+        soundShapeResetBtn.addEventListener('click', resetSoundShapeCanvas);
+    }
+    
+    // Export button
+    if (soundShapeExportBtn) {
+        soundShapeExportBtn.addEventListener('click', exportSoundShapeCanvas);
+    }
+    
+    // Resize handler
+    if (window.ResizeObserver) {
+        soundShapeResizeObserver = new ResizeObserver(() => {
+            resizeSoundShapeCanvas();
+        });
+        soundShapeResizeObserver.observe(soundShapeContainer);
+    } else {
+        window.addEventListener('resize', resizeSoundShapeCanvas);
+    }
+    
+    // Initial setup
+    resizeSoundShapeCanvas();
 }
+
+// Resize canvas to match container
+function resizeSoundShapeCanvas() {
+    if (!soundShapeContainer || !soundShapeDrawCanvas || !soundShapeBrushCanvas) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const containerW = containerRect.width;
+    const containerH = containerRect.height;
+    
+    if (containerW <= 0 || containerH <= 0) return;
+    
+    // Match device pixel ratio for crisp lines
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    
+    // Resize draw canvas
+    soundShapeDrawCanvas.width = Math.floor(containerW * dpr);
+    soundShapeDrawCanvas.height = Math.floor(containerH * dpr);
+    soundShapeDrawCanvas.style.width = containerW + 'px';
+    soundShapeDrawCanvas.style.height = containerH + 'px';
+    soundShapeDrawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Resize brush canvas
+    soundShapeBrushCanvas.width = Math.floor(containerW * dpr);
+    soundShapeBrushCanvas.height = Math.floor(containerH * dpr);
+    soundShapeBrushCanvas.style.width = containerW + 'px';
+    soundShapeBrushCanvas.style.height = containerH + 'px';
+    soundShapeBrushCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Initialize shape positions
+    initializeSoundShapePositions();
+    
+    // Clear and redraw
+    clearSoundShapeBrushLayer();
+    renderSoundShapeFrame();
+}
+
+// Initialize draggable shape positions (centered column)
+function initializeSoundShapePositions() {
+    if (!soundShapeContainer) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    soundShapePositions = [];
+    
+    const centerX = w / 2;
+    const totalHeight = (SOUND_SHAPE_TYPES.length - 1) * SOUND_SHAPE_SPACING;
+    const startY = (h - totalHeight) / 2 - 60; // Shifted 60px up
+    
+    for (let i = 0; i < SOUND_SHAPE_TYPES.length; i++) {
+        soundShapePositions.push({
+            x: centerX,
+            y: startY + i * SOUND_SHAPE_SPACING,
+            shapeType: i
+        });
+    }
+}
+
+// Clear the brush layer (accumulated strokes)
+function clearSoundShapeBrushLayer() {
+    if (!soundShapeBrushCtx || !soundShapeContainer) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    soundShapeBrushCtx.fillStyle = SOUND_SHAPE_BG_COLOR;
+    soundShapeBrushCtx.fillRect(0, 0, w, h);
+}
+
+// Render a single frame
+function renderSoundShapeFrame() {
+    if (!soundShapeDrawCtx || !soundShapeContainer) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    if (w <= 0 || h <= 0) return;
+    
+    // Clear draw canvas
+    soundShapeDrawCtx.clearRect(0, 0, w, h);
+    
+    // Draw brush layer onto draw canvas
+    soundShapeDrawCtx.drawImage(soundShapeBrushCanvas, 0, 0, w, h);
+    
+    // Draw draggable shapes on top
+    drawSoundShapeDraggableShapes();
+}
+
+// Draw all draggable shapes (and their mirrors)
+function drawSoundShapeDraggableShapes() {
+    if (!soundShapeDrawCtx || !soundShapeContainer) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const centerX = w / 2;
+    
+    for (let i = 0; i < soundShapePositions.length; i++) {
+        const shape = soundShapePositions[i];
+        const isBeingDragged = (i === soundShapeDraggedIndex);
+        
+        // Draw shape on left side
+        drawSoundShapeDraggable(soundShapeDrawCtx, shape.x, shape.y, SOUND_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+        
+        // Draw mirrored shape on right side (if not at center)
+        const mirroredX = w - shape.x;
+        if (Math.abs(shape.x - centerX) > 5) {
+            drawSoundShapeDraggable(soundShapeDrawCtx, mirroredX, shape.y, SOUND_SHAPE_SIZE, shape.shapeType, isBeingDragged);
+        }
+    }
+}
+
+// Draw a single draggable shape
+function drawSoundShapeDraggable(ctx, x, y, baseSize, shapeType, isBeingDragged) {
+    // Size multipliers for different shapes
+    const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3]; // circle, square, triangle, ellipse, star, pentagon
+    let size = baseSize * (multipliers[shapeType] || 1.0);
+    
+    if (isBeingDragged) {
+        size *= 1.1;
+    }
+    
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = SOUND_SHAPE_FILL_COLOR;
+    ctx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
+    ctx.lineWidth = SOUND_SHAPE_STROKE_W;
+    
+    drawSoundShapeByType(ctx, 0, 0, size, shapeType);
+    
+    ctx.restore();
+}
+
+// Draw shape by type at origin (assumes translate already applied)
+function drawSoundShapeByType(ctx, x, y, size, shapeType) {
+    ctx.beginPath();
+    
+    if (shapeType === 0) {
+        // Circle
+        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    } else if (shapeType === 1) {
+        // Square
+        ctx.rect(x - size / 2, y - size / 2, size, size);
+    } else if (shapeType === 2) {
+        // Triangle
+        const h = size * 0.9;
+        ctx.moveTo(x, y - h / 2);
+        ctx.lineTo(x - h / 2, y + h / 2);
+        ctx.lineTo(x + h / 2, y + h / 2);
+        ctx.closePath();
+    } else if (shapeType === 3) {
+        // Ellipse
+        ctx.ellipse(x, y, size * 0.75, size * 0.45, 0, 0, Math.PI * 2);
+    } else if (shapeType === 4) {
+        // Star (5-pointed)
+        for (let i = 0; i < 10; i++) {
+            const angle = (i * Math.PI) / 5 - Math.PI / 2;
+            const r = (i % 2 === 0) ? size / 2 : size / 4;
+            const px = x + Math.cos(angle) * r;
+            const py = y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    } else if (shapeType === 5) {
+        // Pentagon
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+            const px = x + Math.cos(angle) * (size / 2);
+            const py = y + Math.sin(angle) * (size / 2);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    }
+    
+    ctx.fill();
+    ctx.stroke();
+}
+
+// Draw stamp on brush layer (for trails)
+function drawSoundShapeStamp(x, y, shapeType) {
+    if (!soundShapeBrushCtx) return;
+    
+    // Size multipliers for stamps
+    const multipliers = [1.0, 1.5, 2.0, 1.8, 1.3, 1.4]; // circle, square, triangle, ellipse, star, pentagon
+    const size = SOUND_SHAPE_STAMP_SIZE * (multipliers[shapeType] || 1.0);
+    
+    soundShapeBrushCtx.save();
+    soundShapeBrushCtx.translate(x, y);
+    soundShapeBrushCtx.fillStyle = SOUND_SHAPE_FILL_COLOR;
+    soundShapeBrushCtx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
+    soundShapeBrushCtx.lineWidth = SOUND_SHAPE_STROKE_W;
+    
+    drawSoundShapeByType(soundShapeBrushCtx, 0, 0, size, shapeType);
+    
+    soundShapeBrushCtx.restore();
+}
+
+// Stamp trail from one point to another
+function stampSoundShapeTrail(x1, y1, x2, y2, shapeType, recordIt) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist === 0) return;
+    
+    // Use smaller step distance for smoother trails
+    const stepDist = 8;
+    const steps = Math.max(1, Math.floor(dist / stepDist));
+    
+    // Draw stamps along the path, including at endpoints
+    for (let i = 0; i <= steps; i++) {
+        const f = steps > 0 ? i / steps : 0;
+        const x = x1 + (x2 - x1) * f;
+        const y = y1 + (y2 - y1) * f;
+        
+        drawSoundShapeStamp(x, y, shapeType);
+        
+        if (recordIt) {
+            soundShapeRecordedPoints.push({ x, y, shape: shapeType });
+        }
+    }
+    
+    if (recordIt) {
+        triggerSoundShapeSound(x2, y2, shapeType);
+    }
+}
+
+// Get mouse position relative to canvas
+function getSoundShapeMousePos(e) {
+    const rect = soundShapeDrawCanvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+// Get touch position relative to canvas
+function getSoundShapeTouchPos(e) {
+    const rect = soundShapeDrawCanvas.getBoundingClientRect();
+    const touch = e.touches[0] || e.changedTouches[0];
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+// Find shape at position
+function getSoundShapeAtPosition(mx, my) {
+    const hitRadius = SOUND_SHAPE_SIZE * 0.7;
+    
+    for (let i = soundShapePositions.length - 1; i >= 0; i--) {
+        const shape = soundShapePositions[i];
+        const dx = mx - shape.x;
+        const dy = my - shape.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < hitRadius) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Mouse event handlers
+function handleSoundShapeMouseDown(e) {
+    if (!soundShapeActive) return;
+    
+    ensureSoundShapeAudio();
+    
+    const pos = getSoundShapeMousePos(e);
+    const shapeIndex = getSoundShapeAtPosition(pos.x, pos.y);
+    
+    if (shapeIndex >= 0) {
+        soundShapeDraggedIndex = shapeIndex;
+        const shape = soundShapePositions[shapeIndex];
+        soundShapeDragOffsetX = pos.x - shape.x;
+        soundShapeDragOffsetY = pos.y - shape.y;
+        
+        // Hide instruction text
+        hideSoundShapeInstructionText();
+    }
+}
+
+function handleSoundShapeMouseMove(e) {
+    if (!soundShapeActive || soundShapeDraggedIndex < 0) return;
+    
+    const pos = getSoundShapeMousePos(e);
+    const shape = soundShapePositions[soundShapeDraggedIndex];
+    
+    const newX = pos.x - soundShapeDragOffsetX;
+    const newY = pos.y - soundShapeDragOffsetY;
+    
+    // Apply easing
+    const targetX = shape.x + (newX - shape.x) * SOUND_SHAPE_EASING;
+    const targetY = shape.y + (newY - shape.y) * SOUND_SHAPE_EASING;
+    
+    // Calculate movement
+    const dx = targetX - shape.x;
+    const dy = targetY - shape.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 2) {
+        const containerRect = soundShapeContainer.getBoundingClientRect();
+        const w = containerRect.width;
+        
+        // Stamp trail on left side
+        stampSoundShapeTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
+        
+        // Mirror stamp on right side
+        stampSoundShapeTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+    }
+    
+    // Update position
+    shape.x = targetX;
+    shape.y = targetY;
+    
+    // Redraw
+    renderSoundShapeFrame();
+}
+
+function handleSoundShapeMouseUp(e) {
+    if (soundShapeDraggedIndex >= 0) {
+        // Save state after drawing
+        saveSoundShapeState();
+    }
+    soundShapeDraggedIndex = -1;
+}
+
+// Touch event handlers
+function handleSoundShapeTouchStart(e) {
+    e.preventDefault();
+    if (!soundShapeActive) return;
+    
+    ensureSoundShapeAudio();
+    
+    const pos = getSoundShapeTouchPos(e);
+    const shapeIndex = getSoundShapeAtPosition(pos.x, pos.y);
+    
+    if (shapeIndex >= 0) {
+        soundShapeDraggedIndex = shapeIndex;
+        const shape = soundShapePositions[shapeIndex];
+        soundShapeDragOffsetX = pos.x - shape.x;
+        soundShapeDragOffsetY = pos.y - shape.y;
+        
+        hideSoundShapeInstructionText();
+    }
+}
+
+function handleSoundShapeTouchMove(e) {
+    e.preventDefault();
+    if (!soundShapeActive || soundShapeDraggedIndex < 0) return;
+    
+    const pos = getSoundShapeTouchPos(e);
+    const shape = soundShapePositions[soundShapeDraggedIndex];
+    
+    const newX = pos.x - soundShapeDragOffsetX;
+    const newY = pos.y - soundShapeDragOffsetY;
+    
+    const targetX = shape.x + (newX - shape.x) * SOUND_SHAPE_EASING;
+    const targetY = shape.y + (newY - shape.y) * SOUND_SHAPE_EASING;
+    
+    const dx = targetX - shape.x;
+    const dy = targetY - shape.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 2) {
+        const containerRect = soundShapeContainer.getBoundingClientRect();
+        const w = containerRect.width;
+        
+        stampSoundShapeTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
+        stampSoundShapeTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+    }
+    
+    shape.x = targetX;
+    shape.y = targetY;
+    
+    renderSoundShapeFrame();
+}
+
+function handleSoundShapeTouchEnd(e) {
+    e.preventDefault();
+    if (soundShapeDraggedIndex >= 0) {
+        saveSoundShapeState();
+    }
+    soundShapeDraggedIndex = -1;
+}
+
+// Sound functions (Web Audio API)
+function ensureSoundShapeAudio() {
+    if (!soundShapeAudioCtx) {
+        soundShapeAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        soundShapeMasterGain = soundShapeAudioCtx.createGain();
+        soundShapeMasterGain.gain.value = 0.9;
+        soundShapeMasterGain.connect(soundShapeAudioCtx.destination);
+    }
+    if (soundShapeAudioCtx.state === 'suspended') {
+        soundShapeAudioCtx.resume();
+    }
+}
+
+function midiToFreqSoundShape(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function triggerSoundShapeSound(x, y, shapeType) {
+    const now = performance.now();
+    if (now - soundShapeLastSoundTime < 70) return;
+    soundShapeLastSoundTime = now;
+    
+    ensureSoundShapeAudio();
+    if (!soundShapeAudioCtx || soundShapeAudioCtx.state !== 'running') return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const h = containerRect.height;
+    
+    // Pitch based on Y position
+    const normalizedY = 1 - (y / h); // 0 at bottom, 1 at top
+    const midiNote = Math.floor(48 + normalizedY * 36); // MIDI 48-84
+    let freq = midiToFreqSoundShape(midiNote);
+    
+    // Shape-specific sound parameters
+    let oscType = 'sine';
+    let amp = 0.30;
+    let dur = 0.14;
+    let attackTime = 0.01;
+    let decayTime = 0.13;
+    let filterFreq = null;
+    
+    if (shapeType === 0) {
+        // Circle - soft sine wave
+        oscType = 'sine';
+        freq = freq * 0.85;
+        amp = 0.50;
+        dur = 0.20;
+        attackTime = 0.02;
+        decayTime = 0.18;
+    } else if (shapeType === 1) {
+        // Square - sharp square wave
+        oscType = 'square';
+        freq = freq * 1.15;
+        amp = 0.45;
+        dur = 0.08;
+        attackTime = 0.005;
+        decayTime = 0.075;
+    } else if (shapeType === 2) {
+        // Triangle - triangle wave
+        oscType = 'triangle';
+        freq = freq * 1.25;
+        amp = 0.32;
+        dur = 0.15;
+        attackTime = 0.01;
+        decayTime = 0.14;
+    } else if (shapeType === 3) {
+        // Ellipse - filtered sine wave
+        oscType = 'sine';
+        freq = freq * 0.75;
+        amp = 0.55;
+        dur = 0.25;
+        attackTime = 0.03;
+        decayTime = 0.22;
+        filterFreq = freq * 0.5;
+    } else if (shapeType === 4) {
+        // Star - sawtooth wave
+        oscType = 'sawtooth';
+        freq = freq * 1.35;
+        amp = 0.50;
+        dur = 0.06;
+        attackTime = 0.002;
+        decayTime = 0.058;
+    } else if (shapeType === 5) {
+        // Pentagon - filtered square wave
+        oscType = 'square';
+        freq = freq * 0.95;
+        amp = 0.48;
+        dur = 0.12;
+        attackTime = 0.008;
+        decayTime = 0.112;
+        filterFreq = freq * 1.5;
+    }
+    
+    const t0 = soundShapeAudioCtx.currentTime;
+    
+    const osc = soundShapeAudioCtx.createOscillator();
+    osc.type = oscType;
+    osc.frequency.setValueAtTime(freq, t0);
+    
+    const g = soundShapeAudioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(amp, t0 + attackTime);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + attackTime + decayTime);
+    
+    let filter = null;
+    if (filterFreq !== null) {
+        filter = soundShapeAudioCtx.createBiquadFilter();
+        filter.type = shapeType === 3 ? 'lowpass' : 'highpass';
+        filter.frequency.setValueAtTime(filterFreq, t0);
+        filter.Q.setValueAtTime(1, t0);
+        
+        osc.connect(g);
+        g.connect(filter);
+        filter.connect(soundShapeMasterGain);
+    } else {
+        osc.connect(g);
+        g.connect(soundShapeMasterGain);
+    }
+    
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+    
+    osc.onended = () => {
+        try { osc.disconnect(); } catch {}
+        try { g.disconnect(); } catch {}
+        if (filter !== null) {
+            try { filter.disconnect(); } catch {}
+        }
+    };
+}
+
+// Playback functions
+function handleSoundShapePlayClick() {
+    if (soundShapeIsReplaying) {
+        // Stop playback
+        soundShapeIsReplaying = false;
+        if (soundShapePlayBtn) {
+            soundShapePlayBtn.textContent = '[play]';
+        }
+        if (soundShapeAnimationId) {
+            cancelAnimationFrame(soundShapeAnimationId);
+            soundShapeAnimationId = null;
+        }
+    } else {
+        // Start playback
+        if (soundShapeRecordedPoints.length === 0) return;
+        
+        ensureSoundShapeAudio();
+        
+        clearSoundShapeBrushLayer();
+        soundShapeReplayIndex = 0;
+        soundShapeLastSoundTime = 0;
+        soundShapeIsReplaying = true;
+        
+        if (soundShapePlayBtn) {
+            soundShapePlayBtn.textContent = '[stop]';
+        }
+        
+        replaySoundShapeDrawing();
+    }
+}
+
+function replaySoundShapeDrawing() {
+    if (!soundShapeIsReplaying || !soundShapeActive) {
+        soundShapeIsReplaying = false;
+        return;
+    }
+    
+    const pointsPerFrame = 10;
+    
+    for (let i = 0; i < pointsPerFrame; i++) {
+        const point = soundShapeRecordedPoints[soundShapeReplayIndex];
+        
+        if (!point) {
+            // Loop: restart from beginning
+            soundShapeReplayIndex = 0;
+            clearSoundShapeBrushLayer();
+            soundShapeAnimationId = requestAnimationFrame(replaySoundShapeDrawing);
+            return;
+        }
+        
+        const containerRect = soundShapeContainer.getBoundingClientRect();
+        const w = containerRect.width;
+        
+        // Draw stamp and its mirror
+        drawSoundShapeStamp(point.x, point.y, point.shape);
+        drawSoundShapeStamp(w - point.x, point.y, point.shape);
+        
+        // Play sound
+        triggerSoundShapeSound(point.x, point.y, point.shape);
+        
+        soundShapeReplayIndex++;
+    }
+    
+    renderSoundShapeFrame();
+    soundShapeAnimationId = requestAnimationFrame(replaySoundShapeDrawing);
+}
+
+// Reset canvas
+function resetSoundShapeCanvas() {
+    // Clear saved state
+    const pageId = getCurrentSoundShapePageId();
+    if (pageId && soundShapeStateStorage[pageId]) {
+        delete soundShapeStateStorage[pageId];
+    }
+    
+    // Clear visual
+    clearSoundShapeBrushLayer();
+    soundShapeRecordedPoints = [];
+    soundShapeIsReplaying = false;
+    soundShapeReplayIndex = 0;
+    soundShapeDraggedIndex = -1;
+    
+    if (soundShapeAnimationId) {
+        cancelAnimationFrame(soundShapeAnimationId);
+        soundShapeAnimationId = null;
+    }
+    
+    // Reset play button
+    if (soundShapePlayBtn) {
+        soundShapePlayBtn.textContent = '[play]';
+    }
+    
+    // Reinitialize shape positions
+    initializeSoundShapePositions();
+    
+    // Redraw
+    renderSoundShapeFrame();
+}
+
+// Export canvas as PNG image
+function exportSoundShapeCanvas() {
+    if (!soundShapeBrushCanvas || !soundShapeContainer) return;
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    const h = containerRect.height;
+    
+    if (w <= 0 || h <= 0) return;
+    
+    // Create a temporary canvas to combine layers
+    const exportCanvas = document.createElement('canvas');
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    exportCanvas.width = Math.floor(w * dpr);
+    exportCanvas.height = Math.floor(h * dpr);
+    
+    const exportCtx = exportCanvas.getContext('2d');
+    exportCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Draw white background
+    exportCtx.fillStyle = SOUND_SHAPE_BG_COLOR;
+    exportCtx.fillRect(0, 0, w, h);
+    
+    // Draw the brush layer (accumulated strokes)
+    exportCtx.drawImage(soundShapeBrushCanvas, 0, 0, w, h);
+    
+    // Draw the draggable shapes on top
+    const centerX = w / 2;
+    for (let i = 0; i < soundShapePositions.length; i++) {
+        const shape = soundShapePositions[i];
+        const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3];
+        const size = SOUND_SHAPE_SIZE * (multipliers[shape.shapeType] || 1.0);
+        
+        // Draw shape on left side
+        exportCtx.save();
+        exportCtx.translate(shape.x, shape.y);
+        exportCtx.fillStyle = SOUND_SHAPE_FILL_COLOR;
+        exportCtx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
+        exportCtx.lineWidth = SOUND_SHAPE_STROKE_W;
+        drawSoundShapeByType(exportCtx, 0, 0, size, shape.shapeType);
+        exportCtx.restore();
+        
+        // Draw mirrored shape on right side
+        const mirroredX = w - shape.x;
+        if (Math.abs(shape.x - centerX) > 5) {
+            exportCtx.save();
+            exportCtx.translate(mirroredX, shape.y);
+            exportCtx.fillStyle = SOUND_SHAPE_FILL_COLOR;
+            exportCtx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
+            exportCtx.lineWidth = SOUND_SHAPE_STROKE_W;
+            drawSoundShapeByType(exportCtx, 0, 0, size, shape.shapeType);
+            exportCtx.restore();
+        }
+    }
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `synesthesia-drawing-${timestamp}.png`;
+    
+    // Create download link and trigger download
+    const dataUrl = exportCanvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+}
+
+// State persistence
+function getCurrentSoundShapePageId() {
+    // Get current page ID from selected colors
+    return `${selectedLeftIndex}-${selectedRightIndex}`;
+}
+
+function saveSoundShapeState() {
+    const pageId = getCurrentSoundShapePageId();
+    if (!pageId) return;
+    
+    try {
+        // Save brush layer as image data
+        let imageData = null;
+        if (soundShapeBrushCanvas) {
+            imageData = soundShapeBrushCanvas.toDataURL('image/png');
+        }
+        
+        soundShapeStateStorage[pageId] = {
+            imageData: imageData,
+            recordedPoints: [...soundShapeRecordedPoints]
+        };
+    } catch (e) {
+        console.warn('Failed to save sound shape state:', e);
+    }
+}
+
+function restoreSoundShapeState() {
+    const pageId = getCurrentSoundShapePageId();
+    if (!pageId) {
+        clearSoundShapeBrushLayer();
+        soundShapeRecordedPoints = [];
+        return false;
+    }
+    
+    const savedState = soundShapeStateStorage[pageId];
+    if (!savedState) {
+        clearSoundShapeBrushLayer();
+        soundShapeRecordedPoints = [];
+        return false;
+    }
+    
+    try {
+        // Restore recorded points
+        if (savedState.recordedPoints && savedState.recordedPoints.length > 0) {
+            soundShapeRecordedPoints = [...savedState.recordedPoints];
+        } else {
+            soundShapeRecordedPoints = [];
+        }
+        
+        // Restore brush layer image
+        if (savedState.imageData && soundShapeBrushCtx) {
+            const img = new Image();
+            img.onload = () => {
+                const containerRect = soundShapeContainer.getBoundingClientRect();
+                soundShapeBrushCtx.drawImage(img, 0, 0, containerRect.width, containerRect.height);
+                renderSoundShapeFrame();
+            };
+            img.src = savedState.imageData;
+        }
+        
+        return true;
+    } catch (e) {
+        console.warn('Failed to restore sound shape state:', e);
+        clearSoundShapeBrushLayer();
+        soundShapeRecordedPoints = [];
+        return false;
+    }
+}
+
+// Visibility update function
+function updateSoundShapeCanvasVisibility(pageId) {
+    if (!soundShapeContainer) return;
+    
+    // Show for pages "0-1" or "1-0" (Shape + Sound)
+    const isSoundShapePage = pageId === '0-1' || pageId === '1-0';
+    
+    if (isSoundShapePage) {
+        soundShapeContainer.classList.remove('hidden');
+        soundShapeActive = true;
+        
+        // Stop any ongoing replay first
+        if (soundShapeIsReplaying) {
+            soundShapeIsReplaying = false;
+            if (soundShapeAnimationId) {
+                cancelAnimationFrame(soundShapeAnimationId);
+                soundShapeAnimationId = null;
+            }
+            if (soundShapePlayBtn) {
+                soundShapePlayBtn.textContent = '[play]';
+            }
+        }
+        
+        // Resize and restore state after a brief delay
+        setTimeout(() => {
+            resizeSoundShapeCanvas();
+            restoreSoundShapeState();
+            renderSoundShapeFrame();
+        }, 50);
+    } else {
+        // Save state before hiding
+        if (soundShapeActive) {
+            saveSoundShapeState();
+        }
+        
+        soundShapeContainer.classList.add('hidden');
+        soundShapeActive = false;
+        
+        // Stop replay
+        if (soundShapeIsReplaying) {
+            soundShapeIsReplaying = false;
+            if (soundShapeAnimationId) {
+                cancelAnimationFrame(soundShapeAnimationId);
+                soundShapeAnimationId = null;
+            }
+            if (soundShapePlayBtn) {
+                soundShapePlayBtn.textContent = '[play]';
+            }
+        }
+    }
+}
+
+// ==================
+// SOUND + EMOTION SMILEY
+// ==================
+// Interactive smiley face with slider-controlled mouth curve
+
+// State variables for Sound + Emotion interaction
+let soundEmotionContainer = null;
+let soundEmotionSmiley = null;
+let soundEmotionSlider = null;
+let smileyFace = null;
+let smileyEyeLeft = null;
+let smileyEyeRight = null;
+let smileyMouth = null;
+
+// Web Audio API state for Sound + Emotion
+let soundEmotionAudioContext = null;
+let soundEmotionOscillator = null;
+let soundEmotionGainNode = null;
+let soundEmotionIsPlaying = false;
+
+// Initialize Web Audio context (must be called after user interaction)
+function initSoundEmotionAudio() {
+    if (soundEmotionAudioContext) return; // Already initialized
+    
+    soundEmotionAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    soundEmotionGainNode = soundEmotionAudioContext.createGain();
+    soundEmotionGainNode.connect(soundEmotionAudioContext.destination);
+    soundEmotionGainNode.gain.value = 0.3; // Volume level (0-1)
+}
+
+// Start playing oscillator sound
+function startSoundEmotionTone(sliderValue) {
+    // Initialize audio context on first user interaction
+    initSoundEmotionAudio();
+    
+    // Resume audio context if suspended (browser autoplay policy)
+    if (soundEmotionAudioContext.state === 'suspended') {
+        soundEmotionAudioContext.resume();
+    }
+    
+    // Don't create a new oscillator if already playing
+    if (soundEmotionIsPlaying) {
+        updateSoundEmotionPitch(sliderValue);
+        return;
+    }
+    
+    // Create oscillator
+    soundEmotionOscillator = soundEmotionAudioContext.createOscillator();
+    soundEmotionOscillator.type = 'sine'; // Smooth sine wave
+    soundEmotionOscillator.connect(soundEmotionGainNode);
+    
+    // Set initial frequency based on slider
+    updateSoundEmotionPitch(sliderValue);
+    
+    // Start the oscillator
+    soundEmotionOscillator.start();
+    soundEmotionIsPlaying = true;
+}
+
+// Update oscillator frequency based on slider value
+// Maps slider (-100 to 100) to frequency (200Hz to 600Hz)
+function updateSoundEmotionPitch(sliderValue) {
+    if (!soundEmotionOscillator) return;
+    
+    // Map slider value to frequency
+    // -100 (sad/left) → 200Hz (low pitch)
+    // 0 (neutral) → 400Hz
+    // 100 (happy/right) → 600Hz (high pitch)
+    const minFreq = 200;
+    const maxFreq = 600;
+    const normalizedValue = (sliderValue + 100) / 200; // 0 to 1
+    const frequency = minFreq + (normalizedValue * (maxFreq - minFreq));
+    
+    // Smooth frequency transition
+    soundEmotionOscillator.frequency.setTargetAtTime(
+        frequency, 
+        soundEmotionAudioContext.currentTime, 
+        0.05 // Smoothing time constant
+    );
+}
+
+// Stop the oscillator sound
+function stopSoundEmotionTone() {
+    if (soundEmotionOscillator && soundEmotionIsPlaying) {
+        soundEmotionOscillator.stop();
+        soundEmotionOscillator.disconnect();
+        soundEmotionOscillator = null;
+        soundEmotionIsPlaying = false;
+    }
+}
+
+// Function to update Sound + Emotion smiley visibility
+function updateSoundEmotionVisibility(pageId) {
+    soundEmotionContainer = document.getElementById('sound-emotion-container');
+    if (!soundEmotionContainer) return;
+    
+    // Show for pages "1-4" or "4-1" (Sound + Emotion)
+    const isSoundEmotionPage = pageId === '1-4' || pageId === '4-1';
+    
+    if (isSoundEmotionPage) {
+        soundEmotionContainer.classList.remove('hidden');
+        // Initialize and resize after a brief delay to ensure container is visible
+        setTimeout(() => {
+            initializeSoundEmotionSmiley();
+            resizeSoundEmotionSmiley();
+        }, 50);
+    } else {
+        soundEmotionContainer.classList.add('hidden');
+        // Stop any playing sound when leaving the page
+        stopSoundEmotionTone();
+    }
+}
+
+// Initialize the smiley interaction
+function initializeSoundEmotionSmiley() {
+    soundEmotionSmiley = document.getElementById('sound-emotion-smiley');
+    soundEmotionSlider = document.getElementById('sound-emotion-slider');
+    smileyFace = document.getElementById('smiley-face');
+    smileyEyeLeft = document.getElementById('smiley-eye-left');
+    smileyEyeRight = document.getElementById('smiley-eye-right');
+    smileyMouth = document.getElementById('smiley-mouth');
+    
+    if (!soundEmotionSmiley || !soundEmotionSlider) return;
+    
+    // Remove old listeners to prevent duplicates
+    soundEmotionSlider.removeEventListener('input', handleSoundEmotionSlider);
+    soundEmotionSlider.removeEventListener('mouseup', handleSoundEmotionSliderRelease);
+    soundEmotionSlider.removeEventListener('touchend', handleSoundEmotionSliderRelease);
+    soundEmotionSlider.removeEventListener('mouseleave', handleSoundEmotionSliderRelease);
+    
+    // Add slider event listeners
+    soundEmotionSlider.addEventListener('input', handleSoundEmotionSlider);
+    // Stop sound when user releases slider
+    soundEmotionSlider.addEventListener('mouseup', handleSoundEmotionSliderRelease);
+    soundEmotionSlider.addEventListener('touchend', handleSoundEmotionSliderRelease);
+    soundEmotionSlider.addEventListener('mouseleave', handleSoundEmotionSliderRelease);
+    
+    // Initial render
+    resizeSoundEmotionSmiley();
+}
+
+// Handle slider release (stop sound)
+function handleSoundEmotionSliderRelease() {
+    stopSoundEmotionTone();
+}
+
+// Handle slider input
+function handleSoundEmotionSlider(e) {
+    const value = parseInt(e.target.value, 10);
+    updateSmileyMouth(value);
+    // Start/update sound based on slider value
+    startSoundEmotionTone(value);
+}
+
+// Resize and position smiley elements
+function resizeSoundEmotionSmiley() {
+    if (!soundEmotionSmiley || !smileyFace || !smileyEyeLeft || !smileyEyeRight || !smileyMouth) return;
+    
+    const svgRect = soundEmotionSmiley.getBoundingClientRect();
+    const width = svgRect.width;
+    const height = svgRect.height;
+    
+    if (width === 0 || height === 0) return;
+    
+    // Set SVG viewBox to match dimensions
+    soundEmotionSmiley.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    
+    // Calculate ellipse dimensions
+    // Ellipse fills the full width and height of the SVG
+    const ellipseCx = width / 2;
+    const ellipseCy = height / 2;
+    const ellipseRx = (width / 2) - 10; // Padding for stroke
+    const ellipseRy = (height / 2) - 10; // Padding for stroke
+    
+    // Set ellipse attributes
+    smileyFace.setAttribute('cx', ellipseCx);
+    smileyFace.setAttribute('cy', ellipseCy);
+    smileyFace.setAttribute('rx', ellipseRx);
+    smileyFace.setAttribute('ry', ellipseRy);
+    
+    // Position eyes - 1/3 from top, 1/4 from each side
+    const eyeY = ellipseCy - ellipseRy * 0.25; // Slightly above center
+    const eyeLeftX = ellipseCx - ellipseRx * 0.35;
+    const eyeRightX = ellipseCx + ellipseRx * 0.35;
+    const eyeBaseRadius = Math.min(ellipseRx, ellipseRy) * 0.18; // Eye size relative to face (larger for smiley look)
+    
+    // Store base eye radius for dynamic updates
+    smileyEyeLeft.dataset.baseRadius = eyeBaseRadius;
+    smileyEyeRight.dataset.baseRadius = eyeBaseRadius;
+    
+    smileyEyeLeft.setAttribute('cx', eyeLeftX);
+    smileyEyeLeft.setAttribute('cy', eyeY);
+    smileyEyeLeft.setAttribute('rx', eyeBaseRadius);
+    smileyEyeLeft.setAttribute('ry', eyeBaseRadius);
+    
+    smileyEyeRight.setAttribute('cx', eyeRightX);
+    smileyEyeRight.setAttribute('cy', eyeY);
+    smileyEyeRight.setAttribute('rx', eyeBaseRadius);
+    smileyEyeRight.setAttribute('ry', eyeBaseRadius);
+    
+    // Update mouth and eyes with current slider value
+    const sliderValue = soundEmotionSlider ? parseInt(soundEmotionSlider.value, 10) : 0;
+    updateSmileyMouth(sliderValue);
+}
+
+// Update mouth curve based on slider value (-100 to 100)
+function updateSmileyMouth(sliderValue) {
+    if (!soundEmotionSmiley || !smileyMouth || !smileyFace) return;
+    
+    const svgRect = soundEmotionSmiley.getBoundingClientRect();
+    const width = svgRect.width;
+    const height = svgRect.height;
+    
+    if (width === 0 || height === 0) return;
+    
+    // Get ellipse dimensions
+    const ellipseCx = width / 2;
+    const ellipseCy = height / 2;
+    const ellipseRx = (width / 2) - 10;
+    const ellipseRy = (height / 2) - 10;
+    
+    // Mouth position - below center
+    const mouthY = ellipseCy + ellipseRy * 0.25;
+    const mouthWidth = ellipseRx * 0.7; // Wider mouth (70% of face width)
+    
+    // Start and end points of mouth
+    const mouthStartX = ellipseCx - mouthWidth;
+    const mouthEndX = ellipseCx + mouthWidth;
+    
+    // Control point for quadratic bezier
+    // sliderValue: -100 (left/sad) to 100 (right/happy)
+    // Left side = frown, Right side = smile
+    const maxCurve = ellipseRy * 0.85; // Maximum curve amount (exaggerated curvature)
+    const curveAmount = (-sliderValue / 100) * maxCurve;
+    
+    // Control point Y: subtract curveAmount (so positive = curves up = happy)
+    const controlX = ellipseCx;
+    const controlY = mouthY - curveAmount;
+    
+    // Create quadratic bezier path
+    const pathD = `M ${mouthStartX} ${mouthY} Q ${controlX} ${controlY} ${mouthEndX} ${mouthY}`;
+    smileyMouth.setAttribute('d', pathD);
+    
+    // Update eye shape based on emotion
+    // When happy (positive slider), eyes become more elliptical (squinting smile)
+    // When sad (negative slider), eyes stay round
+    updateSmileyEyes(sliderValue);
+}
+
+// Update eye shape based on slider value
+// Happy = more elliptical (wider, shorter), Sad = round
+function updateSmileyEyes(sliderValue) {
+    if (!smileyEyeLeft || !smileyEyeRight) return;
+    
+    const baseRadiusLeft = parseFloat(smileyEyeLeft.dataset.baseRadius) || 20;
+    const baseRadiusRight = parseFloat(smileyEyeRight.dataset.baseRadius) || 20;
+    
+    // Normalize slider value: 0 (sad/neutral) to 1 (happy)
+    // Only apply squish effect when happy (positive values)
+    const happinessLevel = Math.max(0, sliderValue) / 100; // 0 to 1
+    
+    // When happy, eyes get wider (rx increases) and shorter (ry decreases)
+    // Maximum squish: rx = 1.4x base, ry = 0.5x base
+    const rxMultiplier = 1 + (happinessLevel * 0.4); // 1.0 to 1.4
+    const ryMultiplier = 1 - (happinessLevel * 0.5); // 1.0 to 0.5
+    
+    // Apply to left eye
+    smileyEyeLeft.setAttribute('rx', baseRadiusLeft * rxMultiplier);
+    smileyEyeLeft.setAttribute('ry', baseRadiusLeft * ryMultiplier);
+    
+    // Apply to right eye
+    smileyEyeRight.setAttribute('rx', baseRadiusRight * rxMultiplier);
+    smileyEyeRight.setAttribute('ry', baseRadiusRight * ryMultiplier);
+}
+
+// Handle window resize for Sound + Emotion smiley
+let soundEmotionResizeTimeout = null;
+window.addEventListener('resize', () => {
+    if (soundEmotionResizeTimeout) clearTimeout(soundEmotionResizeTimeout);
+    soundEmotionResizeTimeout = setTimeout(() => {
+        // Only resize if container is visible
+        if (soundEmotionContainer && !soundEmotionContainer.classList.contains('hidden')) {
+            resizeSoundEmotionSmiley();
+        }
+    }, 100);
+});
 
 // Function to initialize SYN logo hover effect
 // Shows synesthesia text overlay when hovering over the SYN logo
@@ -7755,6 +8403,10 @@ function initializeColorKeyClickEffect() {
     // Get the logo hover overlay (darkens and blurs canvas area)
     const logoHoverOverlay = document.getElementById('logo-hover-overlay');
     
+    // Get the logo hover text boxes
+    const logoHoverTextBox1 = document.getElementById('logo-hover-text-box-1');
+    const logoHoverTextBox2 = document.getElementById('logo-hover-text-box-2');
+    
     // Helper function to handle hover in - expand all items and push UI rectangles inward
     const handleHoverIn = () => {
         // Add legend-expanded class to ALL items (both columns) for bulk hover effect
@@ -7769,6 +8421,10 @@ function initializeColorKeyClickEffect() {
         
         // Show the logo hover overlay (10% black + blur on canvas area)
         if (logoHoverOverlay) logoHoverOverlay.classList.add('visible');
+        
+        // Show the logo hover text boxes
+        if (logoHoverTextBox1) logoHoverTextBox1.classList.add('visible');
+        if (logoHoverTextBox2) logoHoverTextBox2.classList.add('visible');
     };
     
     // Helper function to handle hover out - collapse all items and reset UI rectangles
@@ -7785,6 +8441,10 @@ function initializeColorKeyClickEffect() {
         
         // Hide the logo hover overlay
         if (logoHoverOverlay) logoHoverOverlay.classList.remove('visible');
+        
+        // Hide the logo hover text boxes
+        if (logoHoverTextBox1) logoHoverTextBox1.classList.remove('visible');
+        if (logoHoverTextBox2) logoHoverTextBox2.classList.remove('visible');
     };
     
     // Add event listeners to both logo rectangles for unified hover behavior
@@ -7796,6 +8456,122 @@ function initializeColorKeyClickEffect() {
         ethesiaElement.addEventListener('mouseenter', handleHoverIn);
         ethesiaElement.addEventListener('mouseleave', handleHoverOut);
     }
+}
+
+// Function to initialize INDEX hover effect - shows white overlay on canvas when hovering on INDEX button
+function initializeIndexHoverEffect() {
+    const indexButton = document.querySelector('.black-corner-rectangle');
+    const indexPageOverlay = document.getElementById('index-page-overlay');
+    const paramRectLeft = document.querySelector('.black-bottom-rectangle-left');
+    const paramRectRight = document.querySelector('.black-bottom-rectangle-right');
+    const shuttersContainer = document.getElementById('index-shutters-container');
+    
+    if (!indexButton || !indexPageOverlay) return;
+    
+    // Track if index is currently open
+    let indexIsOpen = false;
+    
+    // Helper to open index (show overlay, expand letters, hide param rects, trigger shutter animation)
+    const openIndex = () => {
+        // Only trigger shutter animation if transitioning from closed to open
+        const wasAlreadyOpen = indexIsOpen;
+        
+        indexIsOpen = true;
+        indexPageOverlay.classList.add('visible');
+        indexButton.classList.add('color-key-expanded'); // Keep letters expanded
+        if (paramRectLeft) paramRectLeft.classList.add('index-hovered');
+        if (paramRectRight) paramRectRight.classList.add('index-hovered');
+        
+        // Trigger shutter animation only when first opening (not when moving between INDEX and overlay)
+        if (!wasAlreadyOpen && shuttersContainer) {
+            shuttersContainer.classList.remove('animating');
+            // Use requestAnimationFrame to ensure the class removal is processed before re-adding
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    shuttersContainer.classList.add('animating');
+                });
+            });
+        }
+    };
+    
+    // Helper to close index (hide overlay, collapse letters, show param rects, reset shutters)
+    const closeIndex = () => {
+        indexIsOpen = false;
+        indexPageOverlay.classList.remove('visible');
+        indexButton.classList.remove('color-key-expanded'); // Collapse letters
+        if (paramRectLeft) paramRectLeft.classList.remove('index-hovered');
+        if (paramRectRight) paramRectRight.classList.remove('index-hovered');
+        
+        // Reset shutters to initial position (instant, no animation)
+        if (shuttersContainer) {
+            shuttersContainer.classList.remove('animating');
+        }
+    };
+    
+    // INDEX button: open if closed, close if open
+    indexButton.addEventListener('mouseenter', () => {
+        if (indexIsOpen) {
+            // Close when hovering on INDEX while overlay is open
+            closeIndex();
+        } else {
+            // Open when hovering on INDEX while overlay is closed
+            openIndex();
+        }
+    });
+    
+    // When leaving INDEX button to overlay, keep open; otherwise close
+    indexButton.addEventListener('mouseleave', (e) => {
+        // If moving to overlay, keep open state
+        if (indexPageOverlay.contains(e.relatedTarget)) {
+            // Moving to overlay - keep open
+            return;
+        }
+        // If overlay is not open anymore (was closed by mouseenter), don't do anything
+        if (!indexIsOpen) {
+            return;
+        }
+        // Leaving to somewhere else while open - close
+        closeIndex();
+    });
+    
+    // Overlay: keep index open when hovering over it
+    indexPageOverlay.addEventListener('mouseenter', () => {
+        // Keep open state and expanded letters
+        openIndex();
+    });
+    
+    // When leaving overlay, close unless going to INDEX button
+    indexPageOverlay.addEventListener('mouseleave', (e) => {
+        if (!indexButton.contains(e.relatedTarget)) {
+            closeIndex();
+        }
+    });
+    
+    // Add click handlers for index items to navigate to pages
+    const indexItems = indexPageOverlay.querySelectorAll('.index-item');
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    
+    if (!leftColumn || !rightColumn) return;
+    
+    indexItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const leftIndex = parseInt(item.dataset.left, 10);
+            const rightIndex = parseInt(item.dataset.right, 10);
+            
+            // Calculate scroll positions
+            const itemHeight = window.innerHeight / 6;
+            const singleSetHeight = 6 * itemHeight; // Start of middle set
+            
+            // Scroll both columns to the correct indices
+            // Position in middle set + index offset
+            leftColumn.scrollTop = singleSetHeight + (leftIndex * itemHeight);
+            rightColumn.scrollTop = singleSetHeight + (rightIndex * itemHeight);
+            
+            // Close the index (hide overlay, collapse letters, show param rects)
+            closeIndex();
+        });
+    });
 }
 
 // Function to align PARAMETER TEXT-BOX rectangles with logo bottom edge
@@ -8047,6 +8823,15 @@ function initializeGradientIntro() {
     // No inline opacity - CSS handles visibility via intro-line transform (slide-up from mask)
     container.appendChild(introTextLine2);
     
+    // Create START button container with same mask structure as intro lines
+    // Uses gradient-intro-text-start class for mask container and intro-line for inner styling
+    const introTextStart = document.createElement('div');
+    introTextStart.className = 'gradient-intro-text gradient-intro-text-start';
+    introTextStart.id = 'gradient-intro-text-start';
+    introTextStart.innerHTML = '<span class="intro-line">[start]</span>';
+    // Hidden by default - will slide up after intro lines exit
+    container.appendChild(introTextStart);
+    
     // Create downward arrow element below START text
     const arrowElement = document.createElement('div');
     arrowElement.className = 'gradient-intro-arrow';
@@ -8153,7 +8938,7 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     
     // Position instructional text lines - each at the bottom of its respective gradient rectangle
     // Text fades in during entry animation (synced with gradient shrink)
-    const LINE_HEIGHT = 40; // Height of each intro-line element (matches CSS)
+    const LINE_HEIGHT = 40; // Height of each intro-line element (matches CSS and parameter rectangles)
     
     // Line 1: bottom-aligned to gradient rectangle index 2 (3rd from top)
     const introTextLine1 = document.getElementById('gradient-intro-text-line1');
@@ -8162,7 +8947,7 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         // Bottom-aligned: top = bottom edge of rectangle - line height
         const line1Top = (rectIndex1 + 1) * itemHeight - LINE_HEIGHT;
         
-        introTextLine1.style.left = `${leftEdge - 150}px`;
+        introTextLine1.style.left = `${leftEdge - 250}px`;
         introTextLine1.style.width = `${width}px`;
         introTextLine1.style.top = `${line1Top}px`;
         introTextLine1.style.height = `${LINE_HEIGHT}px`;
@@ -8185,6 +8970,21 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         // CSS handles display, alignItems, justifyContent for slide-up mask effect
         introTextLine2.style.visibility = 'visible';
         // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
+    }
+    
+    // START button: positioned in gradient rectangle index 3 (4th from top) - same as line 2 but centered
+    const introTextStart = document.getElementById('gradient-intro-text-start');
+    if (introTextStart) {
+        const rectIndexStart = 3; // 4th gradient from top (0-indexed)
+        // Bottom-aligned: top = bottom edge of rectangle - line height (same as intro lines)
+        const startTop = (rectIndexStart + 1) * itemHeight - LINE_HEIGHT;
+        
+        introTextStart.style.left = `${leftEdge}px`;
+        introTextStart.style.width = `${width}px`;
+        introTextStart.style.top = `${startTop}px`;
+        introTextStart.style.height = `${LINE_HEIGHT}px`;
+        // CSS handles display, alignItems, justifyContent for slide-up mask effect
+        // Visibility handled by showStartButtonElement() - don't override here
     }
     
     // Legacy: also check for old single element (for backward compatibility during transition)
@@ -8214,13 +9014,16 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     
     // Position arrow element below START text (only when START is visible and not entering)
     const arrowElement = document.getElementById('gradient-intro-arrow');
+    // Check if START button is visible (either new container or legacy element)
+    const startButtonVisible = (introTextStart && introTextStart.style.display !== 'none') ||
+                               (introText && introText.textContent === '[start]');
     if (arrowElement) {
         if (introPhase === 'entering') {
             // Hide arrow during entry animation
             arrowElement.style.display = 'none';
             arrowElement.style.visibility = 'hidden';
             arrowElement.style.opacity = '0';
-        } else if (introText && introText.textContent === '[start]') {
+        } else if (startButtonVisible) {
             const fourthRectIndex = 3; // 4th rectangle (0-indexed) - 3rd from bottom
             const fourthRectTop = fourthRectIndex * itemHeight;
             
@@ -8366,6 +9169,9 @@ function triggerIntroTransition() {
     // Mark as triggered immediately to prevent multiple triggers
     introTriggered = true;
     
+    // Trigger triangle slide-out animation (intro closing)
+    document.body.classList.remove('triangles-revealed');
+    
     // Hide all intro text elements immediately (both lines and START button)
     const introTextLine1 = document.getElementById('gradient-intro-text-line1');
     if (introTextLine1) {
@@ -8387,6 +9193,15 @@ function triggerIntroTransition() {
         introText.style.visibility = 'hidden';
         introText.style.opacity = '0';
         introText.style.pointerEvents = 'none';
+    }
+    
+    // Hide new START button container
+    const introTextStart = document.getElementById('gradient-intro-text-start');
+    if (introTextStart) {
+        introTextStart.style.display = 'none';
+        introTextStart.style.visibility = 'hidden';
+        introTextStart.style.opacity = '0';
+        introTextStart.style.pointerEvents = 'none';
     }
     
     // Hide arrow when intro is triggered
@@ -8500,6 +9315,173 @@ function startHorizontalExpansion() {
         // Hide UI mask when transition completes
         updateUIMaskVisibility();
     }, 250); // Match CSS transition duration for horizontal expansion
+}
+
+// ==================
+// SCROLL HINT ANIMATION
+// Continuous bounce animation on scroll columns to hint users to interact
+// Runs after demo ends until user scrolls and START appears
+// ==================
+
+// Function to start continuous scroll hint animation after demo ends
+function startScrollHintAnimation() {
+    // Prevent multiple triggers
+    if (scrollHintAnimationTriggered || scrollHintAnimationActive) return;
+    scrollHintAnimationTriggered = true;
+    scrollHintAnimationActive = true;
+    
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    
+    if (!leftColumn || !rightColumn) {
+        scrollHintAnimationActive = false;
+        return;
+    }
+    
+    // CRITICAL FIX: Disable scroll-snap during animation to allow smooth programmatic scrolling
+    // scroll-snap-type: y mandatory was preventing scrollTop changes from taking effect
+    leftColumn.style.scrollSnapType = 'none';
+    rightColumn.style.scrollSnapType = 'none';
+    
+    // Animation parameters
+    const nudgeDistance = 32; // pixels to move (reduced by 30% from 45)
+    const bounceDuration = 400; // ms per single direction (out or back)
+    const pauseBetweenBounces = 200; // ms pause between bounces within a set
+    const pauseAfterSet = 1500; // ms pause after 2 bounces (1.5 seconds)
+    const bouncesPerSet = 2; // Number of bounces before long pause
+    
+    // Track bounce count for rhythm pattern (2 bounces, pause, repeat)
+    let bounceCount = 0;
+    
+    // Mark as programmatic scroll to prevent triggering user interaction detection
+    isProgrammaticScroll = true;
+    
+    // Easing function for smooth animation (ease-in-out)
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    // Animate a single column's scroll position
+    function animateScroll(column, startPos, endPos, duration, callback) {
+        const startTime = performance.now();
+        
+        function animate(currentTime) {
+            // Check if animation should stop
+            if (!scrollHintAnimationActive) {
+                isProgrammaticScroll = false;
+                return;
+            }
+            
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeInOutCubic(progress);
+            
+            const currentPos = startPos + (endPos - startPos) * easedProgress;
+            column.scrollTop = currentPos;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else if (callback) {
+                callback();
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
+    
+    // Perform one bounce cycle (out and back) for both columns, then loop
+    function performBounce() {
+        // Check if animation should stop
+        if (!scrollHintAnimationActive) {
+            isProgrammaticScroll = false;
+            return;
+        }
+        
+        // Get current scroll positions (may have changed if user scrolled)
+        const leftOriginalScroll = leftColumn.scrollTop;
+        const rightOriginalScroll = rightColumn.scrollTop;
+        
+        // Calculate target positions for this bounce
+        // Right column: nudge DOWN (increase scrollTop)
+        // Left column: nudge UP (decrease scrollTop)
+        const rightTargetScroll = rightOriginalScroll + nudgeDistance;
+        const leftTargetScroll = Math.max(0, leftOriginalScroll - nudgeDistance);
+        
+        // Phase 1: Move columns to nudge position (both simultaneously)
+        let completedPhase1 = 0;
+        
+        function onPhase1Complete() {
+            completedPhase1++;
+            if (completedPhase1 === 2) {
+                // Check if animation should stop
+                if (!scrollHintAnimationActive) {
+                    isProgrammaticScroll = false;
+                    return;
+                }
+                
+                // Both columns reached nudge position, now return
+                // Phase 2: Return columns to original position
+                let completedPhase2 = 0;
+                
+                function onPhase2Complete() {
+                    completedPhase2++;
+                    if (completedPhase2 === 2) {
+                        // Check if animation should stop
+                        if (!scrollHintAnimationActive) {
+                            isProgrammaticScroll = false;
+                            return;
+                        }
+                        
+                        // Increment bounce count
+                        bounceCount++;
+                        
+                        // Determine pause duration: short pause within set, long pause after set completes
+                        let pauseDuration;
+                        if (bounceCount >= bouncesPerSet) {
+                            // Completed a set of 2 bounces - long pause
+                            pauseDuration = pauseAfterSet;
+                            bounceCount = 0; // Reset for next set
+                        } else {
+                            // Still within a set - short pause
+                            pauseDuration = pauseBetweenBounces;
+                        }
+                        
+                        // Start next bounce after calculated pause
+                        setTimeout(() => {
+                            performBounce();
+                        }, pauseDuration);
+                    }
+                }
+                
+                // Return both columns to original position
+                animateScroll(rightColumn, rightTargetScroll, rightOriginalScroll, bounceDuration, onPhase2Complete);
+                animateScroll(leftColumn, leftTargetScroll, leftOriginalScroll, bounceDuration, onPhase2Complete);
+            }
+        }
+        
+        // Move both columns to nudge position
+        animateScroll(rightColumn, rightOriginalScroll, rightTargetScroll, bounceDuration, onPhase1Complete);
+        animateScroll(leftColumn, leftOriginalScroll, leftTargetScroll, bounceDuration, onPhase1Complete);
+    }
+    
+    // Start the first bounce after 1.5 seconds delay (wait for intro to settle)
+    setTimeout(() => {
+        if (scrollHintAnimationActive) {
+            performBounce();
+        }
+    }, 1500); // 1.5 second delay before animation starts
+}
+
+// Function to stop the scroll hint animation (called when START appears)
+function stopScrollHintAnimation() {
+    scrollHintAnimationActive = false;
+    isProgrammaticScroll = false;
+    
+    // Re-enable scroll-snap on columns after animation stops
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    if (leftColumn) leftColumn.style.scrollSnapType = '';
+    if (rightColumn) rightColumn.style.scrollSnapType = '';
 }
 
 // Function to update gradient bar heights based on progress
@@ -9017,6 +9999,9 @@ function skipDemo() {
         gradientContainer.classList.remove('demo-active');
     }
     
+    // Trigger triangle slide-in animation (demo ended)
+    document.body.classList.add('triangles-revealed');
+    
     // Show START button (after intro lines slide out animation completes - 500ms)
     // setupStartButton() handles the full animation sequence:
     // 1. Animate instruction lines out (slide down)
@@ -9035,6 +10020,9 @@ function skipDemo() {
 // This ensures consistent behavior whether START appears in initial intro or after returning via logo click
 // First animates the instruction lines out (slide down), then shows START button
 function setupStartButton() {
+    // Stop scroll hint animation when START appears
+    stopScrollHintAnimation();
+    
     // Get the instruction line elements
     const introTextLine1 = document.getElementById('gradient-intro-text-line1');
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
@@ -9052,7 +10040,9 @@ function setupStartButton() {
         if (line1Inner) line1Inner.classList.add('intro-line-exiting');
         if (line2Inner) line2Inner.classList.add('intro-line-exiting');
         
-        // Wait for animation to complete (800ms), then hide lines and show START
+        // Wait for animation to complete, then hide lines and show START
+        // Using 400ms instead of 800ms so START begins appearing while lines are still finishing
+        // This creates a smoother, more connected transition
         setTimeout(() => {
             // Hide the text line containers after animation
             if (introTextLine1) {
@@ -9068,7 +10058,7 @@ function setupStartButton() {
             
             // Now show the START button
             showStartButtonElement();
-        }, 800); // 800ms matches the CSS transition duration
+        }, 400); // 400ms - START begins while lines are nearly finished exiting
     } else {
         // Lines are already hidden (e.g., returning via logo click), show START immediately
         // Still hide them to be safe
@@ -9091,64 +10081,55 @@ function setupStartButton() {
 // Helper function that actually displays the START button element
 // Called after the instruction lines have finished their exit animation
 function showStartButtonElement() {
-    // Get or create START button element (uses legacy gradient-intro-text id)
-    let introText = document.getElementById('gradient-intro-text');
-    if (!introText) {
+    // Get the START button container (new structure with mask)
+    let introTextStart = document.getElementById('gradient-intro-text-start');
+    if (!introTextStart) {
         // Create the START button element if it doesn't exist
         const gradientContainer = document.getElementById('gradient-intro-container');
         if (!gradientContainer) {
             console.warn('START button setup: gradient container not found');
             return;
         }
-        introText = document.createElement('div');
-        introText.className = 'gradient-intro-text';
-        introText.id = 'gradient-intro-text';
-        gradientContainer.appendChild(introText);
+        introTextStart = document.createElement('div');
+        introTextStart.className = 'gradient-intro-text gradient-intro-text-start';
+        introTextStart.id = 'gradient-intro-text-start';
+        introTextStart.innerHTML = '<span class="intro-line">[start]</span>';
+        gradientContainer.appendChild(introTextStart);
     }
     
-    // Reset element to initial animation state (same as 3 instruction sentences)
-    // This ensures the START button animates in with the same fade-in and slide-up effect
-    introText.style.opacity = '0';
-    introText.style.transform = 'translateY(10px)';
+    // Get the inner intro-line element
+    const startInner = introTextStart.querySelector('.intro-line');
+    if (!startInner) {
+        console.warn('START button setup: inner intro-line not found');
+        return;
+    }
     
-    // Set START text
-    introText.textContent = '[start]';
-    
-    // Set display and visibility so element is ready for animation
-    // But keep opacity/transform at initial state for animation
-    introText.style.display = 'flex';
-    introText.style.visibility = 'visible';
-    
-    // Make START text clickable
-    introText.style.cursor = 'pointer';
-    introText.style.pointerEvents = 'auto';
+    // Ensure container is visible
+    introTextStart.style.display = 'flex';
+    introTextStart.style.visibility = 'visible';
     
     // Remove any existing click handlers by cloning and replacing (avoids duplicates)
-    const newIntroText = introText.cloneNode(true);
-    introText.parentNode.replaceChild(newIntroText, introText);
+    const newStartInner = startInner.cloneNode(true);
+    startInner.parentNode.replaceChild(newStartInner, startInner);
     
-    // Update reference to the new node
-    const updatedIntroText = document.getElementById('gradient-intro-text');
+    // Get the updated inner element
+    const updatedStartInner = introTextStart.querySelector('.intro-line');
     
     // Add click handler to trigger forward transition
-    updatedIntroText.addEventListener('click', (e) => {
+    updatedStartInner.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
         
         // Trigger forward transition (intro → main)
         forwardIntroTransition();
     });
     
-    // Use requestAnimationFrame to ensure DOM is ready, then remove inline styles
-    // This allows CSS to take control and apply the animation
+    // Trigger the slide-up animation by adding the start-entering class
+    // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            // Remove inline opacity and transform to let CSS animation take over
-            // The CSS rule .gradient-intro-container.intro-active .gradient-intro-text
-            // will apply opacity: 1 and transform: translateY(0) with the transition
-            updatedIntroText.style.opacity = '';
-            updatedIntroText.style.transform = '';
+            // Add class to trigger slide-up animation
+            updatedStartInner.classList.add('start-entering');
         });
     });
     
@@ -9160,8 +10141,7 @@ function showStartButtonElement() {
         arrowElement.style.opacity = '0.7';
     }
     
-    // Update gradient intro to position text and arrow correctly
-    // This must be called after setting text content to '[start]' so arrow positioning works
+    // Update gradient intro to position START button correctly
     updateGradientIntro();
 }
 
@@ -9177,7 +10157,6 @@ function forwardIntroTransition() {
     // Prevent scroll-based trigger during programmatic transition
     startClickTransitionActive = true;
     
-    
     // Get gradient container
     const gradientContainer = document.getElementById('gradient-intro-container');
     if (!gradientContainer) {
@@ -9186,7 +10165,31 @@ function forwardIntroTransition() {
         return;
     }
     
-    // Hide all intro text elements and arrow immediately when transition starts
+    // Trigger slide-out animation for START button (runs simultaneously with collapse)
+    const introTextStart = document.getElementById('gradient-intro-text-start');
+    const startInner = introTextStart?.querySelector('.intro-line');
+    
+    if (startInner) {
+        // Disable pointer events immediately to prevent double-clicks
+        startInner.style.pointerEvents = 'none';
+        // Trigger slide-out animation
+        // IMPORTANT: Add start-exiting FIRST, before removing start-entering
+        // This ensures the transition animates from translateY(0) to translateY(40px)
+        // because start-exiting's !important overrides start-entering's transform
+        startInner.classList.add('start-exiting');
+        startInner.classList.remove('start-entering');
+    }
+    
+    // Hide arrow immediately
+    const arrowElement = document.getElementById('gradient-intro-arrow');
+    if (arrowElement) {
+        arrowElement.style.display = 'none';
+        arrowElement.style.visibility = 'hidden';
+        arrowElement.style.opacity = '0';
+        arrowElement.style.pointerEvents = 'none';
+    }
+    
+    // Hide intro text line elements immediately (they're already hidden at START state)
     const introTextLine1 = document.getElementById('gradient-intro-text-line1');
     if (introTextLine1) {
         introTextLine1.style.display = 'none';
@@ -9209,14 +10212,18 @@ function forwardIntroTransition() {
         introText.style.pointerEvents = 'none';
     }
     
-    const arrowElement = document.getElementById('gradient-intro-arrow');
-    if (arrowElement) {
-        arrowElement.style.display = 'none';
-        arrowElement.style.visibility = 'hidden';
-        arrowElement.style.opacity = '0';
-        arrowElement.style.pointerEvents = 'none';
-    }
+    // Hide START button container after slide-out animation completes (800ms)
+    // This happens in background while collapse animation runs
+    setTimeout(() => {
+        if (introTextStart) {
+            introTextStart.style.display = 'none';
+            introTextStart.style.visibility = 'hidden';
+            introTextStart.style.opacity = '0';
+            introTextStart.style.pointerEvents = 'none';
+        }
+    }, 800);
     
+    // Start collapse animation immediately (simultaneously with START slide-out)
     // Get or create gradient rectangles
     let rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
     const itemHeight = window.innerHeight / 6;
@@ -9612,6 +10619,13 @@ function restartIntro() {
     uniqueColorsSeen.clear();
     hasUserInteracted = false;
     
+    // Reset scroll hint animation state (so it can run again on restart)
+    scrollHintAnimationTriggered = false;
+    scrollHintAnimationActive = false;
+    
+    // Reset triangle animation state (hide triangles for next intro)
+    document.body.classList.remove('triangles-revealed');
+    
     // Get gradient container and clean up existing DOM elements
     const gradientContainer = document.getElementById('gradient-intro-container');
     if (gradientContainer) {
@@ -9631,6 +10645,12 @@ function restartIntro() {
         const introText = document.getElementById('gradient-intro-text');
         if (introText) {
             introText.remove();
+        }
+        
+        // Remove new START button container if it exists
+        const introTextStart = document.getElementById('gradient-intro-text-start');
+        if (introTextStart) {
+            introTextStart.remove();
         }
         
         // Remove arrow element if it exists
@@ -9933,6 +10953,9 @@ function scrollBothColumnsProgrammatically(duration) {
             }
         }
         
+        // Trigger triangle slide-in animation (demo ended)
+        document.body.classList.add('triangles-revealed');
+        
         // Show instruction text lines (only if not already changed to START)
         if (!introTextChanged) {
             // Show both instruction line elements
@@ -9959,7 +10982,7 @@ function scrollBothColumnsProgrammatically(duration) {
                 // Don't set opacity inline - let CSS handle it via intro-active class
             }
             
-            // Hide the START button element if it exists
+            // Hide the START button elements if they exist
             const introText = document.getElementById('gradient-intro-text');
             if (introText) {
                 introText.style.display = 'none';
@@ -9967,11 +10990,23 @@ function scrollBothColumnsProgrammatically(duration) {
                 introText.style.opacity = '0';
             }
             
+            // Hide new START button container
+            const introTextStart = document.getElementById('gradient-intro-text-start');
+            if (introTextStart) {
+                introTextStart.style.display = 'none';
+                introTextStart.style.visibility = 'hidden';
+                introTextStart.style.opacity = '0';
+            }
+            
             // Update gradient intro to position text correctly
             updateGradientIntro();
             // Mark that initial instruction text has been shown immediately
             initialInstructionTextShown = true;
             // CSS handles the slide-up animation via .intro-active class on container
+            
+            // Start scroll hint animation after intro text appears
+            // This hints users to scroll the side columns
+            startScrollHintAnimation();
         }
     }, phaseDuration + 150); // Show text only after animation fully completes (+150ms buffer to ensure animations finish)
     demoTimeouts.push(cleanupTimeout);
