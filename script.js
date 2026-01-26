@@ -6,11 +6,10 @@ const colors = ['#EF4538', '#891951', '#FAB01B', '#007A6F', '#EB4781', '#293990'
 const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
-// Split into two lines for independent positioning on different gradient rectangles
-const INTRO_LINE_1_TEXT = '[an experience where one sense triggers another]';
+// Single centered line for intro
 const INTRO_LINE_2_TEXT = '[scroll the bars to combine senses]';
 // Legacy constant for backward compatibility (used in some checks)
-const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span><div style="margin-top: 21px;"><span class="intro-line">' + INTRO_LINE_2_TEXT + '</span></div>';
+const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
 
 // Color constants for visibility check
 const ORANGE_COLOR = '#EF4538';  // shape (index 0)
@@ -83,6 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize LETTER & COLOR text box visibility
     updateLetterColorTextBox(initialPageId);
     
+    // Initialize NUMBER & COLOR text box visibility
+    updateNumberColorTextBox(initialPageId);
+    
     // Initialize SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(initialPageId);
     
@@ -91,6 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Number + Number circle visibility
     updateNumberNumberCircle(initialPageId);
+    
+    // Initialize Emotion + Emotion circle visibility
+    updateEmotionEmotionCircle(initialPageId);
     
     // Initialize Shape + Color canvas (drag shapes with colored gradient trails)
     initializeShapeColorCanvas();
@@ -130,6 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Sound + Emotion smiley visibility
     updateSoundEmotionVisibility(initialPageId);
+    
+    // Initialize Shape + Emotion circles grid visibility
+    updateShapeEmotionVisibility(initialPageId);
+    
+    // Initialize Emotion + Color grid visibility
+    updateEmotionColorVisibility(initialPageId);
     
     // Initialize SYN logo hover effect
     initializeSynHoverEffect();
@@ -629,10 +640,7 @@ function initializeColumn(column, side) {
                         gradientContainer.classList.add('intro-active');
                     }
                 }
-                // setupStartButton() now handles the full animation sequence:
-                // 1. Animate instruction lines out (slide down)
-                // 2. Wait 500ms
-                // 3. Show START button with fade-in animation
+                // setupStartButton() shows START button alongside instruction text
             }
         }
         
@@ -683,10 +691,7 @@ function initializeColumn(column, side) {
                         gradientContainer.classList.add('intro-active');
                     }
                 }
-                // setupStartButton() now handles the full animation sequence:
-                // 1. Animate instruction lines out (slide down)
-                // 2. Wait 500ms
-                // 3. Show START button with fade-in animation
+                // setupStartButton() shows START button alongside instruction text
             }
         }
     }, { passive: true });
@@ -875,90 +880,49 @@ function wrapTextIntoLines(text, maxWidth) {
     // Set font (in case it changed or wasn't set)
     textMeasureCtx.font = 'bold 29px Helvetica, sans-serif';
     
-    // Split text into words (preserve spaces)
-    const words = text.split(/(\s+)/); // Split but keep spaces
+    // First, split by explicit newlines to respect forced line breaks
+    const explicitLines = text.split('\n');
     const lines = [];
-    let currentLine = '';
     
-    // First pass: wrap based on width
-    for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const testLine = currentLine + word;
-        const testWidth = textMeasureCtx.measureText(testLine).width;
-        
-        // Check if adding this word would exceed max width
-        // If currentLine has content (after trimming), wrap to new line
-        // If currentLine is empty/only spaces, we must add the word even if it exceeds (single long word)
-        const hasContent = currentLine.trim().length > 0;
-        
-        if (testWidth > maxWidth && hasContent) {
-            // Current line is full, start a new line
-            // Store trimmed version (trailing spaces removed for display)
-            lines.push(currentLine.trim());
-            // Start new line with current word (could be a space or actual word)
-            currentLine = word;
-        } else {
-            // Add word to current line (even if it exceeds maxWidth for single long words)
-            currentLine = testLine;
+    // Process each explicit line segment
+    for (const segment of explicitLines) {
+        if (segment.trim().length === 0) {
+            // Empty line - skip or add empty if needed
+            continue;
         }
-    }
-    
-    // Add the last line if it has content (trimmed for display)
-    const lastLine = currentLine.trim();
-    if (lastLine.length > 0) {
-        lines.push(lastLine);
-    }
-    
-    // Second pass: enforce minimum 3 words per line rule
-    // Process from the end backwards to avoid breaking earlier lines
-    for (let i = lines.length - 1; i > 0; i--) {
-        const currentLineWords = countWords(lines[i]);
         
-        // If current line has fewer than 3 words, move words from previous line
-        if (currentLineWords < 3) {
-            const prevLineWords = getWordsFromLine(lines[i - 1]);
-            const wordsNeeded = 3 - currentLineWords;
+        // Split segment into words (preserve spaces)
+        const words = segment.split(/(\s+)/); // Split but keep spaces
+        let currentLine = '';
+        
+        // Wrap based on width within this segment
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const testLine = currentLine + word;
+            const testWidth = textMeasureCtx.measureText(testLine).width;
             
-            // Only move words if previous line has enough words to spare
-            // (we want to keep at least 3 words in previous line if possible)
-            if (prevLineWords.length > 3) {
-                // Move words from previous line to current line
-                const wordsToMove = Math.min(wordsNeeded, prevLineWords.length - 3);
-                const wordsToKeep = prevLineWords.slice(0, prevLineWords.length - wordsToMove);
-                const wordsToAdd = prevLineWords.slice(prevLineWords.length - wordsToMove);
-                
-                // Update previous line
-                lines[i - 1] = wordsToKeep.join(' ');
-                
-                // Update current line (prepend moved words)
-                const currentWords = getWordsFromLine(lines[i]);
-                lines[i] = [...wordsToAdd, ...currentWords].join(' ');
-            } else if (prevLineWords.length >= wordsNeeded) {
-                // Previous line has exactly 3 words or just enough, but we need to move some
-                // This might leave previous line with less than 3, but we'll handle it in next iteration
-                const wordsToMove = wordsNeeded;
-                const wordsToKeep = prevLineWords.slice(0, prevLineWords.length - wordsToMove);
-                const wordsToAdd = prevLineWords.slice(prevLineWords.length - wordsToMove);
-                
-                // Update previous line
-                lines[i - 1] = wordsToKeep.join(' ');
-                
-                // Update current line (prepend moved words)
-                const currentWords = getWordsFromLine(lines[i]);
-                lines[i] = [...wordsToAdd, ...currentWords].join(' ');
+            const hasContent = currentLine.trim().length > 0;
+            
+            if (testWidth > maxWidth && hasContent) {
+                lines.push(currentLine.trim());
+                currentLine = word;
+            } else {
+                currentLine = testLine;
             }
-            // If previous line doesn't have enough words, we can't fix it
-            // (this handles edge cases like very short text)
+        }
+        
+        // Add the last line of this segment
+        const lastLine = currentLine.trim();
+        if (lastLine.length > 0) {
+            lines.push(lastLine);
         }
     }
     
-    // Note: After word adjustments, some lines may exceed maxWidth
-    // This is acceptable - the 3-word minimum rule takes priority over width constraints
     return lines;
 }
 
 // Render text with per-line grey background blocks
-function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroundColor = '#E0E0E0') {
+function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroundColor = '#E0E0E0', alignRight = false) {
     if (!textBox) return;
     
     // Clear existing content
@@ -995,6 +959,9 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         lineRow.style.height = `${lineHeight}px`;
         lineRow.style.display = 'flex';
         lineRow.style.alignItems = 'center'; // Vertically center content
+        if (alignRight) {
+            lineRow.style.justifyContent = 'flex-end'; // Right-align content
+        }
         
         // Check if this is the last line - extend background by 2px for PANEL overlay
         const isLastLine = index === lines.length - 1;
@@ -1004,8 +971,12 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         const bgBlock = document.createElement('div');
         bgBlock.className = 'canvas-line-bg';
         bgBlock.style.position = 'absolute';
-        bgBlock.style.left = '-35px'; // Start 35px before the text
-        bgBlock.style.width = `${lineWidth + 41}px`; // 35px left + lineWidth + 6px right extension
+        if (alignRight) {
+            bgBlock.style.right = '-35px'; // Start 35px after the text (to the right)
+        } else {
+            bgBlock.style.left = '-35px'; // Start 35px before the text
+        }
+        bgBlock.style.width = `${lineWidth + 49}px`; // 35px left + lineWidth + 14px right extension
         bgBlock.style.height = `${extendedBgHeight}px`;
         bgBlock.style.backgroundColor = backgroundColor; // Use provided background color or default to light grey
         bgBlock.style.zIndex = '-1'; // Behind text
@@ -1026,7 +997,11 @@ function renderTextWithLineBackgrounds(textBox, text, maxWidth = 1035, backgroun
         textElement.style.lineHeight = '29px';
         // Color is inherited from parent container CSS
         textElement.style.whiteSpace = 'nowrap'; // Prevent text from wrapping
-        textElement.style.marginLeft = '6px'; // Move text 6px to the right
+        if (alignRight) {
+            textElement.style.marginRight = '6px'; // Move text 6px to the left
+        } else {
+            textElement.style.marginLeft = '6px'; // Move text 6px to the right
+        }
         
         // Add background and text to row
         lineRow.appendChild(bgBlock);
@@ -1118,6 +1093,20 @@ const LETTER_COLORS = {
     'X': '#EF5350',  // Red Light
     'Y': '#7E57C2',  // Deep Purple Light
     'Z': '#78909C'   // Blue Grey
+};
+
+// ==================
+// DIGIT → COLOR MAPPING
+// ==================
+// Mapping object: digit (1-6) → color hex code
+// Uses the same 6 colors as the main site palette
+const DIGIT_COLORS = {
+    '1': '#EF4538',  // Orange (shape color)
+    '2': '#891951',  // Purple (sound color)
+    '3': '#FAB01B',  // Yellow (letter color)
+    '4': '#007A6F',  // Green (number color)
+    '5': '#EB4781',  // Pink (emotion color)
+    '6': '#293990'   // Blue (color color)
 };
 
 // ==================
@@ -1732,6 +1721,222 @@ function updateLetterColorTextBox(pageId) {
     }
 }
 
+// ==================
+// NUMBER + COLOR INTERACTION
+// ==================
+// Initialize hover interaction for Number + Color page
+// Similar to letter-color but for digits (1-6) with mathematical operators as static
+function initializeNumberColorInteraction() {
+    const numberColorTextBox = document.getElementById('canvas-text-box-number-color');
+    if (!numberColorTextBox) {
+        return;
+    }
+    
+    const paragraph = numberColorTextBox.querySelector('p');
+    if (!paragraph) {
+        return;
+    }
+    
+    // Check if already initialized (has digit spans)
+    if (paragraph.querySelector('.digit-span')) {
+        return;
+    }
+    
+    // Get the text content - use textContent as source of truth
+    const originalText = paragraph.textContent;
+    
+    // Split text into individual characters and wrap each in a span
+    // Define mathematical operators that should remain static (no animation, no color)
+    const mathOperators = /[+\-×÷^()=\s]/;
+    // Define digits that should have color interaction
+    const digits = /[1-6]/;
+    
+    const wrappedText = originalText.split('').map((char) => {
+        // Handle spaces and math operators
+        if (char === ' ' || char === '\n') {
+            return char === '\n' ? '<br>' : '<span class="digit-span space" data-digit=" "> </span>';
+        } else if (mathOperators.test(char)) {
+            // Math operators remain static - no animation, no color
+            const escapedChar = char
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            return `<span class="digit-span space" data-digit="${escapedChar}">${escapedChar}</span>`;
+        } else if (digits.test(char)) {
+            // Digits 1-6 get the interactive treatment
+            return `<span class="digit-span" data-digit="${char}">${char}</span>`;
+        } else {
+            // Other characters (0, 7, 8, 9, etc.) remain static
+            const escapedChar = char
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            return `<span class="digit-span space" data-digit="${escapedChar}">${escapedChar}</span>`;
+        }
+    }).join('');
+    
+    // Replace paragraph content with wrapped digits
+    paragraph.innerHTML = wrappedText;
+    
+    // Inject colored digits for each digit
+    const digitSpans = paragraph.querySelectorAll('.digit-span:not(.space)');
+    
+    for (let index = 0; index < digitSpans.length; index++) {
+        const span = digitSpans[index];
+        
+        try {
+            const digit = span.getAttribute('data-digit');
+            if (!digit) {
+                continue;
+            }
+            
+            const colorHex = DIGIT_COLORS[digit];
+            
+            // Create and inject colored digit (fallback to grey if digit not mapped)
+            const coloredDigit = renderColoredLetter(digit, colorHex || '#9E9E9E');
+            if (coloredDigit) {
+                // Change class from letter-color to digit-color for CSS targeting
+                coloredDigit.className = 'digit-color';
+                span.appendChild(coloredDigit);
+            }
+        } catch (error) {
+            console.error('Error injecting colored digit at index', index, ':', error);
+        }
+    }
+    
+    // Restructure: wrap each digit-span in a digit-slot container
+    // Create static glyph for layout and sliding glyph inside mask
+    const allDigitSpans = paragraph.querySelectorAll('.digit-span:not(.space)');
+    allDigitSpans.forEach(span => {
+        // Get the text content (exclude color div by getting only text nodes)
+        let textContent = '';
+        for (let node of span.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                textContent += node.textContent;
+            }
+        }
+        textContent = textContent.trim();
+        
+        // Get the color square
+        const colorSquare = span.querySelector('.digit-color');
+        
+        // Create digit-slot container (natural size, no clipping)
+        const slot = document.createElement('span');
+        slot.className = 'digit-slot';
+        slot.setAttribute('data-digit', span.getAttribute('data-digit') || '');
+        
+        // Create static glyph for normal layout (visible by default)
+        const staticGlyph = document.createElement('span');
+        staticGlyph.className = 'digit-glyph-static';
+        staticGlyph.textContent = textContent;
+        
+        // Create digit-mask (45×45px clipping area, centered)
+        const mask = document.createElement('span');
+        mask.className = 'digit-mask';
+        
+        // Create sliding glyph inside mask (hidden by default, slides on hover)
+        const slidingGlyph = document.createElement('span');
+        slidingGlyph.className = 'digit-glyph';
+        slidingGlyph.textContent = textContent;
+        
+        // Add sliding glyph to mask
+        mask.appendChild(slidingGlyph);
+        
+        // Add color square to mask if it exists (inside mask, so it's clipped with the digit)
+        if (colorSquare) {
+            mask.appendChild(colorSquare);
+        }
+        
+        // Add static glyph to slot (for layout)
+        slot.appendChild(staticGlyph);
+        
+        // Add mask to slot
+        slot.appendChild(mask);
+        
+        // Replace the original span with the new slot
+        span.parentNode.replaceChild(slot, span);
+    });
+    
+    // Add robust hover state management to prevent blank states during rapid hover
+    const allSlots = paragraph.querySelectorAll('.digit-slot');
+    allSlots.forEach(slot => {
+        let hoverOutTimeout = null;
+        let isHovered = false;
+        
+        // Mouse enter: immediately activate hover state, cancel any pending hover-out
+        slot.addEventListener('mouseenter', () => {
+            isHovered = true;
+            
+            // Cancel any pending hover-out timeout
+            if (hoverOutTimeout) {
+                clearTimeout(hoverOutTimeout);
+                hoverOutTimeout = null;
+            }
+            
+            // Remove hover-leaving class if present
+            slot.classList.remove('hover-leaving');
+            
+            // Immediately add hover-active class to force hover-in state
+            slot.classList.add('hover-active');
+        });
+        
+        // Mouse leave: start delayed hover-out sequence
+        slot.addEventListener('mouseleave', () => {
+            isHovered = false;
+            
+            // Cancel any existing timeout
+            if (hoverOutTimeout) {
+                clearTimeout(hoverOutTimeout);
+            }
+            
+            // Wait for delay before starting hover-out animation
+            hoverOutTimeout = setTimeout(() => {
+                // Double-check we're still not hovered (user might have re-entered)
+                if (!isHovered) {
+                    // Add hover-leaving class to trigger push-up animation
+                    slot.classList.add('hover-leaving');
+                    
+                    // Remove hover-active class to trigger hover-out transitions
+                    slot.classList.remove('hover-active');
+                    
+                    // After animation completes, remove hover-leaving class
+                    setTimeout(() => {
+                        if (!isHovered && !slot.classList.contains('hover-active')) {
+                            slot.classList.remove('hover-leaving');
+                        }
+                    }, 315); // 105ms delay + 300ms animation = 315ms total
+                }
+                hoverOutTimeout = null;
+            }, 105); // 105ms delay matches CSS delay before hover-out transition starts
+        });
+    });
+}
+
+// Function to update visibility of NUMBER & COLOR text box
+function updateNumberColorTextBox(pageId) {
+    const numberColorTextBox = document.getElementById('canvas-text-box-number-color');
+    if (!numberColorTextBox) return;
+    
+    // Show text box only for NUMBER & COLOR pages (pageId "3-5" or "5-3")
+    // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
+    const isNumberColorPage = pageId === '3-5' || pageId === '5-3';
+    
+    if (isNumberColorPage) {
+        numberColorTextBox.classList.add('visible');
+        // Initialize number color interaction when text box becomes visible
+        // Use a small delay to ensure the element is rendered
+        setTimeout(() => {
+            initializeNumberColorInteraction();
+        }, 50);
+    } else {
+        numberColorTextBox.classList.remove('visible');
+    }
+}
+
 // Function to update visibility of canvas instruction text
 function updateSoundShapeInstructionText(pageId) {
     const instructionText = document.getElementById('canvas-instruction-text');
@@ -1937,6 +2142,96 @@ function resetNumberRings() {
     // Apply reset rotations to all number rings
     for (let i = 0; i < 5; i++) {
         applyNumberRingRotation(i, 0);
+    }
+}
+
+// ==================
+// EMOTION + EMOTION RINGS (Smiley Face)
+// ==================
+// Track rotation angles for each emotion ring
+let emotionRingRotations = [0, 0, 0, 0, 0];
+let emotionRingsInitialized = false;
+
+// Function to update Emotion + Emotion circle visibility
+function updateEmotionEmotionCircle(pageId) {
+    const circleContainer = document.getElementById('emotion-emotion-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Emotion + Emotion page (pageId "4-4")
+    // Parameter indices: 4=emotion
+    const isEmotionEmotionPage = pageId === '4-4';
+    
+    if (isEmotionEmotionPage) {
+        circleContainer.classList.add('visible');
+        // Initialize ring rotation functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeEmotionRings();
+        });
+    } else {
+        circleContainer.classList.remove('visible');
+        // Reset ring rotations when leaving the page
+        resetEmotionRings();
+    }
+}
+
+// Get the center point of the Emotion rings SVG in page coordinates
+function getEmotionRingsCenterPoint() {
+    const svg = document.getElementById('emotion-emotion-rings-svg');
+    if (!svg) return { x: 0, y: 0 };
+    
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Apply rotation to an emotion ring group
+function applyEmotionRingRotation(ringIndex, angle) {
+    const ringGroup = document.querySelector(`#emotion-emotion-rings-svg .emotion-ring-group[data-ring="${ringIndex}"]`);
+    if (ringGroup) {
+        ringGroup.setAttribute('transform', `rotate(${angle}, 0, 0)`);
+    }
+}
+
+// Handle mouse move for emotion rings
+function handleEmotionRingMouseMove(e) {
+    // Only work when emotion rings container is visible
+    const container = document.getElementById('emotion-emotion-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getEmotionRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Apply rotation to each ring with its own multiplier (same as number rings)
+    for (let i = 0; i < 5; i++) {
+        const rotation = mouseAngle * ringMultipliers[i];
+        emotionRingRotations[i] = rotation;
+        applyEmotionRingRotation(i, rotation);
+    }
+}
+
+// Initialize the emotion concentric rings interaction
+function initializeEmotionRings() {
+    if (emotionRingsInitialized) return;
+    
+    const svg = document.getElementById('emotion-emotion-rings-svg');
+    if (!svg) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleEmotionRingMouseMove);
+    
+    emotionRingsInitialized = true;
+}
+
+// Reset all emotion ring rotations to 0
+function resetEmotionRings() {
+    emotionRingRotations = [0, 0, 0, 0, 0];
+    
+    // Apply reset rotations to all emotion rings
+    for (let i = 0; i < 5; i++) {
+        applyEmotionRingRotation(i, 0);
     }
 }
 
@@ -2689,9 +2984,7 @@ const DIGIT4_PROXIMITY_THRESHOLD = 200; // Distance in pixels to trigger repulsi
 const DIGIT4_PUSH_DISTANCE = 50; // How far to push digit 3 away (in pixels)
 const DIGIT4_ENLARGED_SCALE = 2; // Scale factor when enlarged
 
-// Digit 7 animation timer (double jump + 360 rotation every 3 seconds)
-let digit7AnimationTimerId = null;
-const DIGIT7_ANIMATION_INTERVAL = 3000; // 3 seconds between animations
+// Digit 7 animation - now triggered only on click/touch (no automatic timer)
 
 // Function to update Number + Emotion digits visibility
 function updateNumberEmotionDigits(pageId) {
@@ -3039,6 +3332,480 @@ function resizeLetterEmotionColumns(dividerIndex, deltaPercent) {
     }
 }
 
+// ==================
+// SOUND + NUMBER GRID
+// ==================
+// Draggable 3x3 grid with digit 1 in center cell
+
+// State variables for Sound + Number grid
+let soundNumberGridContainer = null;
+let soundNumberCell = null; // Only the center cell (row 1, col 1)
+let soundNumberDividersH = []; // Horizontal dividers (2)
+let soundNumberDividersV = []; // Vertical dividers (2)
+// Default layout - wide and short center cell (shows digit 8)
+let soundNumberRowHeights = [30, 40, 30]; // Small top, large middle, small bottom
+let soundNumberColWidths = [15, 70, 15]; // Narrow left, wide middle, narrow right
+const SOUND_NUMBER_MIN_SIZE = 5; // Minimum percentage for row/column
+
+// Drag state for grid dividers
+let soundNumberIsDragging = false;
+let soundNumberDragType = null; // 'h' for horizontal, 'v' for vertical
+let soundNumberDragIndex = -1;
+let soundNumberDragStartPos = 0;
+let soundNumberGridInitialized = false;
+
+// Audio state for Sound + Number grid
+let soundNumberAudioContext = null;
+let soundNumberOscillator = null;
+let soundNumberGainNode = null;
+
+// Function to update Sound + Number grid visibility
+function updateSoundNumberGrid(pageId) {
+    const gridContainer = document.getElementById('sound-number-container');
+    if (!gridContainer) return;
+    
+    // Show grid only for Sound + Number pages (pageId "1-3" or "3-1")
+    // Parameter indices: 1=sound, 3=number
+    const isSoundNumberPage = pageId === '1-3' || pageId === '3-1';
+    
+    if (isSoundNumberPage) {
+        gridContainer.classList.remove('hidden');
+        // Initialize grid after making visible
+        requestAnimationFrame(() => {
+            initializeSoundNumberGrid();
+        });
+    } else {
+        gridContainer.classList.add('hidden');
+    }
+}
+
+// Initialize Sound + Number grid
+function initializeSoundNumberGrid() {
+    soundNumberGridContainer = document.getElementById('sound-number-container');
+    if (!soundNumberGridContainer) return;
+    
+    // Get center cell and dividers
+    soundNumberCell = soundNumberGridContainer.querySelector('.sound-number-cell');
+    soundNumberDividersH = Array.from(soundNumberGridContainer.querySelectorAll('.sound-number-divider-h'));
+    soundNumberDividersV = Array.from(soundNumberGridContainer.querySelectorAll('.sound-number-divider-v'));
+    
+    // Reset to default layout - wide and short center cell (shows digit 8)
+    soundNumberRowHeights = [30, 40, 30];
+    soundNumberColWidths = [15, 70, 15];
+    
+    // Apply initial layout
+    updateSoundNumberGridLayout();
+    
+    // Only add event listeners once
+    if (soundNumberGridInitialized) return;
+    soundNumberGridInitialized = true;
+    
+    // Add mouse event listeners for dividers
+    soundNumberDividersH.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => handleSoundNumberDividerMouseDown(e, 'h', index));
+    });
+    
+    soundNumberDividersV.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => handleSoundNumberDividerMouseDown(e, 'v', index));
+    });
+    
+    // Add document-level mouse move and up handlers
+    document.addEventListener('mousemove', handleSoundNumberDividerMouseMove);
+    document.addEventListener('mouseup', handleSoundNumberDividerMouseUp);
+    
+    // Add touch event listeners for dividers
+    soundNumberDividersH.forEach((divider, index) => {
+        divider.addEventListener('touchstart', (e) => handleSoundNumberDividerTouchStart(e, 'h', index), { passive: false });
+    });
+    
+    soundNumberDividersV.forEach((divider, index) => {
+        divider.addEventListener('touchstart', (e) => handleSoundNumberDividerTouchStart(e, 'v', index), { passive: false });
+    });
+    
+    document.addEventListener('touchmove', handleSoundNumberDividerTouchMove, { passive: false });
+    document.addEventListener('touchend', handleSoundNumberDividerTouchEnd);
+}
+
+// Update the visual layout of the grid based on current row heights and column widths
+function updateSoundNumberGridLayout() {
+    if (!soundNumberGridContainer) return;
+    
+    const containerRect = soundNumberGridContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calculate cumulative positions for rows
+    let rowPositions = [0]; // Start positions for each row
+    for (let i = 0; i < soundNumberRowHeights.length; i++) {
+        rowPositions.push(rowPositions[i] + soundNumberRowHeights[i]);
+    }
+    
+    // Calculate cumulative positions for columns
+    let colPositions = [0]; // Start positions for each column
+    for (let i = 0; i < soundNumberColWidths.length; i++) {
+        colPositions.push(colPositions[i] + soundNumberColWidths[i]);
+    }
+    
+    // Position the center cell (row 1, col 1)
+    if (soundNumberCell) {
+        const row = 1;
+        const col = 1;
+        
+        const top = (rowPositions[row] / 100) * containerHeight;
+        const left = (colPositions[col] / 100) * containerWidth;
+        const height = (soundNumberRowHeights[row] / 100) * containerHeight;
+        const width = (soundNumberColWidths[col] / 100) * containerWidth;
+        
+        soundNumberCell.style.top = `${top}px`;
+        soundNumberCell.style.left = `${left}px`;
+        soundNumberCell.style.height = `${height}px`;
+        soundNumberCell.style.width = `${width}px`;
+    }
+    
+    // Position horizontal dividers (between rows)
+    soundNumberDividersH.forEach((divider, index) => {
+        const top = (rowPositions[index + 1] / 100) * containerHeight - 1; // Center the 2px line
+        divider.style.top = `${top}px`;
+    });
+    
+    // Position vertical dividers (between columns)
+    soundNumberDividersV.forEach((divider, index) => {
+        const left = (colPositions[index + 1] / 100) * containerWidth - 1; // Center the 2px line
+        divider.style.left = `${left}px`;
+    });
+    
+    // Update digit based on cell ratio
+    updateSoundNumberDigit();
+    
+    // Update audio frequency if currently dragging
+    if (soundNumberIsDragging) {
+        updateSoundNumberFrequency();
+    }
+}
+
+// Update the digit (1-9) based on cell aspect ratio
+// ratio < 1 (vertical/tall) -> lower digits (1-4)
+// ratio = 1 (square) -> digit 5
+// ratio > 1 (horizontal/wide) -> higher digits (6-9)
+function updateSoundNumberDigit() {
+    if (!soundNumberCell) return;
+    
+    const width = parseFloat(soundNumberCell.style.width);
+    const height = parseFloat(soundNumberCell.style.height);
+    
+    if (width <= 0 || height <= 0) return;
+    
+    // Calculate aspect ratio (width/height)
+    const ratio = width / height;
+    
+    // Map ratio to digit 1-9
+    let digit;
+    if (ratio <= 0.2) digit = 1;
+    else if (ratio <= 0.4) digit = 2;
+    else if (ratio <= 0.6) digit = 3;
+    else if (ratio <= 0.8) digit = 4;
+    else if (ratio <= 1.2) digit = 5;
+    else if (ratio <= 1.6) digit = 6;
+    else if (ratio <= 2.2) digit = 7;
+    else if (ratio <= 3.0) digit = 8;
+    else digit = 9;
+    
+    // Update the SVG text
+    const digitElement = soundNumberCell.querySelector('.sound-number-digit');
+    if (digitElement) {
+        digitElement.textContent = digit.toString();
+    }
+}
+
+// Start the sine wave sound when dragging begins
+function startSoundNumberAudio() {
+    // Create audio context if needed (must be created after user interaction)
+    if (!soundNumberAudioContext) {
+        soundNumberAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Resume context if suspended (browser autoplay policy)
+    if (soundNumberAudioContext.state === 'suspended') {
+        soundNumberAudioContext.resume();
+    }
+    
+    // Create oscillator and gain node
+    soundNumberOscillator = soundNumberAudioContext.createOscillator();
+    soundNumberGainNode = soundNumberAudioContext.createGain();
+    
+    // Configure oscillator
+    soundNumberOscillator.type = 'sine';
+    soundNumberOscillator.frequency.value = 440; // Start at middle frequency
+    
+    // Configure gain (volume) - start at 0 and fade in
+    soundNumberGainNode.gain.value = 0;
+    soundNumberGainNode.gain.linearRampToValueAtTime(0.3, soundNumberAudioContext.currentTime + 0.05);
+    
+    // Connect: oscillator -> gain -> output
+    soundNumberOscillator.connect(soundNumberGainNode);
+    soundNumberGainNode.connect(soundNumberAudioContext.destination);
+    
+    // Start the oscillator
+    soundNumberOscillator.start();
+    
+    // Update frequency based on current cell ratio
+    updateSoundNumberFrequency();
+}
+
+// Update the oscillator frequency based on cell aspect ratio
+// Narrow/tall (low ratio) = high pitch, Wide/short (high ratio) = low pitch
+function updateSoundNumberFrequency() {
+    if (!soundNumberOscillator || !soundNumberCell) return;
+    
+    const width = parseFloat(soundNumberCell.style.width);
+    const height = parseFloat(soundNumberCell.style.height);
+    
+    if (width <= 0 || height <= 0) return;
+    
+    // Calculate aspect ratio (width/height)
+    const ratio = width / height;
+    
+    // Map ratio to frequency (inverse relationship)
+    // ratio 0.2 (very tall) -> 800Hz (high pitch)
+    // ratio 1.0 (square) -> 440Hz (middle)
+    // ratio 5.0 (very wide) -> 150Hz (low pitch)
+    // Using logarithmic mapping for more natural sound
+    const minFreq = 150;
+    const maxFreq = 800;
+    
+    // Clamp ratio to reasonable range
+    const clampedRatio = Math.max(0.2, Math.min(5.0, ratio));
+    
+    // Inverse logarithmic mapping: low ratio = high freq, high ratio = low freq
+    const logMin = Math.log(0.2);
+    const logMax = Math.log(5.0);
+    const logRatio = Math.log(clampedRatio);
+    const normalizedRatio = (logRatio - logMin) / (logMax - logMin); // 0 to 1
+    
+    // Invert: 0 -> maxFreq, 1 -> minFreq
+    const frequency = maxFreq - (normalizedRatio * (maxFreq - minFreq));
+    
+    // Smooth frequency transition
+    soundNumberOscillator.frequency.linearRampToValueAtTime(
+        frequency,
+        soundNumberAudioContext.currentTime + 0.05
+    );
+}
+
+// Stop the sound when dragging ends
+function stopSoundNumberAudio() {
+    if (!soundNumberOscillator || !soundNumberGainNode) return;
+    
+    // Fade out to avoid click
+    soundNumberGainNode.gain.linearRampToValueAtTime(0, soundNumberAudioContext.currentTime + 0.1);
+    
+    // Stop oscillator after fade out
+    setTimeout(() => {
+        if (soundNumberOscillator) {
+            soundNumberOscillator.stop();
+            soundNumberOscillator.disconnect();
+            soundNumberOscillator = null;
+        }
+        if (soundNumberGainNode) {
+            soundNumberGainNode.disconnect();
+            soundNumberGainNode = null;
+        }
+    }, 150);
+}
+
+// Mouse down handler for dividers
+function handleSoundNumberDividerMouseDown(e, type, index) {
+    e.preventDefault();
+    
+    soundNumberIsDragging = true;
+    soundNumberDragType = type;
+    soundNumberDragIndex = index;
+    soundNumberDragStartPos = type === 'h' ? e.clientY : e.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' ? soundNumberDividersH[index] : soundNumberDividersV[index];
+    divider.classList.add('active');
+    soundNumberGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+    
+    // Start audio
+    startSoundNumberAudio();
+}
+
+// Mouse move handler for dividers
+function handleSoundNumberDividerMouseMove(e) {
+    if (!soundNumberIsDragging) return;
+    
+    e.preventDefault();
+    
+    const containerRect = soundNumberGridContainer.getBoundingClientRect();
+    
+    if (soundNumberDragType === 'h') {
+        // Horizontal divider - affects row heights
+        const deltaY = e.clientY - soundNumberDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeSoundNumberRows(soundNumberDragIndex, deltaPercent);
+        soundNumberDragStartPos = e.clientY;
+    } else {
+        // Vertical divider - affects column widths
+        const deltaX = e.clientX - soundNumberDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeSoundNumberColumns(soundNumberDragIndex, deltaPercent);
+        soundNumberDragStartPos = e.clientX;
+    }
+    
+    updateSoundNumberGridLayout();
+}
+
+// Mouse up handler for dividers
+function handleSoundNumberDividerMouseUp(e) {
+    if (!soundNumberIsDragging) return;
+    
+    // Stop audio
+    stopSoundNumberAudio();
+    
+    // Remove visual feedback
+    const divider = soundNumberDragType === 'h' 
+        ? soundNumberDividersH[soundNumberDragIndex] 
+        : soundNumberDividersV[soundNumberDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    soundNumberGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    soundNumberIsDragging = false;
+    soundNumberDragType = null;
+    soundNumberDragIndex = -1;
+}
+
+// Touch start handler for dividers
+function handleSoundNumberDividerTouchStart(e, type, index) {
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    soundNumberIsDragging = true;
+    soundNumberDragType = type;
+    soundNumberDragIndex = index;
+    soundNumberDragStartPos = type === 'h' ? touch.clientY : touch.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' ? soundNumberDividersH[index] : soundNumberDividersV[index];
+    divider.classList.add('active');
+    soundNumberGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+    
+    // Start audio
+    startSoundNumberAudio();
+}
+
+// Touch move handler for dividers
+function handleSoundNumberDividerTouchMove(e) {
+    if (!soundNumberIsDragging) return;
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const containerRect = soundNumberGridContainer.getBoundingClientRect();
+    
+    if (soundNumberDragType === 'h') {
+        const deltaY = touch.clientY - soundNumberDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeSoundNumberRows(soundNumberDragIndex, deltaPercent);
+        soundNumberDragStartPos = touch.clientY;
+    } else {
+        const deltaX = touch.clientX - soundNumberDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeSoundNumberColumns(soundNumberDragIndex, deltaPercent);
+        soundNumberDragStartPos = touch.clientX;
+    }
+    
+    updateSoundNumberGridLayout();
+}
+
+// Touch end handler for dividers
+function handleSoundNumberDividerTouchEnd(e) {
+    if (!soundNumberIsDragging) return;
+    
+    // Stop audio
+    stopSoundNumberAudio();
+    
+    // Remove visual feedback
+    const divider = soundNumberDragType === 'h' 
+        ? soundNumberDividersH[soundNumberDragIndex] 
+        : soundNumberDividersV[soundNumberDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    soundNumberGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    soundNumberIsDragging = false;
+    soundNumberDragType = null;
+    soundNumberDragIndex = -1;
+}
+
+// Resize adjacent rows (accordion style)
+function resizeSoundNumberRows(dividerIndex, deltaPercent) {
+    // Divider at index i is between row i and row i+1
+    const topRowIndex = dividerIndex;
+    const bottomRowIndex = dividerIndex + 1;
+    
+    // Calculate new heights
+    let newTopHeight = soundNumberRowHeights[topRowIndex] + deltaPercent;
+    let newBottomHeight = soundNumberRowHeights[bottomRowIndex] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newTopHeight < SOUND_NUMBER_MIN_SIZE) {
+        const adjustment = SOUND_NUMBER_MIN_SIZE - newTopHeight;
+        newTopHeight = SOUND_NUMBER_MIN_SIZE;
+        newBottomHeight -= adjustment;
+    }
+    
+    if (newBottomHeight < SOUND_NUMBER_MIN_SIZE) {
+        const adjustment = SOUND_NUMBER_MIN_SIZE - newBottomHeight;
+        newBottomHeight = SOUND_NUMBER_MIN_SIZE;
+        newTopHeight -= adjustment;
+    }
+    
+    // Final clamp
+    if (newTopHeight >= SOUND_NUMBER_MIN_SIZE && newBottomHeight >= SOUND_NUMBER_MIN_SIZE) {
+        soundNumberRowHeights[topRowIndex] = newTopHeight;
+        soundNumberRowHeights[bottomRowIndex] = newBottomHeight;
+    }
+}
+
+// Resize adjacent columns (accordion style)
+function resizeSoundNumberColumns(dividerIndex, deltaPercent) {
+    // Divider at index i is between column i and column i+1
+    const leftColIndex = dividerIndex;
+    const rightColIndex = dividerIndex + 1;
+    
+    // Calculate new widths
+    let newLeftWidth = soundNumberColWidths[leftColIndex] + deltaPercent;
+    let newRightWidth = soundNumberColWidths[rightColIndex] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newLeftWidth < SOUND_NUMBER_MIN_SIZE) {
+        const adjustment = SOUND_NUMBER_MIN_SIZE - newLeftWidth;
+        newLeftWidth = SOUND_NUMBER_MIN_SIZE;
+        newRightWidth -= adjustment;
+    }
+    
+    if (newRightWidth < SOUND_NUMBER_MIN_SIZE) {
+        const adjustment = SOUND_NUMBER_MIN_SIZE - newRightWidth;
+        newRightWidth = SOUND_NUMBER_MIN_SIZE;
+        newLeftWidth -= adjustment;
+    }
+    
+    // Final clamp
+    if (newLeftWidth >= SOUND_NUMBER_MIN_SIZE && newRightWidth >= SOUND_NUMBER_MIN_SIZE) {
+        soundNumberColWidths[leftColIndex] = newLeftWidth;
+        soundNumberColWidths[rightColIndex] = newRightWidth;
+    }
+}
+
 // Initialize positions array (all start at 0,0 offset)
 function getInitialNumberEmotionPositions() {
     return [
@@ -3306,6 +4073,24 @@ function initializeNumberEmotionDrag() {
         }
     });
     
+    // Add click/touch handler for digit 7 animation (triggers on interaction)
+    const digit7 = container.querySelector('.number-emotion-digit[data-digit="7"]');
+    if (digit7) {
+        // Mouse click handler
+        digit7.addEventListener('click', (e) => {
+            e.preventDefault();
+            triggerDigit7Animation();
+        });
+        
+        // Touch handler (for mobile)
+        digit7.addEventListener('touchend', (e) => {
+            // Only trigger if it wasn't a drag (touch moved less than 10px)
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                triggerDigit7Animation();
+            }
+        });
+    }
+    
     numberEmotionDragInitialized = true;
 }
 
@@ -3346,11 +4131,7 @@ function startNumberEmotionBehaviors() {
     // Start the loop
     updateNumberEmotionBehaviors();
     
-    // Start digit 7 animation timer (runs every 5 seconds)
-    if (digit7AnimationTimerId === null) {
-        // Trigger first animation after 5 seconds
-        digit7AnimationTimerId = setInterval(triggerDigit7Animation, DIGIT7_ANIMATION_INTERVAL);
-    }
+    // Note: Digit 7 animation now triggers only on click/touch, not automatically
 }
 
 // Stop the behavior animation loop
@@ -3358,12 +4139,6 @@ function stopNumberEmotionBehaviors() {
     if (numberEmotionAnimationId !== null) {
         cancelAnimationFrame(numberEmotionAnimationId);
         numberEmotionAnimationId = null;
-    }
-    
-    // Stop digit 7 animation timer
-    if (digit7AnimationTimerId !== null) {
-        clearInterval(digit7AnimationTimerId);
-        digit7AnimationTimerId = null;
     }
 }
 
@@ -4886,880 +5661,416 @@ window.addEventListener('resize', () => {
 });
 
 // ==================
-// SHAPE + COLOR CANVAS (drag colored shapes to create gradient trails)
+// SHAPE + COLOR SHAPES GRID (grid of mixed shapes that repel from mouse)
 // ==================
-// Shape + Color canvas implementation - colored shapes with gradient trails
+// Shape + Color interaction: 60 shapes (12x5 grid) that repel from mouse cursor
+// Shape distribution: 25% circles, 25% triangles, 25% squares, 15% ellipses, 10% stars
 
-// State variables for Shape + Color canvas
-let shapeColorContainer = null;
-let shapeColorDrawCanvas = null;
-let shapeColorDrawCtx = null;
-let shapeColorBrushCanvas = null;
-let shapeColorBrushCtx = null;
-let shapeColorPlayBtn = null;
-let shapeColorResetBtn = null;
-let shapeColorExportBtn = null;
-let shapeColorResizeObserver = null;
-let shapeColorAnimationId = null;
+// Configuration
+const SHAPE_COLOR_GRID_COLS = 12;
+const SHAPE_COLOR_GRID_ROWS = 5;
+const SHAPE_COLOR_SHAPE_SIZE = 110; // Base shape size in pixels
+const SHAPE_COLOR_GRID_GAP = 4; // Gap between shapes in pixels
+const SHAPE_COLOR_CELL_SIZE = SHAPE_COLOR_SHAPE_SIZE + SHAPE_COLOR_GRID_GAP; // Total cell size including gap
+const SHAPE_COLOR_REPEL_RADIUS = 150; // Distance at which shapes start to repel
+const SHAPE_COLOR_REPEL_STRENGTH = 15; // How strongly shapes are pushed away
 
-// Config
-const SHAPE_COLOR_SIZE = 40;        // Size of draggable shapes
-const SHAPE_COLOR_STAMP_SIZE = 40;  // Size of stamps (trail)
-const SHAPE_COLOR_STEP_DIST = 8;    // Distance between stamps (smaller = denser trail)
-const SHAPE_COLOR_STROKE_W = 3;     // Stroke weight
-const SHAPE_COLOR_EASING = 0.4;     // Smoothing factor (higher = follows mouse faster)
-const SHAPE_COLOR_SPACING = 70;     // Vertical spacing between shapes
-const SHAPE_COLOR_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
-
-// Colors for each shape type
-const SHAPE_COLOR_COLORS = {
-    0: '#293990', // circle - blue
-    1: '#EF4538', // square - orange
-    2: '#FAB01B', // triangle - yellow
-    3: '#007A6F', // ellipse - green
-    4: '#891951', // star - purple
-    5: '#EB4781'  // pentagon - pink
+// Shape types and their distribution (total 60 shapes)
+const SHAPE_COLOR_TYPES = {
+    circle: 13,    // ~22%
+    triangle: 15,  // 25%
+    square: 12,    // 20%
+    ellipse: 9,    // 15%
+    star: 6,       // 10%
+    pentagon: 5    // ~8%
 };
 
-// Background color
-const SHAPE_COLOR_BG_COLOR = '#FFFFFF';
+// Fill colors for each shape type (shown only when shape is in motion)
+// Using the site's 6-color palette from the conic-gradient
+const SHAPE_COLOR_FILL_COLORS = {
+    circle: '#293990',    // Blue
+    square: '#FAB01B',    // Orange
+    triangle: '#EF4538',  // Red (site palette)
+    ellipse: '#891951',   // Purple
+    star: '#EB4781',      // Pink
+    pentagon: '#007A6F'   // Green
+};
 
-// State
-let shapeColorPositions = [];       // { x, y, shapeType }
-let shapeColorDraggedIndex = -1;    // -1 means no shape is being dragged
-let shapeColorDragOffsetX = 0;
-let shapeColorDragOffsetY = 0;
-let shapeColorRecordedPoints = [];  // { x, y, shape, color } for playback
-let shapeColorIsReplaying = false;
-let shapeColorReplayIndex = 0;
-let shapeColorActive = false;       // Whether the canvas is active
+// State variables for Shape + Color shapes grid
+let shapeColorContainer = null;
+let shapeColorShapes = []; // Array of { element, x, y, baseX, baseY, shapeType }
+let shapeColorMouseX = -1000;
+let shapeColorMouseY = -1000;
+let shapeColorAnimationId = null;
+let shapeColorInitialized = false;
 
-// State storage for persistence across page switches
-let shapeColorStateStorage = {};
+// Legacy alias for backwards compatibility
+let shapeColorSquares = shapeColorShapes;
 
-// Function to convert hex color to HSL
-function hexToHSL(hex) {
-    // Remove # if present
-    hex = hex.replace(/^#/, '');
+// Helper function to create SVG for triangle shape
+function createTriangleSVG() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
     
-    // Parse hex to RGB
-    const r = parseInt(hex.substring(0, 2), 16) / 255;
-    const g = parseInt(hex.substring(2, 4), 16) / 255;
-    const b = parseInt(hex.substring(4, 6), 16) / 255;
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '50,5 95,95 5,95');
+    polygon.setAttribute('fill', '#ffffff');
+    polygon.setAttribute('stroke', '#2C2C2C');
+    polygon.setAttribute('stroke-width', '3');
     
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h, s, l = (max + min) / 2;
+    svg.appendChild(polygon);
+    return svg;
+}
+
+// Helper function to create SVG for star shape
+function createStarSVG() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
     
-    if (max === min) {
-        h = s = 0; // achromatic
-    } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-            case g: h = ((b - r) / d + 2) / 6; break;
-            case b: h = ((r - g) / d + 4) / 6; break;
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    // 5-pointed star coordinates
+    const points = [];
+    for (let i = 0; i < 10; i++) {
+        const angle = (i * Math.PI / 5) - Math.PI / 2;
+        const r = (i % 2 === 0) ? 45 : 20; // Outer and inner radius
+        const x = 50 + Math.cos(angle) * r;
+        const y = 50 + Math.sin(angle) * r;
+        points.push(`${x},${y}`);
+    }
+    polygon.setAttribute('points', points.join(' '));
+    polygon.setAttribute('fill', '#ffffff');
+    polygon.setAttribute('stroke', '#2C2C2C');
+    polygon.setAttribute('stroke-width', '3');
+    
+    svg.appendChild(polygon);
+    return svg;
+}
+
+// Helper function to create SVG for ellipse shape
+function createEllipseSVG() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    
+    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    ellipse.setAttribute('cx', '50');
+    ellipse.setAttribute('cy', '50');
+    ellipse.setAttribute('rx', '47'); // Horizontal radius (wider)
+    ellipse.setAttribute('ry', '30'); // Vertical radius (shorter)
+    ellipse.setAttribute('fill', '#ffffff');
+    ellipse.setAttribute('stroke', '#2C2C2C');
+    ellipse.setAttribute('stroke-width', '3');
+    
+    svg.appendChild(ellipse);
+    return svg;
+}
+
+// Helper function to create SVG for pentagon shape
+function createPentagonSVG() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    // 5-sided pentagon coordinates
+    const points = [];
+    for (let i = 0; i < 5; i++) {
+        const angle = (i * Math.PI * 2 / 5) - Math.PI / 2; // Start from top
+        const x = 50 + Math.cos(angle) * 45;
+        const y = 50 + Math.sin(angle) * 45;
+        points.push(`${x},${y}`);
+    }
+    polygon.setAttribute('points', points.join(' '));
+    polygon.setAttribute('fill', '#ffffff');
+    polygon.setAttribute('stroke', '#2C2C2C');
+    polygon.setAttribute('stroke-width', '3');
+    
+    svg.appendChild(polygon);
+    return svg;
+}
+
+// Helper function to generate shuffled shape types array
+function generateShuffledShapeTypes() {
+    const shapes = [];
+    
+    // Add shapes according to distribution
+    for (const [shapeType, count] of Object.entries(SHAPE_COLOR_TYPES)) {
+        for (let i = 0; i < count; i++) {
+            shapes.push(shapeType);
         }
     }
     
-    return { h: h * 360, s: s * 100, l: l * 100 };
-}
-
-// Function to convert HSL to hex color
-function hslToHex(h, s, l) {
-    h = h / 360;
-    s = s / 100;
-    l = l / 100;
-    
-    let r, g, b;
-    
-    if (s === 0) {
-        r = g = b = l;
-    } else {
-        const hue2rgb = (p, q, t) => {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1/6) return p + (q - p) * 6 * t;
-            if (t < 1/2) return q;
-            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-            return p;
-        };
-        
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
+    // Shuffle array (Fisher-Yates algorithm)
+    for (let i = shapes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shapes[i], shapes[j]] = [shapes[j], shapes[i]];
     }
     
-    const toHex = x => {
-        const hex = Math.round(x * 255).toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-    };
-    
-    return '#' + toHex(r) + toHex(g) + toHex(b);
+    return shapes;
 }
 
-// Function to get a random shade variation of a color
-function getRandomShadeColor(baseColor) {
-    const hsl = hexToHSL(baseColor);
+// Apply fill color to a shape (handles both CSS-based and SVG-based shapes)
+function applyShapeColor(shapeData, color) {
+    const element = shapeData.element;
+    const shapeType = shapeData.shapeType;
     
-    // Vary lightness by -20% to +20%
-    const lightnessVariation = (Math.random() - 0.5) * 40;
-    let newLightness = hsl.l + lightnessVariation;
-    
-    // Clamp lightness to valid range (10-90 to avoid pure black/white)
-    newLightness = Math.max(10, Math.min(90, newLightness));
-    
-    // Also slightly vary saturation for more natural feel
-    const saturationVariation = (Math.random() - 0.5) * 20;
-    let newSaturation = hsl.s + saturationVariation;
-    newSaturation = Math.max(20, Math.min(100, newSaturation));
-    
-    return hslToHex(hsl.h, newSaturation, newLightness);
+    // CSS-based shapes (circle, square) - use backgroundColor
+    if (shapeType === 'circle' || shapeType === 'square') {
+        element.style.backgroundColor = color;
+    }
+    // SVG-based shapes (triangle, star, ellipse, pentagon) - update SVG fill attribute
+    else {
+        const svg = element.querySelector('svg');
+        if (svg) {
+            // Triangle and star use polygon, ellipse uses ellipse element, pentagon uses polygon
+            const fillElement = svg.querySelector('polygon, ellipse');
+            if (fillElement) {
+                fillElement.setAttribute('fill', color);
+            }
+        }
+    }
 }
 
-// Initialize Shape + Color canvas
-function initializeShapeColorCanvas() {
+// Initialize Shape + Color shapes grid
+function initializeShapeColorSquares() {
     shapeColorContainer = document.getElementById('shape-color-container');
     if (!shapeColorContainer) {
         console.error('Shape + Color container not found');
         return;
     }
     
-    shapeColorDrawCanvas = document.getElementById('shape-color-draw-surface');
-    shapeColorBrushCanvas = document.getElementById('shape-color-brush-layer');
-    shapeColorPlayBtn = document.getElementById('shape-color-play-btn');
-    shapeColorResetBtn = document.getElementById('shape-color-reset-btn');
-    shapeColorExportBtn = document.getElementById('shape-color-export-btn');
-    
-    if (!shapeColorDrawCanvas || !shapeColorBrushCanvas) {
-        console.error('Shape + Color canvas elements not found');
+    // Only initialize once (shapes are created once)
+    if (shapeColorInitialized) {
+        // Just recalculate positions if already initialized
+        recalculateShapeColorGrid();
         return;
     }
     
-    shapeColorDrawCtx = shapeColorDrawCanvas.getContext('2d');
-    shapeColorBrushCtx = shapeColorBrushCanvas.getContext('2d');
+    // Clear any existing shapes
+    shapeColorContainer.innerHTML = '';
+    shapeColorShapes = [];
     
-    // Set up event listeners
-    shapeColorDrawCanvas.addEventListener('mousedown', handleShapeColorMouseDown);
-    shapeColorDrawCanvas.addEventListener('mousemove', handleShapeColorMouseMove);
-    shapeColorDrawCanvas.addEventListener('mouseup', handleShapeColorMouseUp);
-    shapeColorDrawCanvas.addEventListener('mouseleave', handleShapeColorMouseUp);
+    // Get container dimensions
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
     
-    // Touch support
-    shapeColorDrawCanvas.addEventListener('touchstart', handleShapeColorTouchStart);
-    shapeColorDrawCanvas.addEventListener('touchmove', handleShapeColorTouchMove);
-    shapeColorDrawCanvas.addEventListener('touchend', handleShapeColorTouchEnd);
+    // Calculate grid spacing to center the grid (shifted 80px up)
+    const totalGridWidth = SHAPE_COLOR_GRID_COLS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
+    const totalGridHeight = SHAPE_COLOR_GRID_ROWS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
+    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2;
+    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2 - 80;
     
-    // Keyboard handler for reset
-    document.addEventListener('keydown', (e) => {
-        if ((e.key === 'c' || e.key === 'C') && shapeColorActive) {
-            resetShapeColorCanvas();
+    // Generate shuffled shape types
+    const shapeTypes = generateShuffledShapeTypes();
+    let shapeIndex = 0;
+    
+    // Create 60 shapes (12 columns x 5 rows)
+    for (let row = 0; row < SHAPE_COLOR_GRID_ROWS; row++) {
+        for (let col = 0; col < SHAPE_COLOR_GRID_COLS; col++) {
+            const shapeType = shapeTypes[shapeIndex];
+            const shape = document.createElement('div');
+            
+            // Add base class and shape-specific class
+            shape.className = `shape-color-shape shape-color-${shapeType}`;
+            
+            // Add SVG content for triangle, star, ellipse, and pentagon shapes
+            if (shapeType === 'triangle') {
+                shape.appendChild(createTriangleSVG());
+            } else if (shapeType === 'star') {
+                shape.appendChild(createStarSVG());
+            } else if (shapeType === 'ellipse') {
+                shape.appendChild(createEllipseSVG());
+            } else if (shapeType === 'pentagon') {
+                shape.appendChild(createPentagonSVG());
+            }
+            
+            // Calculate initial position (center of each grid cell)
+            const baseX = startX + col * SHAPE_COLOR_CELL_SIZE;
+            const baseY = startY + row * SHAPE_COLOR_CELL_SIZE;
+            
+            // Position shape (using transform for better performance)
+            shape.style.left = '0';
+            shape.style.top = '0';
+            shape.style.transform = `translate(${baseX - SHAPE_COLOR_SHAPE_SIZE / 2}px, ${baseY - SHAPE_COLOR_SHAPE_SIZE / 2}px)`;
+            
+            shapeColorContainer.appendChild(shape);
+            
+            // Store shape data
+            shapeColorShapes.push({
+                element: shape,
+                x: baseX,
+                y: baseY,
+                baseX: baseX,
+                baseY: baseY,
+                shapeType: shapeType
+            });
+            
+            shapeIndex++;
         }
-    });
-    
-    // Play button
-    if (shapeColorPlayBtn) {
-        shapeColorPlayBtn.addEventListener('click', handleShapeColorPlayClick);
     }
     
-    // Reset button
-    if (shapeColorResetBtn) {
-        shapeColorResetBtn.addEventListener('click', resetShapeColorCanvas);
-    }
+    // Update legacy alias
+    shapeColorSquares = shapeColorShapes;
     
-    // Export button
-    if (shapeColorExportBtn) {
-        shapeColorExportBtn.addEventListener('click', exportShapeColorCanvas);
-    }
+    // Set up mouse tracking
+    shapeColorContainer.addEventListener('mousemove', handleShapeColorMouseMove);
+    shapeColorContainer.addEventListener('mouseleave', handleShapeColorMouseLeave);
     
-    // Resize handler
-    if (window.ResizeObserver) {
-        shapeColorResizeObserver = new ResizeObserver(() => {
-            resizeShapeColorCanvas();
-        });
-        shapeColorResizeObserver.observe(shapeColorContainer);
-    } else {
-        window.addEventListener('resize', resizeShapeColorCanvas);
-    }
+    // Set up touch tracking
+    shapeColorContainer.addEventListener('touchmove', handleShapeColorTouchMove, { passive: false });
+    shapeColorContainer.addEventListener('touchend', handleShapeColorMouseLeave);
     
-    // Initial setup
-    resizeShapeColorCanvas();
+    // Handle window resize
+    window.addEventListener('resize', recalculateShapeColorGrid);
+    
+    shapeColorInitialized = true;
+    
+    // Start animation loop
+    startShapeColorAnimation();
 }
 
-// Resize canvas to match container
-function resizeShapeColorCanvas() {
-    if (!shapeColorContainer || !shapeColorDrawCanvas || !shapeColorBrushCanvas) return;
+// Recalculate grid positions on resize (but don't reset shape positions)
+function recalculateShapeColorGrid() {
+    if (!shapeColorContainer || shapeColorShapes.length === 0) return;
     
     const containerRect = shapeColorContainer.getBoundingClientRect();
-    const containerW = containerRect.width;
-    const containerH = containerRect.height;
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
     
-    if (containerW <= 0 || containerH <= 0) return;
+    // Calculate new grid starting position (shifted 80px up)
+    const totalGridWidth = SHAPE_COLOR_GRID_COLS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
+    const totalGridHeight = SHAPE_COLOR_GRID_ROWS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
+    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2;
+    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2 - 80;
     
-    // Match device pixel ratio for crisp lines
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    
-    // Resize draw canvas
-    shapeColorDrawCanvas.width = Math.floor(containerW * dpr);
-    shapeColorDrawCanvas.height = Math.floor(containerH * dpr);
-    shapeColorDrawCanvas.style.width = containerW + 'px';
-    shapeColorDrawCanvas.style.height = containerH + 'px';
-    shapeColorDrawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    // Resize brush canvas
-    shapeColorBrushCanvas.width = Math.floor(containerW * dpr);
-    shapeColorBrushCanvas.height = Math.floor(containerH * dpr);
-    shapeColorBrushCanvas.style.width = containerW + 'px';
-    shapeColorBrushCanvas.style.height = containerH + 'px';
-    shapeColorBrushCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    // Initialize shape positions
-    initializeShapeColorPositions();
-    
-    // Clear and redraw
-    clearShapeColorBrushLayer();
-    renderShapeColorFrame();
+    // Update base positions (where shapes would return to)
+    let index = 0;
+    for (let row = 0; row < SHAPE_COLOR_GRID_ROWS; row++) {
+        for (let col = 0; col < SHAPE_COLOR_GRID_COLS; col++) {
+            if (index < shapeColorShapes.length) {
+                shapeColorShapes[index].baseX = startX + col * SHAPE_COLOR_CELL_SIZE;
+                shapeColorShapes[index].baseY = startY + row * SHAPE_COLOR_CELL_SIZE;
+                index++;
+            }
+        }
+    }
 }
 
-// Initialize draggable shape positions (centered column)
-function initializeShapeColorPositions() {
+// Mouse move handler
+function handleShapeColorMouseMove(e) {
+    if (!shapeColorContainer) return;
+    
+    const rect = shapeColorContainer.getBoundingClientRect();
+    shapeColorMouseX = e.clientX - rect.left;
+    shapeColorMouseY = e.clientY - rect.top;
+}
+
+// Mouse leave handler
+function handleShapeColorMouseLeave() {
+    shapeColorMouseX = -1000;
+    shapeColorMouseY = -1000;
+}
+
+// Touch move handler
+function handleShapeColorTouchMove(e) {
+    e.preventDefault();
+    if (!shapeColorContainer || !e.touches || e.touches.length === 0) return;
+    
+    const rect = shapeColorContainer.getBoundingClientRect();
+    const touch = e.touches[0];
+    shapeColorMouseX = touch.clientX - rect.left;
+    shapeColorMouseY = touch.clientY - rect.top;
+}
+
+// Animation loop - updates shape positions
+function updateShapeColorSquares() {
     if (!shapeColorContainer) return;
     
     const containerRect = shapeColorContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const h = containerRect.height;
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    const halfSize = SHAPE_COLOR_SHAPE_SIZE / 2;
     
-    shapeColorPositions = [];
-    
-    const centerX = w / 2;
-    const totalHeight = (SHAPE_COLOR_TYPES.length - 1) * SHAPE_COLOR_SPACING;
-    const startY = (h - totalHeight) / 2 - 60; // Shifted 60px up
-    
-    for (let i = 0; i < SHAPE_COLOR_TYPES.length; i++) {
-        shapeColorPositions.push({
-            x: centerX,
-            y: startY + i * SHAPE_COLOR_SPACING,
-            shapeType: i
-        });
-    }
-}
-
-// Clear the brush layer (accumulated strokes)
-function clearShapeColorBrushLayer() {
-    if (!shapeColorBrushCtx || !shapeColorContainer) return;
-    
-    const containerRect = shapeColorContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const h = containerRect.height;
-    
-    shapeColorBrushCtx.fillStyle = SHAPE_COLOR_BG_COLOR;
-    shapeColorBrushCtx.fillRect(0, 0, w, h);
-}
-
-// Render a single frame
-function renderShapeColorFrame() {
-    if (!shapeColorDrawCtx || !shapeColorContainer) return;
-    
-    const containerRect = shapeColorContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const h = containerRect.height;
-    
-    if (w <= 0 || h <= 0) return;
-    
-    // Clear draw canvas
-    shapeColorDrawCtx.clearRect(0, 0, w, h);
-    
-    // Draw brush layer onto draw canvas
-    shapeColorDrawCtx.drawImage(shapeColorBrushCanvas, 0, 0, w, h);
-    
-    // Draw draggable shapes on top
-    drawShapeColorDraggableShapes();
-}
-
-// Draw all draggable shapes (and their mirrors)
-function drawShapeColorDraggableShapes() {
-    if (!shapeColorDrawCtx || !shapeColorContainer) return;
-    
-    const containerRect = shapeColorContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const centerX = w / 2;
-    
-    for (let i = 0; i < shapeColorPositions.length; i++) {
-        const shape = shapeColorPositions[i];
-        const isBeingDragged = (i === shapeColorDraggedIndex);
-        const fillColor = SHAPE_COLOR_COLORS[shape.shapeType];
+    shapeColorShapes.forEach(shapeData => {
+        // Calculate distance from mouse to shape center
+        const dx = shapeData.x - shapeColorMouseX;
+        const dy = shapeData.y - shapeColorMouseY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Draw shape on left side
-        drawShapeColorDraggable(shapeColorDrawCtx, shape.x, shape.y, SHAPE_COLOR_SIZE, shape.shapeType, isBeingDragged, fillColor);
-        
-        // Draw mirrored shape on right side (if not at center)
-        const mirroredX = w - shape.x;
-        if (Math.abs(shape.x - centerX) > 5) {
-            drawShapeColorDraggable(shapeColorDrawCtx, mirroredX, shape.y, SHAPE_COLOR_SIZE, shape.shapeType, isBeingDragged, fillColor);
-        }
-    }
-}
-
-// Draw a single draggable shape with color (fill only, no stroke)
-function drawShapeColorDraggable(ctx, x, y, baseSize, shapeType, isBeingDragged, fillColor) {
-    // Size multipliers for different shapes
-    const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3]; // circle, square, triangle, ellipse, star, pentagon
-    let size = baseSize * (multipliers[shapeType] || 1.0);
-    
-    if (isBeingDragged) {
-        size *= 1.1;
-    }
-    
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.fillStyle = fillColor;
-    
-    drawShapeColorByType(ctx, 0, 0, size, shapeType, false); // false = no stroke
-    
-    ctx.restore();
-}
-
-// Draw shape by type at origin (assumes translate already applied)
-// withStroke parameter controls whether to draw the outline (default: false for fill only)
-function drawShapeColorByType(ctx, x, y, size, shapeType, withStroke = false) {
-    ctx.beginPath();
-    
-    if (shapeType === 0) {
-        // Circle
-        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-    } else if (shapeType === 1) {
-        // Square
-        ctx.rect(x - size / 2, y - size / 2, size, size);
-    } else if (shapeType === 2) {
-        // Triangle
-        const h = size * 0.9;
-        ctx.moveTo(x, y - h / 2);
-        ctx.lineTo(x - h / 2, y + h / 2);
-        ctx.lineTo(x + h / 2, y + h / 2);
-        ctx.closePath();
-    } else if (shapeType === 3) {
-        // Ellipse
-        ctx.ellipse(x, y, size * 0.75, size * 0.45, 0, 0, Math.PI * 2);
-    } else if (shapeType === 4) {
-        // Star (5-pointed)
-        for (let i = 0; i < 10; i++) {
-            const angle = (i * Math.PI) / 5 - Math.PI / 2;
-            const r = (i % 2 === 0) ? size / 2 : size / 4;
-            const px = x + Math.cos(angle) * r;
-            const py = y + Math.sin(angle) * r;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-    } else if (shapeType === 5) {
-        // Pentagon
-        for (let i = 0; i < 5; i++) {
-            const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
-            const px = x + Math.cos(angle) * (size / 2);
-            const py = y + Math.sin(angle) * (size / 2);
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-    }
-    
-    ctx.fill();
-    if (withStroke) {
-        ctx.stroke();
-    }
-}
-
-// Draw stamp on brush layer (for trails) with gradient color variation (fill only, no stroke)
-function drawShapeColorStamp(x, y, shapeType, color) {
-    if (!shapeColorBrushCtx) return;
-    
-    // Size multipliers for stamps
-    const multipliers = [1.0, 1.5, 2.0, 1.8, 1.3, 1.4]; // circle, square, triangle, ellipse, star, pentagon
-    const size = SHAPE_COLOR_STAMP_SIZE * (multipliers[shapeType] || 1.0);
-    
-    shapeColorBrushCtx.save();
-    shapeColorBrushCtx.translate(x, y);
-    shapeColorBrushCtx.fillStyle = color;
-    
-    drawShapeColorByType(shapeColorBrushCtx, 0, 0, size, shapeType, false); // false = no stroke
-    
-    shapeColorBrushCtx.restore();
-}
-
-// Stamp trail from one point to another with gradient colors
-function stampShapeColorTrail(x1, y1, x2, y2, shapeType, recordIt) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist === 0) return;
-    
-    // Use smaller step distance for smoother trails
-    const stepDist = 8;
-    const steps = Math.max(1, Math.floor(dist / stepDist));
-    
-    // Get base color for this shape type
-    const baseColor = SHAPE_COLOR_COLORS[shapeType];
-    
-    // Draw stamps along the path, including at endpoints
-    for (let i = 0; i <= steps; i++) {
-        const f = steps > 0 ? i / steps : 0;
-        const x = x1 + (x2 - x1) * f;
-        const y = y1 + (y2 - y1) * f;
-        
-        // Get random shade variation of the base color
-        const stampColor = getRandomShadeColor(baseColor);
-        
-        drawShapeColorStamp(x, y, shapeType, stampColor);
-        
-        if (recordIt) {
-            shapeColorRecordedPoints.push({ x, y, shape: shapeType, color: stampColor });
-        }
-    }
-}
-
-// Get mouse position relative to canvas
-function getShapeColorMousePos(e) {
-    const rect = shapeColorDrawCanvas.getBoundingClientRect();
-    return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-    };
-}
-
-// Get touch position relative to canvas
-function getShapeColorTouchPos(e) {
-    const rect = shapeColorDrawCanvas.getBoundingClientRect();
-    const touch = e.touches[0] || e.changedTouches[0];
-    return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-    };
-}
-
-// Find shape at position
-function getShapeColorAtPosition(mx, my) {
-    const hitRadius = SHAPE_COLOR_SIZE * 0.7;
-    
-    for (let i = shapeColorPositions.length - 1; i >= 0; i--) {
-        const shape = shapeColorPositions[i];
-        const dx = mx - shape.x;
-        const dy = my - shape.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < hitRadius) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-// Function to hide Shape + Color instruction text
-function hideShapeColorInstructionText() {
-    const instructionText = document.getElementById('canvas-instruction-text');
-    if (!instructionText) return;
-    
-    instructionText.classList.remove('visible');
-}
-
-// Mouse event handlers
-function handleShapeColorMouseDown(e) {
-    if (!shapeColorActive) return;
-    
-    const pos = getShapeColorMousePos(e);
-    const shapeIndex = getShapeColorAtPosition(pos.x, pos.y);
-    
-    if (shapeIndex >= 0) {
-        shapeColorDraggedIndex = shapeIndex;
-        const shape = shapeColorPositions[shapeIndex];
-        shapeColorDragOffsetX = pos.x - shape.x;
-        shapeColorDragOffsetY = pos.y - shape.y;
-        
-        // Hide instruction text
-        hideShapeColorInstructionText();
-    }
-}
-
-function handleShapeColorMouseMove(e) {
-    if (!shapeColorActive || shapeColorDraggedIndex < 0) return;
-    
-    const pos = getShapeColorMousePos(e);
-    const shape = shapeColorPositions[shapeColorDraggedIndex];
-    
-    const newX = pos.x - shapeColorDragOffsetX;
-    const newY = pos.y - shapeColorDragOffsetY;
-    
-    // Apply easing
-    const targetX = shape.x + (newX - shape.x) * SHAPE_COLOR_EASING;
-    const targetY = shape.y + (newY - shape.y) * SHAPE_COLOR_EASING;
-    
-    // Calculate movement
-    const dx = targetX - shape.x;
-    const dy = targetY - shape.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist > 2) {
-        const containerRect = shapeColorContainer.getBoundingClientRect();
-        const w = containerRect.width;
-        
-        // Stamp trail on left side
-        stampShapeColorTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
-        
-        // Mirror stamp on right side
-        stampShapeColorTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
-    }
-    
-    // Update position
-    shape.x = targetX;
-    shape.y = targetY;
-    
-    // Redraw
-    renderShapeColorFrame();
-}
-
-function handleShapeColorMouseUp(e) {
-    if (shapeColorDraggedIndex >= 0) {
-        // Save state after drawing
-        saveShapeColorState();
-    }
-    shapeColorDraggedIndex = -1;
-}
-
-// Touch event handlers
-function handleShapeColorTouchStart(e) {
-    e.preventDefault();
-    if (!shapeColorActive) return;
-    
-    const pos = getShapeColorTouchPos(e);
-    const shapeIndex = getShapeColorAtPosition(pos.x, pos.y);
-    
-    if (shapeIndex >= 0) {
-        shapeColorDraggedIndex = shapeIndex;
-        const shape = shapeColorPositions[shapeIndex];
-        shapeColorDragOffsetX = pos.x - shape.x;
-        shapeColorDragOffsetY = pos.y - shape.y;
-        
-        hideShapeColorInstructionText();
-    }
-}
-
-function handleShapeColorTouchMove(e) {
-    e.preventDefault();
-    if (!shapeColorActive || shapeColorDraggedIndex < 0) return;
-    
-    const pos = getShapeColorTouchPos(e);
-    const shape = shapeColorPositions[shapeColorDraggedIndex];
-    
-    const newX = pos.x - shapeColorDragOffsetX;
-    const newY = pos.y - shapeColorDragOffsetY;
-    
-    const targetX = shape.x + (newX - shape.x) * SHAPE_COLOR_EASING;
-    const targetY = shape.y + (newY - shape.y) * SHAPE_COLOR_EASING;
-    
-    const dx = targetX - shape.x;
-    const dy = targetY - shape.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist > 2) {
-        const containerRect = shapeColorContainer.getBoundingClientRect();
-        const w = containerRect.width;
-        
-        stampShapeColorTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
-        stampShapeColorTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
-    }
-    
-    shape.x = targetX;
-    shape.y = targetY;
-    
-    renderShapeColorFrame();
-}
-
-function handleShapeColorTouchEnd(e) {
-    e.preventDefault();
-    if (shapeColorDraggedIndex >= 0) {
-        saveShapeColorState();
-    }
-    shapeColorDraggedIndex = -1;
-}
-
-// Playback functions
-function handleShapeColorPlayClick() {
-    if (shapeColorIsReplaying) {
-        // Stop playback
-        shapeColorIsReplaying = false;
-        if (shapeColorPlayBtn) {
-            shapeColorPlayBtn.textContent = '[play]';
-        }
-        if (shapeColorAnimationId) {
-            cancelAnimationFrame(shapeColorAnimationId);
-            shapeColorAnimationId = null;
-        }
-    } else {
-        // Start playback
-        if (shapeColorRecordedPoints.length === 0) return;
-        
-        clearShapeColorBrushLayer();
-        shapeColorReplayIndex = 0;
-        shapeColorIsReplaying = true;
-        
-        if (shapeColorPlayBtn) {
-            shapeColorPlayBtn.textContent = '[stop]';
+        // If mouse is close enough, repel the shape
+        if (distance < SHAPE_COLOR_REPEL_RADIUS && distance > 0) {
+            // Calculate repulsion force (stronger when closer)
+            const force = (SHAPE_COLOR_REPEL_RADIUS - distance) / SHAPE_COLOR_REPEL_RADIUS;
+            const repelX = (dx / distance) * force * SHAPE_COLOR_REPEL_STRENGTH;
+            const repelY = (dy / distance) * force * SHAPE_COLOR_REPEL_STRENGTH;
+            
+            // Update position
+            shapeData.x += repelX;
+            shapeData.y += repelY;
+            
+            // Constrain to container bounds
+            shapeData.x = Math.max(halfSize, Math.min(containerWidth - halfSize, shapeData.x));
+            shapeData.y = Math.max(halfSize, Math.min(containerHeight - halfSize, shapeData.y));
+            
+            // Shape is in motion - apply its color
+            const color = SHAPE_COLOR_FILL_COLORS[shapeData.shapeType];
+            applyShapeColor(shapeData, color);
+        } else {
+            // Shape is static - apply white
+            applyShapeColor(shapeData, '#ffffff');
         }
         
-        replayShapeColorDrawing();
-    }
+        // Update DOM element position
+        shapeData.element.style.transform = `translate(${shapeData.x - halfSize}px, ${shapeData.y - halfSize}px)`;
+    });
+    
+    // Continue animation
+    shapeColorAnimationId = requestAnimationFrame(updateShapeColorSquares);
 }
 
-function replayShapeColorDrawing() {
-    if (!shapeColorIsReplaying || !shapeColorActive) {
-        shapeColorIsReplaying = false;
-        return;
-    }
-    
-    const pointsPerFrame = 10;
-    
-    for (let i = 0; i < pointsPerFrame; i++) {
-        const point = shapeColorRecordedPoints[shapeColorReplayIndex];
-        
-        if (!point) {
-            // Loop: restart from beginning
-            shapeColorReplayIndex = 0;
-            clearShapeColorBrushLayer();
-            shapeColorAnimationId = requestAnimationFrame(replayShapeColorDrawing);
-            return;
-        }
-        
-        const containerRect = shapeColorContainer.getBoundingClientRect();
-        const w = containerRect.width;
-        
-        // Draw stamp and its mirror (use recorded color)
-        drawShapeColorStamp(point.x, point.y, point.shape, point.color);
-        drawShapeColorStamp(w - point.x, point.y, point.shape, point.color);
-        
-        shapeColorReplayIndex++;
-    }
-    
-    renderShapeColorFrame();
-    shapeColorAnimationId = requestAnimationFrame(replayShapeColorDrawing);
+// Start animation loop
+function startShapeColorAnimation() {
+    if (shapeColorAnimationId) return; // Already running
+    shapeColorAnimationId = requestAnimationFrame(updateShapeColorSquares);
 }
 
-// Reset canvas
-function resetShapeColorCanvas() {
-    // Clear saved state
-    const pageId = getCurrentShapeColorPageId();
-    if (pageId && shapeColorStateStorage[pageId]) {
-        delete shapeColorStateStorage[pageId];
-    }
-    
-    // Clear visual
-    clearShapeColorBrushLayer();
-    shapeColorRecordedPoints = [];
-    shapeColorIsReplaying = false;
-    shapeColorReplayIndex = 0;
-    shapeColorDraggedIndex = -1;
-    
+// Stop animation loop
+function stopShapeColorAnimation() {
     if (shapeColorAnimationId) {
         cancelAnimationFrame(shapeColorAnimationId);
         shapeColorAnimationId = null;
     }
-    
-    // Reset play button
-    if (shapeColorPlayBtn) {
-        shapeColorPlayBtn.textContent = '[play]';
-    }
-    
-    // Reinitialize shape positions
-    initializeShapeColorPositions();
-    
-    // Redraw
-    renderShapeColorFrame();
 }
 
-// Export canvas as PNG image
-function exportShapeColorCanvas() {
-    if (!shapeColorBrushCanvas || !shapeColorContainer) return;
-    
-    const containerRect = shapeColorContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const h = containerRect.height;
-    
-    if (w <= 0 || h <= 0) return;
-    
-    // Create a temporary canvas to combine layers
-    const exportCanvas = document.createElement('canvas');
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    exportCanvas.width = Math.floor(w * dpr);
-    exportCanvas.height = Math.floor(h * dpr);
-    
-    const exportCtx = exportCanvas.getContext('2d');
-    exportCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    // Draw white background
-    exportCtx.fillStyle = SHAPE_COLOR_BG_COLOR;
-    exportCtx.fillRect(0, 0, w, h);
-    
-    // Draw the brush layer (accumulated strokes)
-    exportCtx.drawImage(shapeColorBrushCanvas, 0, 0, w, h);
-    
-    // Draw the draggable shapes on top (fill only, no stroke)
-    const centerX = w / 2;
-    for (let i = 0; i < shapeColorPositions.length; i++) {
-        const shape = shapeColorPositions[i];
-        const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3];
-        const size = SHAPE_COLOR_SIZE * (multipliers[shape.shapeType] || 1.0);
-        const fillColor = SHAPE_COLOR_COLORS[shape.shapeType];
-        
-        // Draw shape on left side
-        exportCtx.save();
-        exportCtx.translate(shape.x, shape.y);
-        exportCtx.fillStyle = fillColor;
-        drawShapeColorByType(exportCtx, 0, 0, size, shape.shapeType, false); // no stroke
-        exportCtx.restore();
-        
-        // Draw mirrored shape on right side
-        const mirroredX = w - shape.x;
-        if (Math.abs(shape.x - centerX) > 5) {
-            exportCtx.save();
-            exportCtx.translate(mirroredX, shape.y);
-            exportCtx.fillStyle = fillColor;
-            drawShapeColorByType(exportCtx, 0, 0, size, shape.shapeType, false); // no stroke
-            exportCtx.restore();
-        }
-    }
-    
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `synesthesia-shapecolor-${timestamp}.png`;
-    
-    // Create download link and trigger download
-    const dataUrl = exportCanvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
+// Stub function for backwards compatibility (called during init)
+function initializeShapeColorCanvas() {
+    // This is now handled by initializeShapeColorSquares
+    // Called from main initialization - do nothing here
 }
 
-// State persistence
-function getCurrentShapeColorPageId() {
-    // Get current page ID from selected colors
-    return `${selectedLeftIndex}-${selectedRightIndex}`;
-}
-
-function saveShapeColorState() {
-    const pageId = getCurrentShapeColorPageId();
-    if (!pageId) return;
-    
-    try {
-        // Save brush layer as image data
-        let imageData = null;
-        if (shapeColorBrushCanvas) {
-            imageData = shapeColorBrushCanvas.toDataURL('image/png');
-        }
-        
-        shapeColorStateStorage[pageId] = {
-            imageData: imageData,
-            recordedPoints: [...shapeColorRecordedPoints]
-        };
-    } catch (e) {
-        console.warn('Failed to save shape color state:', e);
-    }
-}
-
-function restoreShapeColorState() {
-    const pageId = getCurrentShapeColorPageId();
-    if (!pageId) {
-        clearShapeColorBrushLayer();
-        shapeColorRecordedPoints = [];
-        return false;
-    }
-    
-    const savedState = shapeColorStateStorage[pageId];
-    if (!savedState) {
-        clearShapeColorBrushLayer();
-        shapeColorRecordedPoints = [];
-        return false;
-    }
-    
-    try {
-        // Restore recorded points
-        if (savedState.recordedPoints && savedState.recordedPoints.length > 0) {
-            shapeColorRecordedPoints = [...savedState.recordedPoints];
-        } else {
-            shapeColorRecordedPoints = [];
-        }
-        
-        // Restore brush layer image
-        if (savedState.imageData && shapeColorBrushCtx) {
-            const img = new Image();
-            img.onload = () => {
-                const containerRect = shapeColorContainer.getBoundingClientRect();
-                shapeColorBrushCtx.drawImage(img, 0, 0, containerRect.width, containerRect.height);
-                renderShapeColorFrame();
-            };
-            img.src = savedState.imageData;
-        }
-        
-        return true;
-    } catch (e) {
-        console.warn('Failed to restore shape color state:', e);
-        clearShapeColorBrushLayer();
-        shapeColorRecordedPoints = [];
-        return false;
-    }
-}
-
-// Visibility update function
+// Update Shape + Color visibility based on current page
 function updateShapeColorCanvasVisibility(pageId) {
-    if (!shapeColorContainer) return;
+    const container = document.getElementById('shape-color-container');
+    if (!container) return;
     
-    // Show for pages "0-5" or "5-0" (Shape + Color)
+    // Show for pageId "0-5" or "5-0" (Shape + Color)
     const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
     if (isShapeColorPage) {
-        shapeColorContainer.classList.remove('hidden');
-        shapeColorActive = true;
-        
-        // Stop any ongoing replay first
-        if (shapeColorIsReplaying) {
-            shapeColorIsReplaying = false;
-            if (shapeColorAnimationId) {
-                cancelAnimationFrame(shapeColorAnimationId);
-                shapeColorAnimationId = null;
-            }
-            if (shapeColorPlayBtn) {
-                shapeColorPlayBtn.textContent = '[play]';
-            }
-        }
-        
-        // Resize and restore state after a brief delay
+        container.classList.remove('hidden');
+        // Initialize squares after a brief delay to ensure container is visible
         setTimeout(() => {
-            resizeShapeColorCanvas();
-            restoreShapeColorState();
-            renderShapeColorFrame();
+            if (container && !container.classList.contains('hidden')) {
+                initializeShapeColorSquares();
+                startShapeColorAnimation();
+            }
         }, 50);
     } else {
-        // Save state before hiding
-        if (shapeColorActive) {
-            saveShapeColorState();
-        }
-        
-        shapeColorContainer.classList.add('hidden');
-        shapeColorActive = false;
-        
-        // Stop replay
-        if (shapeColorIsReplaying) {
-            shapeColorIsReplaying = false;
-            if (shapeColorAnimationId) {
-                cancelAnimationFrame(shapeColorAnimationId);
-                shapeColorAnimationId = null;
-            }
-            if (shapeColorPlayBtn) {
-                shapeColorPlayBtn.textContent = '[play]';
-            }
-        }
+        container.classList.add('hidden');
+        stopShapeColorAnimation();
     }
 }
 
@@ -5833,6 +6144,9 @@ function updateActivePage(pageId, reason) {
     // Update LETTER & COLOR text box visibility
     updateLetterColorTextBox(pageId);
     
+    // Update NUMBER & COLOR text box visibility
+    updateNumberColorTextBox(pageId);
+    
     // Update SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(pageId);
     
@@ -5841,6 +6155,9 @@ function updateActivePage(pageId, reason) {
     
     // Update Number + Number circle visibility
     updateNumberNumberCircle(pageId);
+    
+    // Update Emotion + Emotion circle visibility
+    updateEmotionEmotionCircle(pageId);
     
     // Update Shape + Color canvas visibility
     updateShapeColorCanvasVisibility(pageId);
@@ -5866,6 +6183,9 @@ function updateActivePage(pageId, reason) {
     // Update Letter + Emotion grid visibility
     updateLetterEmotionGrid(pageId);
     
+    // Update Sound + Number grid visibility
+    updateSoundNumberGrid(pageId);
+    
     // Update Shape & Number canvas visibility
     updateShapeNumberCanvasVisibility(pageId);
     
@@ -5877,6 +6197,12 @@ function updateActivePage(pageId, reason) {
     
     // Update Sound + Emotion smiley visibility
     updateSoundEmotionVisibility(pageId);
+    
+    // Update Shape + Emotion circles grid visibility
+    updateShapeEmotionVisibility(pageId);
+    
+    // Update Emotion + Color grid visibility
+    updateEmotionColorVisibility(pageId);
     
     // Also update visibility based on colors (for orange+yellow combination)
     const leftColor = getColorFromIndex(selectedLeftIndex);
@@ -6548,196 +6874,560 @@ function getDigitGlyph(d) {
 }
 
 // ==================
-// SHAPE & EMOTION CANVAS
+// SHAPE + EMOTION CIRCLES GRID
 // ==================
-// Shape & Emotion canvas implementation using native Canvas API (not p5.js)
+// Shape + Emotion interaction: 50 circles (10x5 grid) that repel from mouse cursor
 
-// State variables for Shape & Emotion canvas
-let shapeEmotionCanvas = null;
-let shapeEmotionCtx = null;
+// Configuration
+const SHAPE_EMOTION_GRID_COLS = 12;
+const SHAPE_EMOTION_GRID_ROWS = 5;
+const SHAPE_EMOTION_CIRCLE_SIZE = 110; // Circle diameter in pixels
+const SHAPE_EMOTION_REPEL_RADIUS = 150; // Distance at which circles start to repel
+const SHAPE_EMOTION_REPEL_STRENGTH = 15; // How strongly circles are pushed away
+
+// State variables for Shape + Emotion circles grid
 let shapeEmotionContainer = null;
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
-let prevX = 0;
-let prevY = 0; // Previous point for smooth curve calculation
+let shapeEmotionCircles = []; // Array of { element, x, y, baseX, baseY }
+let shapeEmotionMouseX = -1000;
+let shapeEmotionMouseY = -1000;
+let shapeEmotionAnimationId = null;
+let shapeEmotionInitialized = false;
 
-// Initialize Shape & Emotion canvas
-function initializeShapeEmotionCanvas() {
+// Initialize Shape + Emotion circles grid
+function initializeShapeEmotionCircles() {
     shapeEmotionContainer = document.getElementById('shape-emotion-container');
     if (!shapeEmotionContainer) {
-        console.error('Shape & Emotion container not found');
+        console.error('Shape + Emotion container not found');
         return;
     }
     
-    const canvas = document.getElementById('shape-emotion-draw-surface');
-    if (!canvas) {
-        console.error('Shape & Emotion canvas not found');
+    // Only initialize once (circles are created once)
+    if (shapeEmotionInitialized) {
+        // Just recalculate positions if already initialized
+        recalculateShapeEmotionGrid();
         return;
     }
     
-    shapeEmotionCanvas = canvas;
-    shapeEmotionCtx = canvas.getContext('2d');
+    // Clear any existing circles
+    shapeEmotionContainer.innerHTML = '';
+    shapeEmotionCircles = [];
     
-    // Set up canvas dimensions
-    resizeShapeEmotionCanvas();
+    // Get container dimensions
+    const containerRect = shapeEmotionContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
     
-    // Set up event listeners for mouse
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseUp);
+    // Calculate grid spacing to center the grid (shifted 80px up)
+    const totalGridWidth = SHAPE_EMOTION_GRID_COLS * SHAPE_EMOTION_CIRCLE_SIZE;
+    const totalGridHeight = SHAPE_EMOTION_GRID_ROWS * SHAPE_EMOTION_CIRCLE_SIZE;
+    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_EMOTION_CIRCLE_SIZE / 2;
+    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_EMOTION_CIRCLE_SIZE / 2 - 80;
     
-    // Set up event listeners for touch (mobile)
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd);
-    canvas.addEventListener('touchcancel', handleTouchEnd);
+    // Create 50 circles (10 columns x 5 rows)
+    for (let row = 0; row < SHAPE_EMOTION_GRID_ROWS; row++) {
+        for (let col = 0; col < SHAPE_EMOTION_GRID_COLS; col++) {
+            const circle = document.createElement('div');
+            circle.className = 'shape-emotion-circle';
+            
+            // Calculate initial position (center of each grid cell)
+            const baseX = startX + col * SHAPE_EMOTION_CIRCLE_SIZE;
+            const baseY = startY + row * SHAPE_EMOTION_CIRCLE_SIZE;
+            
+            // Position circle (using transform for better performance)
+            circle.style.left = '0';
+            circle.style.top = '0';
+            circle.style.transform = `translate(${baseX - SHAPE_EMOTION_CIRCLE_SIZE / 2}px, ${baseY - SHAPE_EMOTION_CIRCLE_SIZE / 2}px)`;
+            
+            shapeEmotionContainer.appendChild(circle);
+            
+            // Store circle data
+            shapeEmotionCircles.push({
+                element: circle,
+                x: baseX,
+                y: baseY,
+                baseX: baseX,
+                baseY: baseY
+            });
+        }
+    }
+    
+    // Set up mouse tracking
+    shapeEmotionContainer.addEventListener('mousemove', handleShapeEmotionMouseMove);
+    shapeEmotionContainer.addEventListener('mouseleave', handleShapeEmotionMouseLeave);
+    
+    // Set up touch tracking
+    shapeEmotionContainer.addEventListener('touchmove', handleShapeEmotionTouchMove, { passive: false });
+    shapeEmotionContainer.addEventListener('touchend', handleShapeEmotionMouseLeave);
     
     // Handle window resize
-    window.addEventListener('resize', () => {
-        resizeShapeEmotionCanvas();
-    });
+    window.addEventListener('resize', recalculateShapeEmotionGrid);
     
-    // Initialize canvas with white background
-    clearShapeEmotionCanvas();
+    shapeEmotionInitialized = true;
+    
+    // Start animation loop
+    startShapeEmotionAnimation();
 }
 
-// Resize canvas to match container dimensions
-function resizeShapeEmotionCanvas() {
-    if (!shapeEmotionCanvas || !shapeEmotionContainer) return;
+// Recalculate grid positions on resize (but don't reset circle positions)
+function recalculateShapeEmotionGrid() {
+    if (!shapeEmotionContainer || shapeEmotionCircles.length === 0) return;
     
     const containerRect = shapeEmotionContainer.getBoundingClientRect();
-    const width = containerRect.width;
-    const height = containerRect.height;
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
     
-    if (width <= 0 || height <= 0) return;
+    // Calculate new grid starting position (shifted 80px up)
+    const totalGridWidth = SHAPE_EMOTION_GRID_COLS * SHAPE_EMOTION_CIRCLE_SIZE;
+    const totalGridHeight = SHAPE_EMOTION_GRID_ROWS * SHAPE_EMOTION_CIRCLE_SIZE;
+    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_EMOTION_CIRCLE_SIZE / 2;
+    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_EMOTION_CIRCLE_SIZE / 2 - 80;
     
-    // Set canvas size
-    shapeEmotionCanvas.width = width;
-    shapeEmotionCanvas.height = height;
-    
-    // Redraw background
-    clearShapeEmotionCanvas();
+    // Update base positions (where circles would return to)
+    let index = 0;
+    for (let row = 0; row < SHAPE_EMOTION_GRID_ROWS; row++) {
+        for (let col = 0; col < SHAPE_EMOTION_GRID_COLS; col++) {
+            if (index < shapeEmotionCircles.length) {
+                shapeEmotionCircles[index].baseX = startX + col * SHAPE_EMOTION_CIRCLE_SIZE;
+                shapeEmotionCircles[index].baseY = startY + row * SHAPE_EMOTION_CIRCLE_SIZE;
+                index++;
+            }
+        }
+    }
 }
 
-// Clear canvas with white background
-function clearShapeEmotionCanvas() {
-    if (!shapeEmotionCtx || !shapeEmotionCanvas) return;
+// Mouse move handler
+function handleShapeEmotionMouseMove(e) {
+    if (!shapeEmotionContainer) return;
     
-    shapeEmotionCtx.fillStyle = '#fff';
-    shapeEmotionCtx.fillRect(0, 0, shapeEmotionCanvas.width, shapeEmotionCanvas.height);
+    const rect = shapeEmotionContainer.getBoundingClientRect();
+    shapeEmotionMouseX = e.clientX - rect.left;
+    shapeEmotionMouseY = e.clientY - rect.top;
 }
 
-// Get coordinates relative to canvas
-function getCanvasCoordinates(e) {
-    if (!shapeEmotionCanvas) return { x: 0, y: 0 };
-    
-    const rect = shapeEmotionCanvas.getBoundingClientRect();
-    return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-    };
+// Mouse leave handler
+function handleShapeEmotionMouseLeave() {
+    shapeEmotionMouseX = -1000;
+    shapeEmotionMouseY = -1000;
 }
 
-// Get touch coordinates relative to canvas
-function getTouchCoordinates(e) {
-    if (!shapeEmotionCanvas || !e.touches || e.touches.length === 0) return { x: 0, y: 0 };
-    
-    const rect = shapeEmotionCanvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-    };
-}
-
-// Mouse event handlers
-function handleMouseDown(e) {
-    if (!shapeEmotionCtx) return;
-    
-    const coords = getCanvasCoordinates(e);
-    isDrawing = true;
-    lastX = coords.x;
-    lastY = coords.y;
-    prevX = coords.x;
-    prevY = coords.y;
-    
-    // Start a new path
-    shapeEmotionCtx.beginPath();
-    shapeEmotionCtx.moveTo(lastX, lastY);
-}
-
-function handleMouseMove(e) {
-    if (!isDrawing || !shapeEmotionCtx) return;
-    
-    const coords = getCanvasCoordinates(e);
-    drawOnShapeEmotionCanvas(coords.x, coords.y);
-}
-
-function handleMouseUp(e) {
-    if (!isDrawing) return;
-    isDrawing = false;
-}
-
-// Touch event handlers
-function handleTouchStart(e) {
-    e.preventDefault(); // Prevent scrolling
-    if (!shapeEmotionCtx) return;
-    
-    const coords = getTouchCoordinates(e);
-    isDrawing = true;
-    lastX = coords.x;
-    lastY = coords.y;
-    prevX = coords.x;
-    prevY = coords.y;
-    
-    // Start a new path
-    shapeEmotionCtx.beginPath();
-    shapeEmotionCtx.moveTo(lastX, lastY);
-}
-
-function handleTouchMove(e) {
-    e.preventDefault(); // Prevent scrolling
-    if (!isDrawing || !shapeEmotionCtx) return;
-    
-    const coords = getTouchCoordinates(e);
-    drawOnShapeEmotionCanvas(coords.x, coords.y);
-}
-
-function handleTouchEnd(e) {
+// Touch move handler
+function handleShapeEmotionTouchMove(e) {
     e.preventDefault();
-    if (!isDrawing) return;
-    isDrawing = false;
+    if (!shapeEmotionContainer || !e.touches || e.touches.length === 0) return;
+    
+    const rect = shapeEmotionContainer.getBoundingClientRect();
+    const touch = e.touches[0];
+    shapeEmotionMouseX = touch.clientX - rect.left;
+    shapeEmotionMouseY = touch.clientY - rect.top;
 }
 
-// Drawing function - draws a smooth curve from last point to current point
-function drawOnShapeEmotionCanvas(x, y) {
-    if (!shapeEmotionCtx) return;
+// Animation loop - updates circle positions
+function updateShapeEmotionCircles() {
+    if (!shapeEmotionContainer) return;
     
-    // Set drawing style
-    shapeEmotionCtx.strokeStyle = '#2C2C2C'; // Black, same as UI rectangles
-    shapeEmotionCtx.lineWidth = 3; // 3 pixels as specified
-    shapeEmotionCtx.lineCap = 'round'; // Round line caps for smooth drawing
-    shapeEmotionCtx.lineJoin = 'round'; // Round line joins for smooth drawing
+    const containerRect = shapeEmotionContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    const halfSize = SHAPE_EMOTION_CIRCLE_SIZE / 2;
     
-    // Calculate control point for smooth curve
-    // Use the midpoint between previous and last point as control point
-    // This creates a smooth, continuous curve
-    const controlX = (prevX + lastX) / 2;
-    const controlY = (prevY + lastY) / 2;
+    shapeEmotionCircles.forEach(circleData => {
+        // Calculate distance from mouse to circle center
+        const dx = circleData.x - shapeEmotionMouseX;
+        const dy = circleData.y - shapeEmotionMouseY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // If mouse is close enough, repel the circle
+        if (distance < SHAPE_EMOTION_REPEL_RADIUS && distance > 0) {
+            // Calculate repulsion force (stronger when closer)
+            const force = (SHAPE_EMOTION_REPEL_RADIUS - distance) / SHAPE_EMOTION_REPEL_RADIUS;
+            const repelX = (dx / distance) * force * SHAPE_EMOTION_REPEL_STRENGTH;
+            const repelY = (dy / distance) * force * SHAPE_EMOTION_REPEL_STRENGTH;
+            
+            // Update position
+            circleData.x += repelX;
+            circleData.y += repelY;
+            
+            // Constrain to container bounds
+            circleData.x = Math.max(halfSize, Math.min(containerWidth - halfSize, circleData.x));
+            circleData.y = Math.max(halfSize, Math.min(containerHeight - halfSize, circleData.y));
+        }
+        
+        // Update DOM element position
+        circleData.element.style.transform = `translate(${circleData.x - halfSize}px, ${circleData.y - halfSize}px)`;
+    });
     
-    // Use quadratic curve: from last point, through control point, to current point
-    // This creates a smooth, continuous line
-    shapeEmotionCtx.quadraticCurveTo(controlX, controlY, x, y);
-    shapeEmotionCtx.stroke();
-    
-    // Update positions: previous becomes last, last becomes current
-    prevX = lastX;
-    prevY = lastY;
-    lastX = x;
-    lastY = y;
+    // Continue animation
+    shapeEmotionAnimationId = requestAnimationFrame(updateShapeEmotionCircles);
 }
+
+// Start animation loop
+function startShapeEmotionAnimation() {
+    if (shapeEmotionAnimationId) return; // Already running
+    shapeEmotionAnimationId = requestAnimationFrame(updateShapeEmotionCircles);
+}
+
+// Stop animation loop
+function stopShapeEmotionAnimation() {
+    if (shapeEmotionAnimationId) {
+        cancelAnimationFrame(shapeEmotionAnimationId);
+        shapeEmotionAnimationId = null;
+    }
+}
+
+// Update Shape + Emotion visibility based on current page
+function updateShapeEmotionVisibility(pageId) {
+    const container = document.getElementById('shape-emotion-container');
+    if (!container) return;
+    
+    // Show for pageId "0-4" or "4-0" (Shape + Emotion)
+    const isShapeEmotionPage = pageId === '0-4' || pageId === '4-0';
+    
+    if (isShapeEmotionPage) {
+        container.classList.remove('hidden');
+        // Initialize circles after a brief delay to ensure container is visible
+        setTimeout(() => {
+            if (container && !container.classList.contains('hidden')) {
+                initializeShapeEmotionCircles();
+                startShapeEmotionAnimation();
+            }
+        }, 50);
+    } else {
+        container.classList.add('hidden');
+        stopShapeEmotionAnimation();
+    }
+}
+
+// ========================================
+// EMOTION + COLOR GRID INTERACTION
+// 3x3 grid of faces that stretch based on
+// draggable dividers, with color based on emotion
+// ========================================
+
+// State for Emotion + Color grid
+let emotionColorContainer = null;
+let emotionColorCells = [];
+let emotionColorDividersH = [];
+let emotionColorDividersV = [];
+let emotionColorDragging = null; // { type: 'h' | 'v', index: number }
+let emotionColorRowHeights = [1/3, 1/3, 1/3]; // Normalized row heights (sum = 1)
+let emotionColorColWidths = [1/3, 1/3, 1/3];  // Normalized column widths (sum = 1)
+
+// Color palettes
+const WARM_COLORS = ['#FAB01B', '#EB4781', '#EF4538']; // Yellow, Pink, Red
+const COOL_COLORS = ['#293990', '#891951', '#007A6F']; // Blue, Purple, Green
+
+// Update Emotion + Color grid visibility based on current page
+function updateEmotionColorVisibility(pageId) {
+    emotionColorContainer = document.getElementById('emotion-color-container');
+    if (!emotionColorContainer) return;
+    
+    // Show for pageId "4-5" or "5-4" (Emotion + Color)
+    const isEmotionColorPage = pageId === '4-5' || pageId === '5-4';
+    
+    if (isEmotionColorPage) {
+        emotionColorContainer.classList.remove('hidden');
+        // Initialize grid after a brief delay to ensure container is visible
+        setTimeout(() => {
+            if (emotionColorContainer && !emotionColorContainer.classList.contains('hidden')) {
+                initializeEmotionColorGrid();
+            }
+        }, 50);
+    } else {
+        emotionColorContainer.classList.add('hidden');
+    }
+}
+
+// Initialize the Emotion + Color grid
+function initializeEmotionColorGrid() {
+    emotionColorContainer = document.getElementById('emotion-color-container');
+    if (!emotionColorContainer) return;
+    
+    // Get all cells
+    emotionColorCells = Array.from(emotionColorContainer.querySelectorAll('.emotion-color-cell'));
+    
+    // Get dividers
+    emotionColorDividersH = Array.from(emotionColorContainer.querySelectorAll('.emotion-color-divider-h'));
+    emotionColorDividersV = Array.from(emotionColorContainer.querySelectorAll('.emotion-color-divider-v'));
+    
+    // Reset to equal distribution
+    emotionColorRowHeights = [1/3, 1/3, 1/3];
+    emotionColorColWidths = [1/3, 1/3, 1/3];
+    
+    // Position all elements
+    updateEmotionColorLayout();
+    
+    // Add drag listeners to dividers
+    emotionColorDividersH.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => startEmotionColorDrag(e, 'h', index));
+        divider.addEventListener('touchstart', (e) => startEmotionColorDrag(e, 'h', index), { passive: false });
+    });
+    
+    emotionColorDividersV.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => startEmotionColorDrag(e, 'v', index));
+        divider.addEventListener('touchstart', (e) => startEmotionColorDrag(e, 'v', index), { passive: false });
+    });
+    
+    // Global mouse/touch move and up listeners
+    document.addEventListener('mousemove', handleEmotionColorDrag);
+    document.addEventListener('mouseup', endEmotionColorDrag);
+    document.addEventListener('touchmove', handleEmotionColorDrag, { passive: false });
+    document.addEventListener('touchend', endEmotionColorDrag);
+}
+
+// Update the layout of all grid elements based on current row/col sizes
+function updateEmotionColorLayout() {
+    if (!emotionColorContainer) return;
+    
+    const containerRect = emotionColorContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calculate cumulative positions
+    let rowTops = [0];
+    let cumHeight = 0;
+    for (let i = 0; i < emotionColorRowHeights.length; i++) {
+        cumHeight += emotionColorRowHeights[i];
+        rowTops.push(cumHeight);
+    }
+    
+    let colLefts = [0];
+    let cumWidth = 0;
+    for (let i = 0; i < emotionColorColWidths.length; i++) {
+        cumWidth += emotionColorColWidths[i];
+        colLefts.push(cumWidth);
+    }
+    
+    // Position cells
+    emotionColorCells.forEach(cell => {
+        const row = parseInt(cell.dataset.row, 10);
+        const col = parseInt(cell.dataset.col, 10);
+        
+        const top = rowTops[row] * containerHeight;
+        const left = colLefts[col] * containerWidth;
+        const height = emotionColorRowHeights[row] * containerHeight;
+        const width = emotionColorColWidths[col] * containerWidth;
+        
+        cell.style.top = `${top}px`;
+        cell.style.left = `${left}px`;
+        cell.style.width = `${width}px`;
+        cell.style.height = `${height}px`;
+        
+        // Update face emotion based on aspect ratio
+        updateFaceEmotion(cell, width, height);
+    });
+    
+    // Position horizontal dividers
+    emotionColorDividersH.forEach((divider, index) => {
+        const top = rowTops[index + 1] * containerHeight - 1.5; // Center on the line
+        divider.style.top = `${top}px`;
+    });
+    
+    // Position vertical dividers
+    emotionColorDividersV.forEach((divider, index) => {
+        const left = colLefts[index + 1] * containerWidth - 1.5; // Center on the line
+        divider.style.left = `${left}px`;
+    });
+}
+
+// Start dragging a divider
+function startEmotionColorDrag(e, type, index) {
+    e.preventDefault();
+    emotionColorDragging = { type, index };
+    
+    // Add active class to the divider
+    if (type === 'h') {
+        emotionColorDividersH[index].classList.add('active');
+        emotionColorContainer.classList.add('dragging-h');
+    } else {
+        emotionColorDividersV[index].classList.add('active');
+        emotionColorContainer.classList.add('dragging-v');
+    }
+}
+
+// Handle drag movement
+function handleEmotionColorDrag(e) {
+    if (!emotionColorDragging || !emotionColorContainer) return;
+    
+    e.preventDefault();
+    
+    const containerRect = emotionColorContainer.getBoundingClientRect();
+    
+    // Get mouse/touch position
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    const { type, index } = emotionColorDragging;
+    
+    if (type === 'h') {
+        // Horizontal divider - adjust row heights
+        const relativeY = (clientY - containerRect.top) / containerRect.height;
+        
+        // Calculate new row heights
+        // The divider at index N is between row N and row N+1
+        // We need to redistribute the heights of row[index] and row[index+1]
+        
+        // Sum of the two affected rows
+        const sumHeight = emotionColorRowHeights[index] + emotionColorRowHeights[index + 1];
+        
+        // Calculate where the divider should be relative to the start of row[index]
+        let cumulativeTop = 0;
+        for (let i = 0; i < index; i++) {
+            cumulativeTop += emotionColorRowHeights[i];
+        }
+        
+        // New height for row[index]
+        let newTopHeight = relativeY - cumulativeTop;
+        
+        // Clamp to reasonable values (minimum 10% of container)
+        const minSize = 0.1;
+        newTopHeight = Math.max(minSize, Math.min(sumHeight - minSize, newTopHeight));
+        
+        emotionColorRowHeights[index] = newTopHeight;
+        emotionColorRowHeights[index + 1] = sumHeight - newTopHeight;
+        
+    } else {
+        // Vertical divider - adjust column widths
+        const relativeX = (clientX - containerRect.left) / containerRect.width;
+        
+        // Sum of the two affected columns
+        const sumWidth = emotionColorColWidths[index] + emotionColorColWidths[index + 1];
+        
+        // Calculate where the divider should be relative to the start of col[index]
+        let cumulativeLeft = 0;
+        for (let i = 0; i < index; i++) {
+            cumulativeLeft += emotionColorColWidths[i];
+        }
+        
+        // New width for col[index]
+        let newLeftWidth = relativeX - cumulativeLeft;
+        
+        // Clamp to reasonable values (minimum 10% of container)
+        const minSize = 0.1;
+        newLeftWidth = Math.max(minSize, Math.min(sumWidth - minSize, newLeftWidth));
+        
+        emotionColorColWidths[index] = newLeftWidth;
+        emotionColorColWidths[index + 1] = sumWidth - newLeftWidth;
+    }
+    
+    // Update layout
+    updateEmotionColorLayout();
+}
+
+// End dragging
+function endEmotionColorDrag() {
+    if (!emotionColorDragging) return;
+    
+    const { type, index } = emotionColorDragging;
+    
+    // Remove active class
+    if (type === 'h') {
+        emotionColorDividersH[index].classList.remove('active');
+        emotionColorContainer.classList.remove('dragging-h');
+    } else {
+        emotionColorDividersV[index].classList.remove('active');
+        emotionColorContainer.classList.remove('dragging-v');
+    }
+    
+    emotionColorDragging = null;
+}
+
+// Update face emotion based on cell aspect ratio relative to container
+function updateFaceEmotion(cell, width, height) {
+    const face = cell.querySelector('.emotion-color-face');
+    if (!face) return;
+    
+    const mouth = face.querySelector('.face-mouth');
+    if (!mouth) return;
+    
+    // Get container aspect ratio to use as baseline for "neutral"
+    const containerRect = emotionColorContainer.getBoundingClientRect();
+    const containerAspectRatio = containerRect.width / containerRect.height;
+    
+    // Calculate cell aspect ratio
+    const cellAspectRatio = width / height;
+    
+    // Neutral baseline: when all cells are equal (1/3 x 1/3), each cell has the same aspect ratio as container
+    // So neutral = containerAspectRatio, not 1
+    const neutralAspectRatio = containerAspectRatio;
+    
+    // Emotion level: -1 (very sad) to +1 (very happy)
+    // Neutral is when cellAspectRatio = neutralAspectRatio
+    let emotionLevel = 0;
+    
+    // Calculate deviation from neutral
+    const deviation = cellAspectRatio / neutralAspectRatio;
+    
+    if (deviation > 1.05) {
+        // Wider than neutral = happier
+        emotionLevel = Math.min(1, (deviation - 1) / 1.0);
+    } else if (deviation < 0.95) {
+        // Taller than neutral = sadder
+        emotionLevel = Math.max(-1, (deviation - 1) / 0.5);
+    }
+    
+    // Update mouth curve based on emotion level
+    // Neutral: M 30 60 Q 50 60 70 60 (straight line)
+    // Happy: M 30 55 Q 50 75 70 55 (smile)
+    // Sad: M 30 65 Q 50 50 70 65 (frown)
+    
+    const mouthY = 60;
+    const curveAmount = emotionLevel * 15; // Max 15 units of curve
+    
+    // For happy: endpoints go up, control point goes down
+    // For sad: endpoints go down, control point goes up
+    const endpointY = mouthY - curveAmount * 0.3;
+    const controlY = mouthY + curveAmount;
+    
+    const pathD = `M 30 ${endpointY} Q 50 ${controlY} 70 ${endpointY}`;
+    mouth.setAttribute('d', pathD);
+    
+    // Update cell background color based on emotion
+    updateCellColor(cell, emotionLevel);
+}
+
+// Update face stroke color based on emotion level
+function updateCellColor(cell, emotionLevel) {
+    let faceColor = '#2C2C2C'; // Default black
+    
+    // Lower threshold to 0.05 for more sensitive color change
+    if (Math.abs(emotionLevel) >= 0.05) {
+        // Calculate color intensity (0 to 1)
+        const intensity = Math.abs(emotionLevel);
+        
+        // Choose color palette based on emotion direction
+        const colors = emotionLevel > 0 ? WARM_COLORS : COOL_COLORS;
+        
+        // Pick color based on intensity (more intense = further in array)
+        let colorIndex = Math.floor(intensity * colors.length);
+        colorIndex = Math.min(colorIndex, colors.length - 1);
+        
+        faceColor = colors[colorIndex];
+    }
+    
+    // Apply color using CSS custom property - this will cascade to all face elements
+    cell.style.setProperty('--face-color', faceColor);
+}
+
+// Convert hex color to rgba
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Handle window resize for Emotion + Color grid
+window.addEventListener('resize', () => {
+    if (emotionColorContainer && !emotionColorContainer.classList.contains('hidden')) {
+        updateEmotionColorLayout();
+    }
+});
 
 // Function to update Shape + Shape canvas visibility (ellipses interaction)
 function updateShapeShapeCanvasVisibility(pageId) {
@@ -7004,7 +7694,7 @@ let soundShapeAnimationId = null;
 // Config
 const SOUND_SHAPE_SIZE = 40;        // Size of draggable shapes
 const SOUND_SHAPE_STAMP_SIZE = 40;  // Size of stamps (trail)
-const SOUND_SHAPE_STEP_DIST = 8;    // Distance between stamps (smaller = denser trail)
+const SOUND_SHAPE_STEP_DIST = 30;   // Distance between stamps (smaller = denser trail)
 const SOUND_SHAPE_STROKE_W = 3;     // Stroke weight
 const SOUND_SHAPE_EASING = 0.4;     // Smoothing factor (higher = follows mouse faster)
 const SOUND_SHAPE_SPACING = 70;     // Vertical spacing between shapes
@@ -7310,8 +8000,8 @@ function stampSoundShapeTrail(x1, y1, x2, y2, shapeType, recordIt) {
     
     if (dist === 0) return;
     
-    // Use smaller step distance for smoother trails
-    const stepDist = 8;
+    // Use step distance from constant
+    const stepDist = SOUND_SHAPE_STEP_DIST;
     const steps = Math.max(1, Math.floor(dist / stepDist));
     
     // Draw stamps along the path, including at endpoints
@@ -8205,24 +8895,25 @@ function initializeSynHoverEffect() {
     const synElement = document.querySelector('.black-rectangle-syn');
     const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
     const synOverlay = document.getElementById('canvas-text-box-syn-overlay');
-    const synBacking = document.getElementById('canvas-text-box-syn-backing');
+    const canvasTextBox = document.getElementById('canvas-text-box');
     
-    if (logoContainer && synOverlay && synBacking) {
+    if (logoContainer && synOverlay) {
         // Render overlay text with line backgrounds to match main text box styling
         // Use same width as main text box (1035px) for the SYN overlay
         // Use black background color (#2C2C2C) for line backgrounds to match UI black
-        const synText = 'syn-ethesia is a perceptual phenomenon in which the stimulation of one sense automatically triggers experiences in another. A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured. These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.';
-        renderTextWithLineBackgrounds(synOverlay, synText, 1035, '#2C2C2C');
+        // alignRight=true to position text and backgrounds from right side
+        const synText = 'Designed by\nRomi Calamaro\nas part of \'WWW\'\nWeb Design Course\nBezalel\n2025-2026';
+        renderTextWithLineBackgrounds(synOverlay, synText, 1035, '#2C2C2C', true);
         
-        // Helper function to show overlay
+        // Helper function to show overlay (hide original text box directly instead of covering it)
         const showOverlay = () => {
-            synBacking.classList.add('visible');
+            if (canvasTextBox) canvasTextBox.classList.add('syn-hovered');
             synOverlay.classList.add('visible');
         };
         
-        // Helper function to hide overlay
+        // Helper function to hide overlay (show original text box again)
         const hideOverlay = () => {
-            synBacking.classList.remove('visible');
+            if (canvasTextBox) canvasTextBox.classList.remove('syn-hovered');
             synOverlay.classList.remove('visible');
         };
         
@@ -8405,7 +9096,9 @@ function initializeColorKeyClickEffect() {
     
     // Get the logo hover text boxes
     const logoHoverTextBox1 = document.getElementById('logo-hover-text-box-1');
-    const logoHoverTextBox2 = document.getElementById('logo-hover-text-box-2');
+    
+    // Flag to track if line backgrounds have been created (need to wait for visibility)
+    let logoTextBoxBackgroundsCreated = false;
     
     // Helper function to handle hover in - expand all items and push UI rectangles inward
     const handleHoverIn = () => {
@@ -8424,7 +9117,15 @@ function initializeColorKeyClickEffect() {
         
         // Show the logo hover text boxes
         if (logoHoverTextBox1) logoHoverTextBox1.classList.add('visible');
-        if (logoHoverTextBox2) logoHoverTextBox2.classList.add('visible');
+        
+        // Create line backgrounds on first hover (when text box is visible for accurate measurements)
+        // Use setTimeout to wait for CSS transition to complete (200ms transition + 50ms buffer)
+        if (!logoTextBoxBackgroundsCreated) {
+            setTimeout(() => {
+                initializeLogoTextBoxLineBackgrounds();
+                logoTextBoxBackgroundsCreated = true;
+            }, 250);
+        }
     };
     
     // Helper function to handle hover out - collapse all items and reset UI rectangles
@@ -8444,7 +9145,6 @@ function initializeColorKeyClickEffect() {
         
         // Hide the logo hover text boxes
         if (logoHoverTextBox1) logoHoverTextBox1.classList.remove('visible');
-        if (logoHoverTextBox2) logoHoverTextBox2.classList.remove('visible');
     };
     
     // Add event listeners to both logo rectangles for unified hover behavior
@@ -8456,6 +9156,142 @@ function initializeColorKeyClickEffect() {
         ethesiaElement.addEventListener('mouseenter', handleHoverIn);
         ethesiaElement.addEventListener('mouseleave', handleHoverOut);
     }
+}
+
+// Function to initialize line backgrounds for logo hover text boxes
+// Creates gray background blocks behind each line of text, aligned to the right edge
+function initializeLogoTextBoxLineBackgrounds() {
+    // Initialize backgrounds for both text boxes
+    initializeLineBackgroundsForTextBox('logo-hover-text-box-1');
+}
+
+// Helper function to create line backgrounds for a specific text box
+// Handles both continuous text (natural wrapping) and text with <br> tags
+// Updated to support multiple paragraphs in the text box
+function initializeLineBackgroundsForTextBox(textBoxId) {
+    const textBox = document.getElementById(textBoxId);
+    if (!textBox) return;
+    
+    // Get all paragraphs in the text box (supports multiple <p> tags)
+    const paragraphs = textBox.querySelectorAll('p');
+    if (paragraphs.length === 0) return;
+    
+    // Remove any existing line backgrounds
+    const existingBgs = textBox.querySelectorAll('.logo-line-bg');
+    existingBgs.forEach(bg => bg.remove());
+    
+    // Temporarily force visibility for accurate measurements
+    const originalOpacity = textBox.style.opacity;
+    const originalVisibility = textBox.style.visibility;
+    const originalTransition = textBox.style.transition;
+    textBox.style.transition = 'none';
+    textBox.style.opacity = '1';
+    textBox.style.visibility = 'visible';
+    
+    // Force layout recalculation
+    textBox.offsetHeight;
+    
+    // Get text box dimensions
+    const textBoxRect = textBox.getBoundingClientRect();
+    
+    // Get line rectangles using Range API
+    const range = document.createRange();
+    const lines = [];
+    
+    // Process each paragraph in the text box
+    paragraphs.forEach(paragraph => {
+        // Get all text nodes in the paragraph (handles <br> tags by getting multiple text nodes)
+        const walker = document.createTreeWalker(
+            paragraph,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let textNode;
+        while ((textNode = walker.nextNode())) {
+            const text = textNode.textContent;
+            if (!text || text.length === 0) continue;
+            
+            let lineStart = 0;
+            let lastTop = null;
+            
+            // Iterate through text to find line breaks
+            // Check each character's position individually to detect line wraps
+            for (let i = 1; i <= text.length; i++) {
+                // Check position of current character only (not the entire range from lineStart)
+                range.setStart(textNode, i - 1);
+                range.setEnd(textNode, i);
+                
+                const charRect = range.getBoundingClientRect();
+                const currentTop = charRect.top;
+                
+                // Check if we've moved to a new line or reached end of text
+                const isNewLine = lastTop !== null && Math.abs(currentTop - lastTop) > 2;
+                const isEndOfText = i === text.length;
+                
+                if (isNewLine || isEndOfText) {
+                    const lineEnd = isNewLine ? i - 1 : i;
+                    
+                    if (lineEnd > lineStart) {
+                        range.setStart(textNode, lineStart);
+                        range.setEnd(textNode, lineEnd);
+                        const lineRect = range.getBoundingClientRect();
+                        
+                        if (lineRect.width > 0 && lineRect.height > 0) {
+                            // Convert to text box-relative coordinates
+                            lines.push({
+                                left: lineRect.left - textBoxRect.left,
+                                right: textBoxRect.right - lineRect.right,
+                                top: lineRect.top - textBoxRect.top,
+                                width: lineRect.width,
+                                height: lineRect.height
+                            });
+                        }
+                    }
+                    
+                    if (isNewLine) {
+                        lineStart = i - 1;
+                    }
+                }
+                
+                lastTop = currentTop;
+            }
+        }
+    });
+    
+    // Create background divs for each line
+    const paddingX = 10; // Horizontal padding
+    const paddingY = 6;  // Vertical padding
+    
+    // Calculate the minimum allowed top position: the background can extend up to canvas-container's top edge
+    // This is the negative of the text box's offset from canvas-container
+    const canvasContainer = document.getElementById('canvas-container');
+    const canvasContainerTop = canvasContainer ? canvasContainer.getBoundingClientRect().top : textBoxRect.top;
+    const textBoxOffsetFromContainer = textBoxRect.top - canvasContainerTop;
+    const minTopPosition = -textBoxOffsetFromContainer; // How far up the background can go (relative to text box)
+    
+    lines.forEach((lineRect) => {
+        const bgDiv = document.createElement('div');
+        bgDiv.className = 'logo-line-bg';
+        
+        // Position based on actual line position (left + width)
+        // This works for right-aligned text because each line has different left position
+        // Use Math.max(minTopPosition, ...) to allow background to extend up to canvas-container edge but not beyond
+        const rawTop = lineRect.top - paddingY;
+        const topPosition = Math.max(minTopPosition, rawTop);
+        bgDiv.style.left = `${lineRect.left - paddingX}px`;
+        bgDiv.style.top = `${topPosition}px`;
+        bgDiv.style.width = `${lineRect.width + (paddingX * 2)}px`;
+        bgDiv.style.height = `${lineRect.height + (paddingY * 2)}px`;
+        
+        textBox.appendChild(bgDiv);
+    });
+    
+    // Restore original styles (clear inline styles to let CSS class control visibility)
+    textBox.style.transition = '';
+    textBox.style.opacity = '';
+    textBox.style.visibility = '';
 }
 
 // Function to initialize INDEX hover effect - shows white overlay on canvas when hovering on INDEX button
@@ -8805,17 +9641,8 @@ function initializeGradientIntro() {
         container.appendChild(rect);
     }
     
-    // Create two separate instructional text elements for independent positioning
-    // Line 1: positioned at bottom of gradient rectangle index 2 (3rd from top)
-    const introTextLine1 = document.createElement('div');
-    introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
-    introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
-    introTextLine1.id = 'gradient-intro-text-line1';
-    // No inline opacity - CSS handles visibility via intro-line transform (slide-up from mask)
-    // Container is always visible (opacity: 1), inner .intro-line starts hidden (translateY: 100%)
-    container.appendChild(introTextLine1);
-    
-    // Line 2: positioned at bottom of gradient rectangle index 3 (4th from top)
+    // Create instructional text element (centered on screen)
+    // Positioned at bottom of gradient rectangle index 3 (4th from top)
     const introTextLine2 = document.createElement('div');
     introTextLine2.className = 'gradient-intro-text gradient-intro-text-line2';
     introTextLine2.innerHTML = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
@@ -8936,34 +9763,18 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         rect.style.height = `${itemHeight}px`;
     });
     
-    // Position instructional text lines - each at the bottom of its respective gradient rectangle
+    // Position instructional text line at bottom of gradient rectangle
     // Text fades in during entry animation (synced with gradient shrink)
     const LINE_HEIGHT = 40; // Height of each intro-line element (matches CSS and parameter rectangles)
     
-    // Line 1: bottom-aligned to gradient rectangle index 2 (3rd from top)
-    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
-    if (introTextLine1) {
-        const rectIndex1 = 2; // 3rd gradient from top (0-indexed)
-        // Bottom-aligned: top = bottom edge of rectangle - line height
-        const line1Top = (rectIndex1 + 1) * itemHeight - LINE_HEIGHT;
-        
-        introTextLine1.style.left = `${leftEdge - 250}px`;
-        introTextLine1.style.width = `${width}px`;
-        introTextLine1.style.top = `${line1Top}px`;
-        introTextLine1.style.height = `${LINE_HEIGHT}px`;
-        // CSS handles display, alignItems, justifyContent for slide-up mask effect
-        introTextLine1.style.visibility = 'visible';
-        // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
-    }
-    
-    // Line 2: bottom-aligned to gradient rectangle index 3 (4th from top)
+    // Line 2: bottom-aligned to gradient rectangle index 2 (3rd from top), centered on X axis
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
     if (introTextLine2) {
-        const rectIndex2 = 3; // 4th gradient from top (0-indexed)
+        const rectIndex2 = 2; // 3rd gradient from top (0-indexed)
         // Bottom-aligned: top = bottom edge of rectangle - line height
         const line2Top = (rectIndex2 + 1) * itemHeight - LINE_HEIGHT;
         
-        introTextLine2.style.left = `${leftEdge + 250}px`;
+        introTextLine2.style.left = `${leftEdge}px`; // Centered on X axis
         introTextLine2.style.width = `${width}px`;
         introTextLine2.style.top = `${line2Top}px`;
         introTextLine2.style.height = `${LINE_HEIGHT}px`;
@@ -9169,17 +9980,11 @@ function triggerIntroTransition() {
     // Mark as triggered immediately to prevent multiple triggers
     introTriggered = true;
     
-    // Trigger triangle slide-out animation (intro closing)
+    // Hide triangles when intro closes (remove all triangle-related classes)
     document.body.classList.remove('triangles-revealed');
+    document.body.classList.remove('scroll-hint-active');
     
-    // Hide all intro text elements immediately (both lines and START button)
-    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
-    if (introTextLine1) {
-        introTextLine1.style.display = 'none';
-        introTextLine1.style.visibility = 'hidden';
-        introTextLine1.style.opacity = '0';
-        introTextLine1.style.pointerEvents = 'none';
-    }
+    // Hide intro text elements immediately (intro line and START button)
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
     if (introTextLine2) {
         introTextLine2.style.display = 'none';
@@ -9330,6 +10135,9 @@ function startScrollHintAnimation() {
     scrollHintAnimationTriggered = true;
     scrollHintAnimationActive = true;
     
+    // Note: scroll-hint-active class is now added/removed per bounce cycle
+    // Triangles appear only during actual movement, not during pauses
+    
     const leftColumn = document.querySelector('.left-column');
     const rightColumn = document.querySelector('.right-column');
     
@@ -9394,8 +10202,12 @@ function startScrollHintAnimation() {
         // Check if animation should stop
         if (!scrollHintAnimationActive) {
             isProgrammaticScroll = false;
+            document.body.classList.remove('scroll-hint-active');
             return;
         }
+        
+        // Show triangles when bounce starts
+        document.body.classList.add('scroll-hint-active');
         
         // Get current scroll positions (may have changed if user scrolled)
         const leftOriginalScroll = leftColumn.scrollTop;
@@ -9426,6 +10238,9 @@ function startScrollHintAnimation() {
                 function onPhase2Complete() {
                     completedPhase2++;
                     if (completedPhase2 === 2) {
+                        // Hide triangles when bounce ends (before pause)
+                        document.body.classList.remove('scroll-hint-active');
+                        
                         // Check if animation should stop
                         if (!scrollHintAnimationActive) {
                             isProgrammaticScroll = false;
@@ -9476,6 +10291,9 @@ function startScrollHintAnimation() {
 function stopScrollHintAnimation() {
     scrollHintAnimationActive = false;
     isProgrammaticScroll = false;
+    
+    // Remove class from body to hide triangles (they'll only show on hover now)
+    document.body.classList.remove('scroll-hint-active');
     
     // Re-enable scroll-snap on columns after animation stops
     const leftColumn = document.querySelector('.left-column');
@@ -9779,16 +10597,7 @@ function reverseIntroTransition() {
     // Update colors for closing phase
     updateGradientIntro();
     
-    // Get or create intro text line elements
-    let introTextLine1 = document.getElementById('gradient-intro-text-line1');
-    if (!introTextLine1) {
-        introTextLine1 = document.createElement('div');
-        introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
-        introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
-        introTextLine1.id = 'gradient-intro-text-line1';
-        gradientContainer.appendChild(introTextLine1);
-    }
-    
+    // Get or create intro text line element
     let introTextLine2 = document.getElementById('gradient-intro-text-line2');
     if (!introTextLine2) {
         introTextLine2 = document.createElement('div');
@@ -9818,9 +10627,6 @@ function reverseIntroTransition() {
     }
     
     // Hide all text and arrow during reverse animation (CSS will also hide them in intro-closing phase)
-    introTextLine1.style.display = 'none';
-    introTextLine1.style.visibility = 'hidden';
-    introTextLine1.style.opacity = '0';
     introTextLine2.style.display = 'none';
     introTextLine2.style.visibility = 'hidden';
     introTextLine2.style.opacity = '0';
@@ -9999,14 +10805,10 @@ function skipDemo() {
         gradientContainer.classList.remove('demo-active');
     }
     
-    // Trigger triangle slide-in animation (demo ended)
-    document.body.classList.add('triangles-revealed');
+    // Note: Triangles are now controlled by hover and scroll-hint-active class
+    // They will appear during scroll hint animation and on hover
     
-    // Show START button (after intro lines slide out animation completes - 500ms)
-    // setupStartButton() handles the full animation sequence:
-    // 1. Animate instruction lines out (slide down)
-    // 2. Wait 500ms for animation to complete
-    // 3. Show START button with fade-in animation
+    // Show START button alongside the instruction text (both remain visible)
     setupStartButton();
     
     // Ensure intro-active class exists for CSS rules to work
@@ -10018,64 +10820,13 @@ function skipDemo() {
 
 // Shared function to set up START button click handler
 // This ensures consistent behavior whether START appears in initial intro or after returning via logo click
-// First animates the instruction lines out (slide down), then shows START button
+// Shows START button while keeping the instruction text visible
 function setupStartButton() {
     // Stop scroll hint animation when START appears
     stopScrollHintAnimation();
     
-    // Get the instruction line elements
-    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
-    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
-    
-    // Get the inner intro-line elements for the exit animation
-    const line1Inner = introTextLine1?.querySelector('.intro-line');
-    const line2Inner = introTextLine2?.querySelector('.intro-line');
-    
-    // Check if lines are visible (have content and are displayed)
-    const linesAreVisible = (introTextLine1 && introTextLine1.style.display !== 'none') ||
-                            (introTextLine2 && introTextLine2.style.display !== 'none');
-    
-    if (linesAreVisible && (line1Inner || line2Inner)) {
-        // Add exiting class to trigger slide-out animation (both lines together)
-        if (line1Inner) line1Inner.classList.add('intro-line-exiting');
-        if (line2Inner) line2Inner.classList.add('intro-line-exiting');
-        
-        // Wait for animation to complete, then hide lines and show START
-        // Using 400ms instead of 800ms so START begins appearing while lines are still finishing
-        // This creates a smoother, more connected transition
-        setTimeout(() => {
-            // Hide the text line containers after animation
-            if (introTextLine1) {
-                introTextLine1.style.display = 'none';
-                introTextLine1.style.visibility = 'hidden';
-                introTextLine1.style.opacity = '0';
-            }
-            if (introTextLine2) {
-                introTextLine2.style.display = 'none';
-                introTextLine2.style.visibility = 'hidden';
-                introTextLine2.style.opacity = '0';
-            }
-            
-            // Now show the START button
-            showStartButtonElement();
-        }, 400); // 400ms - START begins while lines are nearly finished exiting
-    } else {
-        // Lines are already hidden (e.g., returning via logo click), show START immediately
-        // Still hide them to be safe
-        if (introTextLine1) {
-            introTextLine1.style.display = 'none';
-            introTextLine1.style.visibility = 'hidden';
-            introTextLine1.style.opacity = '0';
-        }
-        if (introTextLine2) {
-            introTextLine2.style.display = 'none';
-            introTextLine2.style.visibility = 'hidden';
-            introTextLine2.style.opacity = '0';
-        }
-        
-        // Show START immediately
-        showStartButtonElement();
-    }
+    // Show START button alongside the instruction text (both remain visible)
+    showStartButtonElement();
 }
 
 // Helper function that actually displays the START button element
@@ -10189,20 +10940,22 @@ function forwardIntroTransition() {
         arrowElement.style.pointerEvents = 'none';
     }
     
-    // Hide intro text line elements immediately (they're already hidden at START state)
-    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
-    if (introTextLine1) {
-        introTextLine1.style.display = 'none';
-        introTextLine1.style.visibility = 'hidden';
-        introTextLine1.style.opacity = '0';
-        introTextLine1.style.pointerEvents = 'none';
+    // Trigger slide-out animation for WORD rectangles (runs simultaneously with START slide-out)
+    // Add words-exiting class to slide WORD rectangles out, remove words-revealed to reset state
+    const uiLayerForExit = document.querySelector('.ui-layer');
+    if (uiLayerForExit) {
+        uiLayerForExit.classList.add('words-exiting');
+        uiLayerForExit.classList.remove('words-revealed');
     }
+    
+    // Trigger slide-out animation for instruction text (runs simultaneously with START slide-out)
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
-    if (introTextLine2) {
-        introTextLine2.style.display = 'none';
-        introTextLine2.style.visibility = 'hidden';
-        introTextLine2.style.opacity = '0';
-        introTextLine2.style.pointerEvents = 'none';
+    const line2Inner = introTextLine2?.querySelector('.intro-line');
+    if (line2Inner) {
+        // Disable pointer events immediately
+        line2Inner.style.pointerEvents = 'none';
+        // Trigger slide-out animation
+        line2Inner.classList.add('intro-line-exiting');
     }
     const introText = document.getElementById('gradient-intro-text');
     if (introText) {
@@ -10212,7 +10965,7 @@ function forwardIntroTransition() {
         introText.style.pointerEvents = 'none';
     }
     
-    // Hide START button container after slide-out animation completes (800ms)
+    // Hide START button and instruction text containers after slide-out animation completes (800ms)
     // This happens in background while collapse animation runs
     setTimeout(() => {
         if (introTextStart) {
@@ -10220,6 +10973,12 @@ function forwardIntroTransition() {
             introTextStart.style.visibility = 'hidden';
             introTextStart.style.opacity = '0';
             introTextStart.style.pointerEvents = 'none';
+        }
+        if (introTextLine2) {
+            introTextLine2.style.display = 'none';
+            introTextLine2.style.visibility = 'hidden';
+            introTextLine2.style.opacity = '0';
+            introTextLine2.style.pointerEvents = 'none';
         }
     }, 800);
     
@@ -10366,8 +11125,11 @@ function forwardIntroTransition() {
         updateGradientBarHeights(introProgress);
         
         // Reveal UI rectangles early at 70% progress (before animation fully completes)
+        // Remove words-exiting and add words-revealed to trigger slide-in animation
         if (introProgress >= 0.7 && uiLayer && !uiLayer.classList.contains('words-revealed')) {
-            uiLayer.classList.add('words-revealed');
+            uiLayer.classList.remove('words-exiting'); // Remove slide-out state
+            uiLayer.classList.remove('logo-animating'); // Remove logo-animating so masks stay at 50px
+            uiLayer.classList.add('words-revealed'); // Trigger slide-in for WORD + INDEX
         }
         
         // Continue animation until progress reaches 1
@@ -10557,34 +11319,80 @@ function goToStartCheckpoint() {
                 updateGradientIntro();
             }
             
-            // Wait for horizontal contraction to complete (400ms), then set START checkpoint state
+            // Wait for horizontal contraction to complete (400ms), then set INTRO state
             setTimeout(() => {
-                // Set START checkpoint state variables
+                // Set INTRO state variables (not START checkpoint)
+                // This allows START to appear after user scrolls, like the original intro
                 introCompleted = false; // Keep false so scrolling works
                 horizontalExpansionStarted = false; // Reset so it can start again when scrolling
-                hasExpandedToScrollbars = true; // Scrollbars are visible at START
+                hasExpandedToScrollbars = true; // Scrollbars are visible at intro
                 introReady = true; // Enable center scroll trigger
                 introTriggered = false; // Not yet triggered
-                introTextChanged = true; // Text is "[start]"
+                
+                // Reset intro text state so START appears after scroll (like original intro)
+                introTextChanged = false; // Enables START to appear on scroll
+                hasScrolledScrollbar = false; // Resets scroll detection
+                userInteracted = false; // Resets interaction detection
+                initialInstructionTextShown = true; // Allows START after scroll
                 
                 // Reset startClickTransitionActive to ensure clean state
                 startClickTransitionActive = false;
                 
-                // Use shared function to set up START button (ensures consistent behavior)
-                setupStartButton();
+                // Show instruction text line (not START button)
+                const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+                if (introTextLine2) {
+                    introTextLine2.style.display = 'flex';
+                    introTextLine2.style.visibility = 'visible';
+                    // Reset slide-out state if present
+                    const line2Inner = introTextLine2.querySelector('.intro-line');
+                    if (line2Inner) {
+                        line2Inner.classList.remove('intro-line-exiting');
+                    }
+                }
                 
-                // UI stays hidden (we're in START state, not main screen)
+                // Hide START button (it will appear after user scrolls)
+                const introTextStart = document.getElementById('gradient-intro-text-start');
+                if (introTextStart) {
+                    introTextStart.style.display = 'none';
+                    introTextStart.style.visibility = 'hidden';
+                    introTextStart.style.opacity = '0';
+                    // Reset slide-out state if present
+                    const startInner = introTextStart.querySelector('.intro-line');
+                    if (startInner) {
+                        startInner.classList.remove('start-exiting');
+                    }
+                }
+                
+                // Hide legacy START button element if it exists
+                const introText = document.getElementById('gradient-intro-text');
+                if (introText) {
+                    introText.style.display = 'none';
+                    introText.style.visibility = 'hidden';
+                    introText.style.opacity = '0';
+                }
+                
+                // Show parameter rectangles (word boxes) by adding words-revealed class
+                const uiLayer = document.querySelector('.ui-layer');
+                if (uiLayer) {
+                    uiLayer.classList.remove('words-exiting');
+                    uiLayer.classList.add('words-revealed');
+                }
+                
+                // Update UI visibility
                 updateUIVisibility();
                 
-                // Canvas cover stays visible (we're in START state)
+                // Canvas cover stays visible (we're in intro state)
                 updateCanvasCoverVisibility();
                 
-                // Update UI mask visibility - should be visible at START checkpoint with gap
+                // Update UI mask visibility - should be visible at intro state with gap
                 updateUIMaskVisibility();
                 
-                // CRITICAL: Ensure main gradient header stays visible in START state
+                // CRITICAL: Ensure main gradient header stays visible in intro state
                 // It should remain visible under the UI at all times
                 showMainGradientHeader();
+                
+                // Update gradient intro to position text correctly
+                updateGradientIntro();
                 
             }, 250); // Match CSS transition duration for closing → active
         }
@@ -10625,6 +11433,7 @@ function restartIntro() {
     
     // Reset triangle animation state (hide triangles for next intro)
     document.body.classList.remove('triangles-revealed');
+    document.body.classList.remove('scroll-hint-active');
     
     // Get gradient container and clean up existing DOM elements
     const gradientContainer = document.getElementById('gradient-intro-container');
@@ -10633,11 +11442,7 @@ function restartIntro() {
         const rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
         rectangles.forEach(rect => rect.remove());
         
-        // Remove all intro text elements if they exist
-        const introTextLine1 = document.getElementById('gradient-intro-text-line1');
-        if (introTextLine1) {
-            introTextLine1.remove();
-        }
+        // Remove intro text element if it exists
         const introTextLine2 = document.getElementById('gradient-intro-text-line2');
         if (introTextLine2) {
             introTextLine2.remove();
@@ -10953,24 +11758,19 @@ function scrollBothColumnsProgrammatically(duration) {
             }
         }
         
-        // Trigger triangle slide-in animation (demo ended)
-        document.body.classList.add('triangles-revealed');
+        // Add words-revealed class to show word rectangles with intro lines
+        const uiLayer = document.querySelector('.ui-layer');
+        if (uiLayer && !uiLayer.classList.contains('words-revealed')) {
+            uiLayer.classList.add('words-revealed');
+        }
         
-        // Show instruction text lines (only if not already changed to START)
+        // Note: Triangles are now controlled by hover and scroll-hint-active class
+        // They will appear during scroll hint animation and on hover
+        
+        // Show instruction text line (only if not already changed to START)
         if (!introTextChanged) {
-            // Show both instruction line elements
-            const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+            // Show instruction line element
             const introTextLine2 = document.getElementById('gradient-intro-text-line2');
-            
-            if (introTextLine1) {
-                // Remove any inline styles that might override CSS
-                introTextLine1.style.cursor = '';
-                introTextLine1.style.pointerEvents = '';
-                // Ensure container is visible - CSS handles the slide-up animation via inner .intro-line
-                introTextLine1.style.display = 'flex';
-                introTextLine1.style.visibility = 'visible';
-                // Don't set opacity inline - let CSS handle it via intro-active class
-            }
             
             if (introTextLine2) {
                 // Remove any inline styles that might override CSS
@@ -11015,10 +11815,9 @@ function scrollBothColumnsProgrammatically(duration) {
 // Function to trigger demo when intro is in active phase
 // Note: Text may be hidden by demo-active class, so we don't check text visibility
 function triggerDemo() {
-    // Check if instruction line elements exist (not the START button)
-    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    // Check if instruction line element exists (not the START button)
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
-    if (!introTextLine1 && !introTextLine2) {
+    if (!introTextLine2) {
         return;
     }
         
@@ -11028,11 +11827,10 @@ function triggerDemo() {
         return;
     }
     
-    // Check if instruction text lines are visible (not the START button)
+    // Check if instruction text line is visible (not the START button)
     // This ensures we only trigger demo for initial instruction text, not START
-    const line1Visible = introTextLine1 && introTextLine1.style.display !== 'none';
-    const line2Visible = introTextLine2 && introTextLine2.style.display !== 'none';
-    if (!line1Visible && !line2Visible) {
+    const lineVisible = introTextLine2 && introTextLine2.style.display !== 'none';
+    if (!lineVisible) {
         return;
     }
     

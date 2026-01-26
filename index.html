@@ -101,22 +101,18 @@
                 </div>
             </div>
         </div>
-        <div class="logo-container">
-            <div class="black-rectangle-syn">
-                <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span></div>
-            </div>
-            <div class="black-rectangle-ethesia">
-                <span class="ethesia-text">[esthesia]</span>
+        <div class="logo-clip-mask">
+            <div class="logo-container">
+                <div class="black-rectangle-syn">
+                    <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span></div>
+                </div>
+                <div class="black-rectangle-ethesia">
+                    <span class="ethesia-text">[esthesia]</span>
+                </div>
             </div>
         </div>
     </div>
     <div class="split-region split-region-white" id="white-region">
-        <div class="text-box" id="text-box">
-            <p>A perceptual experience where one sense triggers another</p>
-            <p>A sound may appear as a color, a letter may carry a specific hue, or a number may feel spatial or textured.</p>
-            <p>These cross-sensory connections happen naturally and consistently, forming a unique inner world for each person who experiences them.</p>
-            <p>Synesthesia is not a disorder, but a different way of perceiving reality—one in which the boundaries between the senses gently blur.</p>
-        </div>
     </div>
     <!-- Canvas cover: hides canvas content during intro phase -->
     <div class="canvas-cover" id="canvas-cover"></div>
@@ -208,6 +204,10 @@
         <div class="canvas-text-box-letter-color" id="canvas-text-box-letter-color">
             <p>For some synesthetes, color is an inseparable part of language. Letters do not appear as neutral marks, but arrive with their own chromatic presence. A word is already tinted before it is read, and its color remains stable, familiar, and personal.</p>
         </div>
+        <!-- Number + Color text box -->
+        <div class="canvas-text-box-number-color" id="canvas-text-box-number-color">
+            <p>(1+2+3)×(4+5−1)+6^2−(3×2)+(5+1)×(4−2)+(6+3)÷(1+2)+4^2−(5−1)×3+(2+6)×(1+4)−(3+3)+5^2÷(1+4)+(6−2)×(3+1)</p>
+        </div>
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
         </div>
@@ -238,34 +238,34 @@
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and yellow stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
                 <g class="ring-group" data-ring="0">
-                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#FAB01B" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
                 <!-- Ring 1: circle r=240 -->
                 <g class="ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#FAB01B" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
                 <!-- Ring 2 (middle): circle r=180 -->
                 <g class="ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#FAB01B" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
                 <!-- Ring 3: circle r=120 -->
                 <g class="ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#FAB01B" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
                 <!-- Ring 4 (innermost): solid circle r=60 -->
                 <g class="ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#FAB01B" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#FAB01B">A</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
             </svg>
         </div>
@@ -296,44 +296,118 @@
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and green stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
                 <g class="ring-group number-ring-group" data-ring="0">
-                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#007A6F" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
                 </g>
                 
                 <!-- Ring 1: circle r=240 -->
                 <g class="ring-group number-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#007A6F" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
                 </g>
                 
                 <!-- Ring 2 (middle): circle r=180 -->
                 <g class="ring-group number-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#007A6F" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
                 </g>
                 
                 <!-- Ring 3: circle r=120 -->
                 <g class="ring-group number-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#007A6F" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
                 </g>
                 
                 <!-- Ring 4 (innermost): solid circle r=60 -->
                 <g class="ring-group number-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#007A6F" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#007A6F">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
                 </g>
             </svg>
         </div>
-        <!-- Shape + Color canvas container (drag shapes to create colored gradient trails) -->
+        <!-- Container for concentric rings with smiley face on Emotion + Emotion page -->
+        <div class="emotion-emotion-circle-container" id="emotion-emotion-circle-container">
+            <svg class="concentric-rings-svg" id="emotion-emotion-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
+                <defs>
+                    <!-- Clip paths for each ring (annular regions) - same as number version -->
+                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <clipPath id="emotion-ring-clip-0">
+                        <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <clipPath id="emotion-ring-clip-1">
+                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <clipPath id="emotion-ring-clip-2">
+                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <clipPath id="emotion-ring-clip-3">
+                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <clipPath id="emotion-ring-clip-4">
+                        <circle cx="0" cy="0" r="60"/>
+                    </clipPath>
+                </defs>
+                
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <g class="ring-group emotion-ring-group" data-ring="0">
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <g class="smiley-face" clip-path="url(#emotion-ring-clip-0)">
+                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                    </g>
+                </g>
+                
+                <!-- Ring 1: circle r=240 -->
+                <g class="ring-group emotion-ring-group" data-ring="1">
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <g class="smiley-face" clip-path="url(#emotion-ring-clip-1)">
+                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                    </g>
+                </g>
+                
+                <!-- Ring 2 (middle): circle r=180 -->
+                <g class="ring-group emotion-ring-group" data-ring="2">
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <g class="smiley-face" clip-path="url(#emotion-ring-clip-2)">
+                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                    </g>
+                </g>
+                
+                <!-- Ring 3: circle r=120 -->
+                <g class="ring-group emotion-ring-group" data-ring="3">
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <g class="smiley-face" clip-path="url(#emotion-ring-clip-3)">
+                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                    </g>
+                </g>
+                
+                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <g class="ring-group emotion-ring-group" data-ring="4">
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <g class="smiley-face" clip-path="url(#emotion-ring-clip-4)">
+                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                    </g>
+                </g>
+            </svg>
+        </div>
+        <!-- Shape + Color squares container (grid of squares that repel from mouse) -->
         <div id="shape-color-container" class="shape-color-container hidden">
-            <canvas id="shape-color-draw-surface"></canvas>
-            <canvas id="shape-color-brush-layer"></canvas>
-            <button id="shape-color-play-btn" class="shape-color-btn">[play]</button>
-            <button id="shape-color-reset-btn" class="shape-color-btn">[reset]</button>
-            <button id="shape-color-export-btn" class="shape-color-btn">[export]</button>
+            <!-- 60 squares (12x5 grid) will be generated via JavaScript -->
         </div>
         <!-- Container for MELODY circle letters on Sound + Letter page -->
         <div class="melody-circle-container" id="melody-circle-container">
@@ -593,16 +667,114 @@
             <input type="range" id="sound-emotion-slider" class="sound-emotion-slider" 
                    min="-100" max="100" value="0" />
         </div>
+        <!-- Container for Shape + Emotion circles grid interaction -->
+        <div id="shape-emotion-container" class="shape-emotion-container hidden">
+            <!-- 50 circles (10x5 grid) will be generated via JavaScript -->
+        </div>
+        <!-- Container for Sound + Number draggable grid interaction -->
+        <div id="sound-number-container" class="sound-number-grid-container hidden">
+            <!-- Center cell with digit 1 (row 1, col 1) -->
+            <div class="sound-number-cell" data-row="1" data-col="1">
+                <svg class="sound-number-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="82" text-anchor="middle" class="sound-number-digit">1</text>
+                </svg>
+            </div>
+            <!-- 2 Horizontal dividers (between rows) -->
+            <div class="sound-number-divider sound-number-divider-h" data-index="0"></div>
+            <div class="sound-number-divider sound-number-divider-h" data-index="1"></div>
+            <!-- 2 Vertical dividers (between columns) -->
+            <div class="sound-number-divider sound-number-divider-v" data-index="0"></div>
+            <div class="sound-number-divider sound-number-divider-v" data-index="1"></div>
+        </div>
+        <!-- Container for Emotion + Color 3x3 face grid interaction -->
+        <div id="emotion-color-container" class="emotion-color-container hidden">
+            <!-- Row 0 -->
+            <div class="emotion-color-cell" data-row="0" data-col="0">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="0" data-col="1">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="0" data-col="2">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <!-- Row 1 -->
+            <div class="emotion-color-cell" data-row="1" data-col="0">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="1" data-col="1">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="1" data-col="2">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <!-- Row 2 -->
+            <div class="emotion-color-cell" data-row="2" data-col="0">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="2" data-col="1">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <div class="emotion-color-cell" data-row="2" data-col="2">
+                <svg class="emotion-color-face" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle class="face-outline" cx="50" cy="50" r="45" />
+                    <circle class="face-eye face-eye-left" cx="35" cy="40" r="5" />
+                    <circle class="face-eye face-eye-right" cx="65" cy="40" r="5" />
+                    <path class="face-mouth" d="M 30 60 Q 50 60 70 60" />
+                </svg>
+            </div>
+            <!-- 2 Horizontal dividers (between rows) -->
+            <div class="emotion-color-divider emotion-color-divider-h" data-index="0"></div>
+            <div class="emotion-color-divider emotion-color-divider-h" data-index="1"></div>
+            <!-- 2 Vertical dividers (between columns) -->
+            <div class="emotion-color-divider emotion-color-divider-v" data-index="0"></div>
+            <div class="emotion-color-divider emotion-color-divider-v" data-index="1"></div>
+        </div>
         <!-- Logo hover overlay: darkens and blurs canvas when hovering on SYN logo -->
         <div class="logo-hover-overlay" id="logo-hover-overlay"></div>
         <!-- Logo hover text boxes: appear when hovering on SYN logo -->
         <div class="logo-hover-text-box logo-hover-text-box-1" id="logo-hover-text-box-1">
-            <h3 class="logo-hover-text-title">About the process</h3>
-            <p>This website was created as an exploration of synesthesia—an attempt to understand and experience how the world is perceived when senses intertwine. Rather than explaining synesthesia through theory alone, the project translates it into interactive, sensory-based experiences that allow visitors to encounter combinations of perception firsthand. All texts and quotations featured throughout the site are drawn from real testimonies of syntesthetes, collected from personal blogs and firsthand accounts that describe how they experience language, sound, color, shape, and emotion. The site is grounded entirely in these lived experiences, aiming to reflect their subjectivity rather than interpret or simplify it.</p>
-        </div>
-        <div class="logo-hover-text-box logo-hover-text-box-2" id="logo-hover-text-box-2">
-            <h3 class="logo-hover-text-title">Sources & Credits</h3>
-            <p>All synesthetic testimonies are sourced from the Synesthetic Experience Vault by Synesthesia Test (synesthesiatest.org), a public archive of firsthand synesthetic accounts.</p>
+            <p>This website explores synesthesia as a way of understanding how the world is perceived when senses intertwine. Instead of relying on theory, the project translates synesthesia into interactive, sensory-based experiences. All texts and quotations throughout the site are drawn from real testimonies of syntesthetes, reflecting their personal and subjective experiences of letter, number, sound, color, shape, and emotion. Synesthesia is not a metaphor or an imaginative association, but a consistent and involuntary way of perceiving the world.</p>
         </div>
         <!-- Index page overlay: white background shown on INDEX hover -->
         <div class="index-page-overlay" id="index-page-overlay">
@@ -619,48 +791,48 @@
             <div class="index-line"></div>
             <div class="index-item" data-left="1" data-right="2"><span class="index-item-name">[Sound + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + letter.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="2" data-right="3"><span class="index-item-name">[Letter + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="2" data-right="3"><span class="index-item-name">[Letter + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + letter.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="2" data-right="4"><span class="index-item-name">[Letter + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="2" data-right="4"><span class="index-item-name">[Letter + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + letter.png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="2" data-right="5"><span class="index-item-name">[Letter + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/letter + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Number combinations -->
-            <div class="index-item" data-left="0" data-right="3"><span class="index-item-name">[Shape + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="0" data-right="3"><span class="index-item-name">[Shape + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + shape.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="1" data-right="3"><span class="index-item-name">[Sound + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="1" data-right="3"><span class="index-item-name">[Sound + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + number.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="3" data-right="4"><span class="index-item-name">[Number + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="3" data-right="4"><span class="index-item-name">[Number + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + emotion.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="3" data-right="5"><span class="index-item-name">[Number + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="3" data-right="5"><span class="index-item-name">[Number + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Shape combinations -->
             <div class="index-item" data-left="0" data-right="1"><span class="index-item-name">[Shape + Sound]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + shape.png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="0" data-right="4"><span class="index-item-name">[Shape + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + shape.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="0" data-right="5"><span class="index-item-name">[Shape + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="0" data-right="5"><span class="index-item-name">[Shape + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/shape + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Sound combinations -->
-            <div class="index-item" data-left="1" data-right="4"><span class="index-item-name">[Sound + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="1" data-right="4"><span class="index-item-name">[Sound + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + sound.png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="1" data-right="5"><span class="index-item-name">[Sound + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Color combinations -->
-            <div class="index-item" data-left="4" data-right="5"><span class="index-item-name">[Emotion + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="4" data-right="5"><span class="index-item-name">[Emotion + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/color + emotion.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Same-sense combinations -->
-            <div class="index-item" data-left="2" data-right="2"><span class="index-item-name">[Letter + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="2" data-right="2"><span class="index-item-name">[Letter + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/letter + letter.png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="3" data-right="3"><span class="index-item-name">[Number + Number]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/number + number.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="0" data-right="0"><span class="index-item-name">[Shape + Shape]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="0" data-right="0"><span class="index-item-name">[Shape + Shape]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/shape + shape.png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="1" data-right="1"><span class="index-item-name">[Sound + Sound]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + sound.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="5" data-right="5"><span class="index-item-name">[Color + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="5" data-right="5"><span class="index-item-name">[Color + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/color + color.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="4" data-right="4"><span class="index-item-name">[Emotion + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="" alt=""></div>
+            <div class="index-item" data-left="4" data-right="4"><span class="index-item-name">[Emotion + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + emotion.png" alt=""></div>
             <div class="index-line"></div>
         </div>
     </div>

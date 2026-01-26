@@ -183,21 +183,22 @@ body {
 
 /* ==================
    TRIANGLE REVEAL ANIMATION
-   Triggered when demo ends via .triangles-revealed class on body
+   Triangles appear ONLY on hover or during scroll hint animation
    ================== */
 
-/* Show triangles when revealed (after demo ends) */
-body.triangles-revealed .reel-triangle {
-    transform: translateY(0); /* Slide into view from mask */
-}
-
-/* Show left column triangles on hover (after intro is collapsed) */
-body:has(.gradient-intro-container.intro-collapsed) .left-column:hover ~ .reel-triangle-mask-left .reel-triangle {
+/* Show left column triangles on hover (works both during intro and after collapse) */
+.left-column:hover ~ .reel-triangle-mask-left .reel-triangle {
     transform: translateY(0);
 }
 
-/* Show right column triangles on hover (after intro is collapsed) */
-body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-triangle-mask-right .reel-triangle {
+/* Show right column triangles on hover (works both during intro and after collapse) */
+.right-column:hover ~ .reel-triangle-mask-right .reel-triangle {
+    transform: translateY(0);
+}
+
+/* Show triangles during scroll hint animation (nudge animation) */
+body.scroll-hint-active .reel-triangle-mask-left .reel-triangle,
+body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     transform: translateY(0);
 }
 
@@ -218,10 +219,10 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     pointer-events: none;
 }
 
-/* Left column: wrapper positioned 10px from right edge (inner edge) and 10px from top */
+/* Left column: wrapper positioned 10px from right edge (inner edge) and 10px from bottom */
 .left-column .color-item .label-wrapper {
     right: 10px;
-    top: 10px;
+    bottom: 10px;
 }
 
 /* Right column: wrapper positioned 10px from left edge (inner edge) and 10px from bottom */
@@ -608,12 +609,25 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
 /* START button slides up when entering (after intro lines exit) */
 .gradient-intro-text-start .intro-line.start-entering {
     transform: translateY(0); /* Slide up into view */
+    transition: transform 0.8s cubic-bezier(0.2, 0.0, 0.0, 1), 
+                height 0.2s ease-out, 
+                padding 0.2s ease-out, 
+                margin 0.2s ease-out,
+                letter-spacing 0.2s ease-out;
 }
 
 /* Hover effect for START button */
 .gradient-intro-text-start .intro-line.start-entering:hover {
-    transform: translateY(0) scale(1.1); /* Grow 10% on hover */
-    transition: transform 0.2s ease-out; /* Quick, smooth hover transition */
+    transform: translateY(0); /* Keep position */
+    height: 48px; /* Grow 4px up and 4px down (from 40px) */
+    padding: 0 14px; /* Grow 4px left and 4px right (from 0 10px) */
+    margin: -4px; /* Offset growth to keep button centered */
+    letter-spacing: 0.08em; /* Increase letter spacing proportionally (from 0.03em) */
+    transition: transform 0.2s ease-out, 
+                height 0.2s ease-out, 
+                padding 0.2s ease-out, 
+                margin 0.2s ease-out,
+                letter-spacing 0.2s ease-out;
 }
 
 /* Hide START during entering phase */
@@ -717,7 +731,8 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
 
 /* Clip-path only applies during initial logo entrance (before ui-visible is added) */
 /* Once ui-visible is added, we remove clip-path so INDEX button at bottom can animate properly */
-.ui-layer.logo-animating:not(.ui-visible) {
+/* Also remove clip-path when words-revealed is added, so word rectangles can appear during intro */
+.ui-layer.logo-animating:not(.ui-visible):not(.words-revealed) {
     /* Clip to show only the top 1/6 of viewport (gradient area) */
     /* This creates the mask - logo emerges from the clip edge at gradient's bottom */
     clip-path: inset(0 0 calc(100vh - 100vh / 6) 0);
@@ -730,6 +745,14 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
 .ui-layer.logo-animating:not(.ui-visible) .black-bottom-rectangle-right {
     opacity: 0;
     pointer-events: none;
+}
+
+/* Override opacity:0 for word rectangles during intro when words-revealed is active */
+/* This allows word rectangles to appear with intro explanation lines */
+.ui-layer.logo-animating.words-revealed .black-bottom-rectangle-left,
+.ui-layer.logo-animating.words-revealed .black-bottom-rectangle-right {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* ==================
@@ -774,9 +797,30 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     width: auto;
 }
 
-/* Logo hover effect - push INDEX mask inward */
-.ui-rect-mask-index.logo-hovered {
+/* Intro state positioning - WORD rectangles positioned 85px from screen edges during intro */
+/* Position is set when logo-animating is present (before words-revealed) so mask is already */
+/* in place when slide-in animation starts. When intro completes, position changes instantly to 50px. */
+.ui-layer.logo-animating .ui-rect-mask-left {
+    left: 85px;
+}
+
+.ui-layer.logo-animating .ui-rect-mask-right {
     right: 85px;
+}
+
+/* Remove position transition for WORD masks - position change from intro (85px) to main (50px) is instant */
+.ui-rect-mask-left,
+.ui-rect-mask-right {
+    transition: none;
+}
+
+/* When START is clicked (words-exiting), mask stays at current position (85px during intro) */
+/* Words slide out at 85px, then when logo-animating is removed, mask moves to 50px */
+/* The position change to 50px happens when logo-animating is removed (at 70% progress) */
+
+/* Logo hover effect - no position change for INDEX, only slide-out animation */
+.ui-rect-mask-index.logo-hovered {
+    /* Position stays at right: 50px - slide-out happens via transform on child */
 }
 
 .black-corner-rectangle {
@@ -915,6 +959,15 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     transition-delay: 0ms; /* All appear together */
 }
 
+/* Slide-out WORD rectangles when START is clicked (before collapse animation) */
+/* This class is added when START is clicked, triggering WORD to slide out */
+/* Higher specificity than words-revealed to ensure slide-out takes priority */
+.ui-layer.words-exiting .black-bottom-rectangle-left,
+.ui-layer.words-exiting .black-bottom-rectangle-right {
+    transform: translateY(100%) !important; /* Slide down out of view */
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth ease-out slide */
+}
+
 /* INDEX hover effect - slide parameter rectangles out (down) into the bottom edge of gradient header */
 /* This creates the effect of rectangles sliding down and disappearing behind the gradient's bottom edge */
 .ui-layer.words-revealed .black-bottom-rectangle-left.index-hovered,
@@ -931,26 +984,46 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth ease-out slide */
 }
 
+/* Logo hover effect - slide INDEX rectangle out (down) when hovering on SYN logo */
+.ui-layer.words-revealed .ui-rect-mask-index.logo-hovered .black-corner-rectangle {
+    transform: translateY(100%); /* Slide down out of view - into the mask */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); /* Same timing as WORD rectangles */
+}
+
+/* Logo clip mask - clips logo so nothing extends beyond the gradient header bottom edge */
+.logo-clip-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(100vh / 6); /* Same height as gradient header */
+    overflow: hidden; /* Clips anything that extends beyond this boundary */
+    z-index: 1; /* Same as logo-container was */
+    pointer-events: none; /* Let pointer events pass through to children */
+}
+
 /* Logo container - wrapper for SYN and [esthesia] rectangles */
+/* Uses fixed pixel offset instead of percentage to prevent left edge shift during hover transition */
+/* The -50% percentage causes issues because it recalculates as width changes, causing animation glitches */
 .logo-container {
     position: absolute;
     left: 50%; /* Centered horizontally */
-    transform: translateX(-50%); /* Center the container */
+    transform: translateX(-131.75px); /* Fixed offset: half of non-hover width (263.5/2) - keeps left edge stable */
     top: calc(100vh / 6 - 75px); /* Positioned so bottom edge stays at calc(100vh / 6) */
     height: 75px;
-    z-index: 1; /* Relative to ui-layer */
+    z-index: 1; /* Relative to logo-clip-mask */
     pointer-events: none; /* Container doesn't block interactions - children handle them */
     display: flex;
     flex-direction: row;
     align-items: flex-end; /* Align children to bottom */
     gap: 0; /* No gap - rectangles are attached */
-    transition: transform 0.3s ease; /* Smooth transition for hover compensation */
+    transition: none; /* No transform transition needed - left edge stays fixed */
 }
 
-/* On hover, compensate for SYN expansion to keep left edge fixed */
-/* SYN grows from 180px to 240px = 60px growth, half = 30px shift */
+/* On hover - keep same transform to maintain fixed left edge */
+/* Container width grows from 263.5px to 323.5px, but left edge stays at same position */
 .logo-container:hover {
-    transform: translateX(calc(-50% + 30px)); /* Shift right to keep left edge fixed */
+    transform: translateX(-131.75px); /* Same as non-hover - left edge stays fixed */
 }
 
 /* ==================
@@ -982,14 +1055,13 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
 /* Final visible state - logo is in its normal position */
 .logo-container.logo-visible {
     top: calc(100vh / 6 - 75px); /* Same as default position */
-    /* Restore normal hover transition after entrance */
-    transition: transform 0.3s ease;
+    /* No transform transition needed - left edge stays fixed with pixel-based offset */
 }
 
-/* Ensure hover still works during and after entrance animation */
+/* Hover states maintain same fixed transform to keep left edge stable */
 .logo-container.logo-entering:hover,
 .logo-container.logo-visible:hover {
-    transform: translateX(calc(-50% + 30px));
+    transform: translateX(-131.75px); /* Same fixed offset - left edge stays fixed */
 }
 
 /* SYN rectangle - contains the large SYN letters */
@@ -1165,7 +1237,7 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     width: 100%;
     padding: 40px;
     box-sizing: border-box;
-    font-family: sans-serif;
+    font-family: Helvetica, Arial, sans-serif;
     font-size: 16px;
     line-height: 1.6;
     color: #2C2C2C;
@@ -1268,9 +1340,17 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     z-index: 55; /* Above canvas interactions (grid z-index: 50) but below UI layer elements */
     pointer-events: none; /* Don't interfere with canvas interactions */
     overflow: visible; /* Ensure text is visible */
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* White backing layer: blocks main text box when SYN logo is hovered */
+/* Hide original text box when SYN logo is hovered (instead of covering with white layer) */
+.canvas-text-box.syn-hovered {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* White backing layer: no longer needed - hiding original text box directly */
+/* Kept for backwards compatibility but hidden by default */
 .canvas-text-box-syn-backing {
     position: fixed; /* Fixed to viewport - matches SYN overlay positioning */
     left: 50px; /* Same as SYN overlay */
@@ -1296,7 +1376,7 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
 /* SYN hover overlay: appears above main canvas text box on hover */
 .canvas-text-box-syn-overlay {
     position: fixed; /* Fixed to viewport - matches canvas-text-box positioning */
-    left: 50px; /* Same as canvas-text-box */
+    right: 50px; /* Aligned to right scrollbar */
     top: calc(100vh / 6 * 5 + 3px); /* Same as canvas-text-box */
     width: 1035px; /* Same width as main text box */
     height: calc(100vh / 6); /* Same as canvas-text-box */
@@ -1308,17 +1388,18 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     z-index: 201; /* Above blur overlay (100) and backing layer (200) - ensures text appears above blur */
     pointer-events: none; /* Don't interfere with canvas interactions */
     overflow: visible; /* Ensure text is visible */
+    text-align: right; /* Right-aligned text */
     /* Hidden by default */
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease, left 0.2s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, right 0.2s ease;
 }
 
 /* Show overlay when SYN element is hovered (via class toggle) */
 .canvas-text-box-syn-overlay.visible {
     opacity: 1;
     visibility: visible;
-    left: 85px; /* Pushed inward to align with expanded scrollbars */
+    right: 85px; /* Pushed inward to align with expanded scrollbars */
 }
 
 /* Line background blocks for canvas text box */
@@ -1888,6 +1969,287 @@ body:has(.gradient-intro-container.intro-collapsed) .right-column:hover ~ .reel-
     display: none;
 }
 
+/* ==================
+   NUMBER + COLOR TEXT BOX
+   ================== */
+/* Canvas text box for NUMBER & COLOR only */
+.canvas-text-box-number-color {
+    position: absolute;
+    /* 85px from the start of the canvas (85px below the bottom edge of gradient header) */
+    top: 85px;
+    /* 85px inward from the inner edge of left scrollbar (which is at 50px) */
+    left: 85px;
+    /* 85px inward from the inner edge of right scrollbar (which is at 50px from right) */
+    right: 85px;
+    /* Width is calculated automatically via left and right */
+    font-family: Helvetica, sans-serif;
+    font-size: 100px;
+    line-height: 107px;
+    font-weight: bold;
+    color: #2C2C2C; /* Same black as UI rectangles */
+    z-index: 11; /* Below main canvas text box (z-index: 12) but above canvas */
+    pointer-events: auto; /* Enable hover interactions on digits */
+    overflow: visible; /* Ensure text is visible */
+    text-align: left; /* Left-aligned text */
+    /* Ensure no padding or margin that would offset text from left edge */
+    padding: 0;
+    margin: 0;
+    /* Hidden by default, shown only for NUMBER & COLOR pages */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+}
+
+/* Show text box when NUMBER & COLOR is active */
+.canvas-text-box-number-color.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Paragraph styling for number-color text box */
+.canvas-text-box-number-color p {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left; /* Left-aligned text */
+    /* Normal font size and line height for proper text flow */
+    font-size: 100px; /* Match container font-size */
+    line-height: 107px; /* Match container line-height */
+    /* Ensure proper word wrapping - no word splitting */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: none; /* No automatic hyphenation */
+    /* Ensure normal white-space for proper text flow (not flex or per-letter layout) */
+    white-space: normal; /* Normal wrapping behavior */
+    /* Typography refinement: balanced spacing for justified text */
+    word-spacing: 0.12em; /* Clear word separation, tighter than default justify gaps */
+    letter-spacing: 0.03em; /* Subtle letter spacing for even distribution */
+    /* No transforms or offsets that would shift lines */
+    transform: none;
+    /* Ensure no left indent */
+    text-indent: 0;
+}
+
+/* Digit slot container - natural size, no clipping in default state */
+.canvas-text-box-number-color .digit-slot {
+    display: inline; /* Inline to maintain natural text flow for justification */
+    position: relative; /* Allow absolute positioning of children */
+    width: auto; /* Natural width - matches glyph size */
+    height: auto; /* Natural height - matches glyph size */
+    overflow: visible; /* No clipping - digits render normally */
+    vertical-align: baseline; /* Align with text baseline */
+    cursor: pointer;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+}
+
+/* Static glyph - visible normally for layout, hidden on hover */
+.canvas-text-box-number-color .digit-slot .digit-glyph-static {
+    display: inline; /* Inline to maintain natural text flow */
+    position: relative;
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    color: inherit;
+    pointer-events: none;
+    /* Hover-out: delay before reappearing to allow digit to slide up and push color out */
+    /* No opacity transition - visibility controlled by position/masking only */
+    transition: visibility 0s linear 0.315s; /* 0.315s delay, then instant show */
+    visibility: visible;
+}
+
+/* Digit mask - 68×68px clipping area centered on digit */
+/* Contains both the sliding digit glyph and the color square */
+.canvas-text-box-number-color .digit-slot .digit-mask {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 68px;
+    height: 68px;
+    transform: translate(-50%, -50%);
+    overflow: hidden; /* Clip both digit and color as they transition */
+    pointer-events: none; /* Don't interfere with hover */
+    z-index: 1;
+    opacity: 0; /* Hidden by default */
+    /* Hover-out: mask stays visible during animation, then hides instantly (no fade) */
+    transition: opacity 0s linear 0.315s; /* Instant hide after 0.315s delay */
+    /* Ensure mask fully clips content - no overflow visible */
+    clip-path: inset(0);
+}
+
+/* Digit glyph - the sliding version inside mask, hidden by default */
+.canvas-text-box-number-color .digit-slot .digit-glyph {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Start at center position */
+    transform: translate(-50%, -50%) translateY(0);
+    /* Hover-out: digit slides UP from below (105px → 0) - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay, then 0.3s slide up */
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    /* Center text both horizontally and vertically */
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    pointer-events: none;
+    white-space: nowrap;
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    z-index: 1; /* Below color square */
+}
+
+/* Hover-out: digit slides up - translate only, no opacity */
+.canvas-text-box-number-color .digit-slot.hover-leaving .digit-glyph {
+    /* Digit slides from 105px (down) to 0 (center) - translate only */
+    transform: translate(-50%, -50%) translateY(0);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity */
+}
+
+/* Colored digit - positioned inside mask, slides up from below */
+.canvas-text-box-number-color .digit-slot .digit-color {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* Start from below (translateY(105px)) - matches digit slide distance for synchronized motion */
+    transform: translate(-50%, -50%) translateY(105px);
+    /* Hover-out: color is pushed UP and out by digit sliding up - translate only, no opacity */
+    transition: transform 0.3s ease-in 0.105s; /* 0.105s delay, then 0.3s ease-in push up */
+    /* Inherit font properties from parent paragraph */
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    /* Center text both horizontally and vertically */
+    align-items: center;
+    justify-content: center;
+    /* Color is set via JS style.color */
+    pointer-events: none;
+    white-space: nowrap;
+    /* Visibility controlled by mask and position only - always fully opaque when visible */
+    opacity: 1; /* Always fully opaque when mask is visible */
+    /* Colored digit appears above glyph to cover it */
+    z-index: 2;
+}
+
+/* Hover-out state: colored digit is pushed up and out by black digit sliding up */
+.canvas-text-box-number-color .digit-slot.hover-leaving .digit-color {
+    /* Colored digit is pushed UP and out by black digit sliding up - translate only */
+    transform: translate(-50%, -50%) translateY(-105px);
+    transition: transform 0.3s ease-in 0.105s; /* Translate only, no opacity */
+}
+
+/* Digit slot hover state - black digit slides down, colored digit slides up */
+.canvas-text-box-number-color .digit-slot:hover,
+.canvas-text-box-number-color .digit-slot.hover-active {
+    /* Increase z-index so hovered colored digit appears on top of neighbors */
+    z-index: 10;
+}
+
+/* Hide static glyph on hover - instant (no fade) */
+.canvas-text-box-number-color .digit-slot:hover .digit-glyph-static,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-glyph-static {
+    visibility: hidden; /* Instant hide - no opacity, visibility only */
+    /* Hover-in: instant hide, no delay */
+    transition: visibility 0s ease; /* Instant hide on hover */
+}
+
+/* Show mask on hover - becomes visible immediately */
+.canvas-text-box-number-color .digit-slot:hover .digit-mask,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-mask {
+    opacity: 1; /* Instant show - no transition */
+    /* Hover-in: instant show, no transition */
+    transition: none; /* No transitions - instant visibility */
+}
+
+/* Sliding glyph: visible as it slides down into mask, then gets clipped */
+/* Slide down enough to fully exit the mask (105px ensures tall digits disappear completely) */
+.canvas-text-box-number-color .digit-slot:hover .digit-glyph,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-glyph {
+    /* Visible during slide-down animation - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(105px); /* Slide down enough to fully disappear */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+}
+
+/* Colored digit slides up from below to center position on hover */
+/* This creates the "push" effect - colored digit takes the black digit's place */
+.canvas-text-box-number-color .digit-slot:hover .digit-color,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-color {
+    /* Visible as it slides up - translate only, no opacity */
+    transform: translate(-50%, -50%) translateY(0); /* Slide up to center position */
+    /* Hover-in: no delay, immediate response - translate only */
+    transition: transform 0.2s ease; /* Translate only, no opacity */
+    z-index: 2;
+}
+
+/* When hover-active class is present, override any hover-out delays to prevent blank states */
+.canvas-text-box-number-color .digit-slot.hover-active .digit-glyph-static {
+    /* Force immediate hide when hover-active class is set - visibility only */
+    transition: visibility 0s ease !important;
+}
+
+.canvas-text-box-number-color .digit-slot.hover-active .digit-mask,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-glyph,
+.canvas-text-box-number-color .digit-slot.hover-active .digit-color {
+    /* Force immediate show when hover-active class is set (cancel any pending hover-out) - translate only */
+    transition: transform 0.2s ease !important; /* Translate only, no opacity */
+}
+
+/* Keep old digit-span styles for spaces (they won't be wrapped in slots) */
+.canvas-text-box-number-color .digit-span {
+    display: inline; /* Use inline to maintain natural text flow for justification */
+    position: relative;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    text-align: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    z-index: 1;
+}
+
+/* Space character handling - no transformation */
+.canvas-text-box-number-color .digit-span.space {
+    display: inline;
+    width: auto;
+    height: auto;
+    font-size: inherit;
+    line-height: inherit;
+    cursor: default;
+    margin: 0;
+    padding: 0;
+    transform: none;
+}
+
+/* Space character: no colored digit */
+.canvas-text-box-number-color .digit-span.space .digit-color {
+    display: none;
+}
+
 /* Canvas instruction text for SOUND & SHAPE page */
 .canvas-instruction-text {
     position: absolute;
@@ -2010,25 +2372,71 @@ h1 {
     opacity: 1;
 }
 
-/* Number + Number rings: green color (#007A6F) for circles and digit */
+/* Number + Number rings: black color (#2C2C2C) for circles and digit */
 #number-number-rings-svg .ring-circle {
-    stroke: #007A6F;
+    stroke: #2C2C2C;
 }
 
 #number-number-rings-svg .ring-letter {
-    fill: #007A6F;
+    fill: #2C2C2C;
+}
+
+/* Container for concentric rings with smiley face on Emotion + Emotion page */
+.emotion-emotion-circle-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% - 90px)); /* Centered with upward offset - same as Number + Number */
+    width: 620px;
+    height: 620px;
+    pointer-events: auto; /* Enable interactions with rings */
+    z-index: 13; /* Above canvas but below buttons */
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    /* No transition - instant page switching */
+}
+
+.emotion-emotion-circle-container.visible {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Emotion + Emotion rings: black color (#2C2C2C) for circles and smiley */
+#emotion-emotion-rings-svg .ring-circle {
+    stroke: #2C2C2C;
+}
+
+#emotion-emotion-rings-svg .smiley-eye {
+    fill: #2C2C2C;
+}
+
+#emotion-emotion-rings-svg .smiley-mouth {
+    stroke: #2C2C2C;
+}
+
+/* Letter + Letter rings: black color (#2C2C2C) for circles and letter */
+#concentric-rings-svg .ring-circle {
+    stroke: #2C2C2C;
+}
+
+#concentric-rings-svg .ring-letter {
+    fill: #2C2C2C;
 }
 
 /* ==================
-   SHAPE + COLOR CANVAS (drag colored shapes to create gradient trails)
+   SHAPE + COLOR SQUARES GRID (grid of squares that repel from mouse)
    ================== */
+/* Container for Shape + Color squares grid interaction */
 .shape-color-container {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 10;
-    /* No transition - instant page switching */
+    z-index: 10; /* Same as other interaction containers */
+    overflow: hidden; /* Clip squares at container bounds */
+    background: #ffffff;
 }
 
 .shape-color-container.hidden {
@@ -2043,71 +2451,69 @@ h1 {
     pointer-events: auto;
 }
 
-#shape-color-draw-surface {
+/* Base shape element (shared properties) */
+.shape-color-shape {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
+    width: 110px;
+    height: 110px;
+    background: #ffffff; /* White fill */
+    box-sizing: border-box;
+    pointer-events: none; /* Shapes don't block mouse events */
+    will-change: transform; /* Optimize for animations */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Square shape (25%) */
+.shape-color-square {
+    border: 3px solid #2C2C2C;
+}
+
+/* Circle shape (25%) */
+.shape-color-circle {
+    border: 3px solid #2C2C2C;
+    border-radius: 50%;
+}
+
+/* Triangle shape (25%) - using SVG */
+.shape-color-triangle {
     background: transparent;
-    z-index: 12; /* Above brush layer */
-    cursor: grab;
+    border: none;
 }
-
-#shape-color-draw-surface:active {
-    cursor: grabbing;
-}
-
-#shape-color-brush-layer {
-    position: absolute;
-    inset: 0;
+.shape-color-triangle svg {
     width: 100%;
     height: 100%;
-    display: block;
-    background: #fff;
-    z-index: 11;
-    pointer-events: none; /* Don't capture mouse events */
 }
 
-/* Shared button styles for Shape + Color page */
-.shape-color-btn {
-    position: absolute;
-    right: 10px;
-    padding: 8px 12px;
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    letter-spacing: 0.03em;
-    line-height: 1;
-    border-radius: 0;
+/* Ellipse shape (15%) - same bounding box, visual ellipse inside */
+.shape-color-ellipse {
+    background: transparent;
     border: none;
-    background: #2C2C2C;
-    color: #ffffff;
-    cursor: pointer;
-    z-index: 1000;
-    /* Slide-in animation */
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
+}
+.shape-color-ellipse svg {
+    width: 100%;
+    height: 100%;
 }
 
-.shape-color-container:not(.hidden) .shape-color-btn {
-    transform: translateX(0);
+/* Star shape (10%) - using SVG */
+.shape-color-star {
+    background: transparent;
+    border: none;
+}
+.shape-color-star svg {
+    width: 100%;
+    height: 100%;
 }
 
-.shape-color-btn:hover {
-    background: #404040;
+/* Pentagon shape (~8%) - using SVG */
+.shape-color-pentagon {
+    background: transparent;
+    border: none;
 }
-
-/* Individual button positioning (stacked vertically, bottom to top) */
-#shape-color-play-btn {
-    bottom: 50px;
-}
-
-#shape-color-reset-btn {
-    bottom: 90px;
-}
-
-#shape-color-export-btn {
-    bottom: 130px;
+.shape-color-pentagon svg {
+    width: 100%;
+    height: 100%;
 }
 
 /* ==================
@@ -2416,7 +2822,7 @@ h1 {
 .shape-ellipse {
     fill: #ffffff; /* White fill */
     stroke: #2C2C2C; /* Black stroke - same as UI rectangles */
-    stroke-width: 10px; /* 10px stroke width */
+    stroke-width: 5px; /* 5px stroke width */
     vector-effect: non-scaling-stroke; /* KEY: Stroke width stays constant regardless of scaling */
 }
 
@@ -2850,29 +3256,25 @@ h1 {
    ================== */
 .number-emotion-digits-container {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, calc(-50% - 80px)); /* Centered with upward offset like other elements */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     display: none;
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
     z-index: 13; /* Above canvas but below buttons */
-    /* Flexbox to arrange digits in a row with equal spacing */
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 80px; /* Equal spacing between digits */
 }
 
 .number-emotion-digits-container.visible {
-    display: flex;
+    display: block;
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
 }
 
-/* Individual digit styling */
+/* Individual digit styling - absolute positioning for custom layout */
 .number-emotion-digit {
     font-family: Helvetica, sans-serif;
     font-size: 300px;
@@ -2881,12 +3283,45 @@ h1 {
     line-height: 1;
     user-select: none;
     cursor: grab;
-    /* Position will be controlled by JavaScript when dragging */
-    position: relative;
+    /* Absolute position within container */
+    position: absolute;
     /* Smooth transitions for scale changes */
     transition: transform 0.15s ease-out;
     /* Ensure scaling happens from center */
     transform-origin: center center;
+}
+
+/* Initial positions based on design image */
+/* 4 - upper center-left */
+.number-emotion-digit[data-digit="4"] {
+    left: 22%;
+    top: 5%;
+}
+
+/* 1 - upper right */
+.number-emotion-digit[data-digit="1"] {
+    left: 78%;
+    top: 3%;
+}
+
+/* 2 - lower left */
+.number-emotion-digit[data-digit="2"] {
+    left: 2%;
+    top: 42%;
+}
+
+/* 3 - next to 2, slightly higher and to the right, 30% smaller */
+.number-emotion-digit[data-digit="3"] {
+    left: 18%;
+    top: 38%;
+    font-size: 210px; /* 300px * 0.7 = 30% smaller */
+}
+
+/* 7 - lower right, larger */
+.number-emotion-digit[data-digit="7"] {
+    left: 68%;
+    top: 32%;
+    font-size: 257px; /* 285px * 0.9 = additional 10% smaller */
 }
 
 .number-emotion-digit:active,
@@ -3031,6 +3466,45 @@ h1 {
 }
 
 /* ==================
+   SHAPE + EMOTION CIRCLES GRID
+   ================== */
+/* Container for Shape + Emotion circles grid interaction */
+.shape-emotion-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Same as other interaction containers */
+    overflow: hidden; /* Clip circles at container bounds */
+    background: #ffffff;
+}
+
+.shape-emotion-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.shape-emotion-container:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Individual circle element */
+.shape-emotion-circle {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border: 3px solid #2C2C2C;
+    border-radius: 50%;
+    background: #ffffff; /* White fill */
+    box-sizing: border-box;
+    pointer-events: none; /* Circles don't block mouse events */
+    will-change: transform; /* Optimize for animations */
+}
+
+/* ==================
    LOGO HOVER OVERLAY
    ================== */
 /* Logo hover overlay - covers canvas container when hovering on SYN logo */
@@ -3076,17 +3550,19 @@ h1 {
     color: #2C2C2C;
 }
 
-/* First text box: 50px from left scrollbar (85px when expanded) */
-/* Scrollbar at 85px from viewport, canvas-container at 50px from viewport */
-/* Text box left relative to canvas = (85 + 50) - 50 = 85px */
+/* First text box: 3px from left scrollbar (expanded 85px state), left-aligned, Helvetica 56px bold */
+/* Canvas-container has left: 50px, expanded scrollbar inner edge is 35px further in, plus 3px gap = 38px */
 .logo-hover-text-box-1 {
-    left: 85px;
+    top: 5px;
+    left: 41px;
+    width: 1360px;
+    text-align: left;
+    font-family: Helvetica, sans-serif;
+    font-size: 57px;
+    font-weight: bold;
+    line-height: 54.5px;
 }
 
-/* Second text box: 50px from first text box = 85px + 400px + 50px = 535px */
-.logo-hover-text-box-2 {
-    left: 535px;
-}
 
 /* Title styling */
 .logo-hover-text-title {
@@ -3107,6 +3583,15 @@ h1 {
 .logo-hover-text-box.visible {
     opacity: 1;
     visibility: visible;
+}
+
+/* Line background blocks for logo hover text box */
+.logo-hover-text-box .logo-line-bg {
+    position: absolute;
+    background-color: #E0E0E0;
+    border-radius: 0;
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* ==================
@@ -3151,11 +3636,11 @@ h1 {
 
 /* Index items - clickable page combinations */
 /* Overlay height = 100vh - 100vh/6 = 5/6 of viewport ≈ 83.33vh */
-/* To fit exactly 10 items: each item = (5/6 * 100vh) / 10 = 100vh / 12 ≈ 8.33vh */
+/* To fit 10.5 items: last item cut off to indicate scrollable content */
 .index-item {
     position: relative; /* Enable absolute positioning for quote */
-    height: calc((100vh - 100vh / 6) / 10); /* Exactly 10 items fit in the overlay viewport */
-    min-height: calc((100vh - 100vh / 6) / 10);
+    height: calc((100vh - 100vh / 6) / 10.5); /* 10.5 items fit - last one cut off to indicate scroll */
+    min-height: calc((100vh - 100vh / 6) / 10.5);
     flex-shrink: 0; /* Prevent shrinking when scrolling */
     width: 100%;
     display: flex;
@@ -3399,6 +3884,207 @@ h1 {
 
 /* Active divider during drag */
 .letter-emotion-divider.active {
+    background-color: #EB4781;
+}
+
+/* ==================
+   SOUND + NUMBER DRAGGABLE GRID
+   3x3 grid with draggable dividers and centered digit 1
+   ================== */
+
+/* Main container - fills the entire canvas area */
+.sound-number-grid-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: block;
+    overflow: hidden;
+    z-index: 50;
+}
+
+/* Hidden state */
+.sound-number-grid-container.hidden {
+    display: none;
+}
+
+/* Grid cell - positioned absolutely based on JS-calculated percentages */
+.sound-number-cell {
+    position: absolute;
+    display: block;
+    background-color: transparent;
+    overflow: hidden;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+/* SVG inside cell - stretches to fill cell */
+.sound-number-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Digit text inside SVG */
+.sound-number-digit {
+    font-family: 'Helvetica Now Variable', Helvetica, Arial, sans-serif;
+    font-size: 90px;
+    font-weight: 700;
+    fill: #2C2C2C; /* Site's standard black */
+}
+
+/* Dividers base styles */
+.sound-number-divider {
+    position: absolute;
+    background-color: #1D1D1B; /* Site's standard black */
+    z-index: 60;
+    transition: background-color 0.15s ease;
+}
+
+/* Horizontal dividers (between rows) */
+.sound-number-divider-h {
+    left: 0;
+    right: 0;
+    height: 2px;
+    cursor: row-resize;
+}
+
+/* Vertical dividers (between columns) */
+.sound-number-divider-v {
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    cursor: col-resize;
+}
+
+/* Hover state for dividers - green (Number color) */
+.sound-number-divider:hover {
+    background-color: #007A6F;
+}
+
+/* Dragging state - applied to container when dragging */
+.sound-number-grid-container.dragging-h {
+    cursor: row-resize;
+}
+
+.sound-number-grid-container.dragging-v {
+    cursor: col-resize;
+}
+
+/* Active divider during drag */
+.sound-number-divider.active {
+    background-color: #007A6F;
+}
+
+/* ========================================
+   EMOTION + COLOR GRID INTERACTION
+   3x3 grid of faces that stretch based on
+   draggable dividers, with color based on emotion
+   ======================================== */
+
+/* Main container */
+.emotion-color-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: block;
+    overflow: hidden;
+    z-index: 50;
+}
+
+/* Hidden state */
+.emotion-color-container.hidden {
+    display: none;
+}
+
+/* Grid cell - positioned absolutely based on JS-calculated percentages */
+.emotion-color-cell {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    overflow: hidden;
+    user-select: none;
+    box-sizing: border-box;
+    --face-color: #2C2C2C;
+}
+
+/* SVG face inside cell */
+.emotion-color-face {
+    width: 80%;
+    height: 80%;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Face outline circle */
+.face-outline {
+    fill: white;
+    stroke: var(--face-color, #2C2C2C);
+    stroke-width: 3px;
+    transition: stroke 0.3s ease;
+}
+
+/* Eyes */
+.face-eye {
+    fill: var(--face-color, #2C2C2C);
+    transition: fill 0.3s ease;
+}
+
+/* Mouth - bezier curve */
+.face-mouth {
+    fill: none;
+    stroke: var(--face-color, #2C2C2C);
+    stroke-width: 3px;
+    stroke-linecap: round;
+    transition: stroke 0.3s ease;
+}
+
+/* Dividers base styles */
+.emotion-color-divider {
+    position: absolute;
+    background-color: #1D1D1B;
+    z-index: 60;
+    transition: background-color 0.15s ease;
+}
+
+/* Horizontal dividers (between rows) */
+.emotion-color-divider-h {
+    left: 0;
+    right: 0;
+    height: 3px;
+    cursor: row-resize;
+}
+
+/* Vertical dividers (between columns) */
+.emotion-color-divider-v {
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    cursor: col-resize;
+}
+
+/* Hover state for dividers */
+.emotion-color-divider:hover {
+    background-color: #EB4781;
+}
+
+/* Dragging state - applied to container when dragging */
+.emotion-color-container.dragging-h {
+    cursor: row-resize;
+}
+
+.emotion-color-container.dragging-v {
+    cursor: col-resize;
+}
+
+/* Active divider during drag */
+.emotion-color-divider.active {
     background-color: #EB4781;
 }
 
