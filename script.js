@@ -151,6 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize INDEX hover effect (shows white overlay on canvas)
     initializeIndexHoverEffect();
     
+    // Initialize ABOUT hover effect (shows white overlay on canvas)
+    initializeAboutHoverEffect();
+    
     // Initialize per-line text highlights
     initializePerLineHighlights();
     
@@ -532,7 +535,7 @@ function initializeColumn(column, side) {
         scrollEndTimeout = setTimeout(() => {
             isScrolling = false;
             setHoverEnabled(true);
-        }, 150); // Same debounce time as snap timeout
+        }, 100); // 100ms - match snap timeout
         
         const scrollTop = column.scrollTop;
         
@@ -571,24 +574,35 @@ function initializeColumn(column, side) {
         }
         
         // After scroll ends, ensure we're snapped to a tile (backup for CSS snap)
+        // Using 100ms timeout - short enough to feel responsive, but long enough for CSS snap to work
         scrollTimeout = setTimeout(() => {
             if (!isAdjusting) {
                 const currentScroll = column.scrollTop;
                 const snappedScroll = snapToTile(currentScroll);
+                const currentSnapStyle = column.style.scrollSnapType;
+                
+                // CRITICAL FIX: Re-enable CSS scroll-snap if it was disabled
+                if (currentSnapStyle === 'none' || currentSnapStyle === '') {
+                    column.style.removeProperty('scroll-snap-type');
+                }
                 
                 // Only adjust if we're significantly off (more than 2px)
                 if (Math.abs(currentScroll - snappedScroll) > 2) {
                     isAdjusting = true;
                     isProgrammaticScroll = true; // Mark as programmatic
-                    column.scrollTop = snappedScroll;
-                    isProgrammaticScroll = false;
-                    isAdjusting = false;
+                    // Use smooth scrolling instead of instant jump
+                    column.scrollTo({ top: snappedScroll, behavior: 'smooth' });
+                    // Keep flags set briefly to cover the smooth scroll animation
+                    setTimeout(() => {
+                        isProgrammaticScroll = false;
+                        isAdjusting = false;
+                    }, 300);
                 }
                 
                 // Update selected indices after snap completes (this will trigger gradient update)
                 updateSelectedIndices();
             }
-        }, 150);
+        }, 100); // 100ms - balance between responsiveness and letting CSS snap work
         
         // Update selected indices during scroll (for real-time updates)
         // This will schedule a gradient update via requestAnimationFrame
@@ -596,6 +610,33 @@ function initializeColumn(column, side) {
         
         if (introCompleted) {
         }
+    });
+    
+    // Modern scrollend event - more reliable detection of when scrolling truly ends
+    column.addEventListener('scrollend', () => {
+        if (isProgrammaticScroll || isAdjusting || isInitializing) return;
+        
+        const currentScroll = column.scrollTop;
+        const snappedScroll = snapToTile(currentScroll);
+        const currentSnapStyle = column.style.scrollSnapType;
+        
+        // CRITICAL FIX: Re-enable CSS scroll-snap if it was disabled
+        if (currentSnapStyle === 'none' || currentSnapStyle === '') {
+            column.style.removeProperty('scroll-snap-type');
+        }
+        
+        // Only adjust if we're significantly off (more than 2px)
+        if (Math.abs(currentScroll - snappedScroll) > 2) {
+            isAdjusting = true;
+            isProgrammaticScroll = true;
+            column.scrollTo({ top: snappedScroll, behavior: 'smooth' });
+            setTimeout(() => {
+                isProgrammaticScroll = false;
+                isAdjusting = false;
+            }, 300);
+        }
+        
+        updateSelectedIndices();
     });
     
     // Detect real user wheel interaction
@@ -4647,7 +4688,7 @@ function getPairKey(index1, index2) {
     return index1 < index2 ? `${index1}-${index2}` : `${index2}-${index1}`;
 }
 
-// Check all square collisions and update sounds accordingly
+// Check all square collisions and update sounds and colors accordingly
 function checkSquareCollisionsAndUpdateSounds() {
     const container = document.getElementById('sound-color-squares-container');
     if (!container) return;
@@ -4660,10 +4701,10 @@ function checkSquareCollisionsAndUpdateSounds() {
     
     // Track current touching pairs
     const currentTouchingPairs = new Set();
-    // Track which instruments should be playing
+    // Track which instruments should be playing (and which squares should show color)
     const shouldBePlaying = new Set();
     
-    // If a square is being dragged, its sound should play
+    // If a square is being dragged, its sound should play and it should show color
     if (soundColorDraggingSquareIndex >= 0) {
         shouldBePlaying.add(soundColorDraggingSquareIndex);
     }
@@ -4680,7 +4721,7 @@ function checkSquareCollisionsAndUpdateSounds() {
                 const pairKey = getPairKey(index1, index2);
                 currentTouchingPairs.add(pairKey);
                 
-                // Both instruments should play
+                // Both instruments should play and show their colors
                 shouldBePlaying.add(index1);
                 shouldBePlaying.add(index2);
             }
@@ -4701,6 +4742,22 @@ function checkSquareCollisionsAndUpdateSounds() {
         }
     }
     
+    // Update square colors based on state:
+    // - Squares being dragged or touching others show their original color
+    // - All other squares are white
+    squaresArray.forEach((square, index) => {
+        const squareIndex = parseInt(square.getAttribute('data-index'));
+        const originalColor = square.getAttribute('data-color');
+        
+        if (shouldBePlaying.has(squareIndex)) {
+            // Square is active (dragging or touching) - show original color
+            square.style.backgroundColor = originalColor;
+        } else {
+            // Square is inactive - show white
+            square.style.backgroundColor = '#FFFFFF';
+        }
+    });
+    
     // Update the tracking set
     soundColorTouchingPairs = currentTouchingPairs;
 }
@@ -4712,12 +4769,12 @@ function getInitialSoundColorPositions() {
     if (!canvasContainer) {
         // Fallback positions (custom scattered arrangement)
         return [
-            { x: -20, y: -110 },    // 0: Orange - center, slightly up
-            { x: 320, y: 300 },     // 1: Purple - bottom right
-            { x: 280, y: 30 },      // 2: Yellow - right side, middle
-            { x: 350, y: -200 },    // 3: Green - top right
-            { x: -220, y: 80 },     // 4: Pink - left side, below center
-            { x: -340, y: -180 }    // 5: Blue - top left
+            { x: -100, y: -370 },   // 0: Orange - Top-center-left (moved 150px up)
+            { x: -480, y: -80 },    // 1: Purple - Left side, middle (moved 200px left)
+            { x: 280, y: -100 },    // 2: Yellow - Center-right, upper
+            { x: 450, y: 20 },      // 3: Green - Far right
+            { x: -180, y: 180 },    // 4: Pink - Bottom-left (moved 100px left)
+            { x: 380, y: 320 }      // 5: Blue - Bottom-right
         ];
     }
     
@@ -4735,12 +4792,12 @@ function getInitialSoundColorPositions() {
     // Positions are relative to container center
     // These ratios are based on the design screenshot
     const positions = [
-        { x: -0.05 * maxX, y: -0.35 * maxY },   // 0: Orange - center, slightly up
-        { x: 0.85 * maxX, y: 0.85 * maxY },     // 1: Purple - bottom right
-        { x: 0.75 * maxX, y: 0.1 * maxY },      // 2: Yellow - right side, middle
-        { x: 0.95 * maxX, y: -0.6 * maxY },     // 3: Green - top right
-        { x: -0.55 * maxX, y: 0.25 * maxY },    // 4: Pink - left side, below center
-        { x: -0.9 * maxX, y: -0.55 * maxY }     // 5: Blue - top left
+        { x: -0.18 * maxX, y: -0.55 * maxY - 150 },  // 0: Orange - Top-center-left (moved 150px up)
+        { x: -0.55 * maxX - 200, y: -0.20 * maxY },  // 1: Purple - Left side, middle (moved 200px left)
+        { x: 0.55 * maxX, y: -0.25 * maxY },         // 2: Yellow - Center-right, upper
+        { x: 0.95 * maxX, y: 0.05 * maxY },          // 3: Green - Far right
+        { x: -0.15 * maxX - 100, y: 0.40 * maxY },   // 4: Pink - Bottom-left (moved 100px left)
+        { x: 0.80 * maxX, y: 0.75 * maxY }           // 5: Blue - Bottom-right
     ];
     
     return positions;
@@ -4859,16 +4916,17 @@ function initializeSoundColorSquares() {
         soundColorSquarePositions = getInitialSoundColorPositions();
     }
     
-    // Apply colors and positions
+    // Apply positions and set initial white color
+    // Squares start white and only show their color when dragged or touching other squares
     squares.forEach((square, index) => {
-        // Set background color from data attribute
-        const color = square.getAttribute('data-color');
-        if (color) {
-            square.style.backgroundColor = color;
-        }
+        // Set initial color to white (color will be revealed on interaction)
+        square.style.backgroundColor = '#FFFFFF';
         // Update visual position
         updateSoundColorSquarePosition(square, index);
     });
+    
+    // Check if any squares are initially touching and update their colors
+    checkSquareCollisionsAndUpdateSounds();
     
     // Only add event listeners once
     if (soundColorDragInitialized) return;
@@ -5661,29 +5719,30 @@ window.addEventListener('resize', () => {
 });
 
 // ==================
-// SHAPE + COLOR SHAPES GRID (grid of mixed shapes that repel from mouse)
+// SHAPE + COLOR BOUNCING SHAPES (shapes that bounce off walls and transform)
 // ==================
-// Shape + Color interaction: 60 shapes (12x5 grid) that repel from mouse cursor
-// Shape distribution: 25% circles, 25% triangles, 25% squares, 15% ellipses, 10% stars
+// Shape + Color interaction: 60 shapes that bounce freely and transform on wall collision
+// When hitting a wall: shape transforms to next type in cycle and flashes its color
 
-// Configuration
-const SHAPE_COLOR_GRID_COLS = 12;
-const SHAPE_COLOR_GRID_ROWS = 5;
-const SHAPE_COLOR_SHAPE_SIZE = 110; // Base shape size in pixels
-const SHAPE_COLOR_GRID_GAP = 4; // Gap between shapes in pixels
-const SHAPE_COLOR_CELL_SIZE = SHAPE_COLOR_SHAPE_SIZE + SHAPE_COLOR_GRID_GAP; // Total cell size including gap
-const SHAPE_COLOR_REPEL_RADIUS = 150; // Distance at which shapes start to repel
-const SHAPE_COLOR_REPEL_STRENGTH = 15; // How strongly shapes are pushed away
+// Configuration - Bouncing Physics
+const SHAPE_COLOR_COUNT = 6;            // One of each shape type
+const SHAPE_COLOR_BASE_SIZE = 55;       // Base shape size in pixels
+const SHAPE_COLOR_FLASH_DURATION = 200; // Color flash duration in ms
+const SHAPE_COLOR_BOUNCE_DAMPING = 0.92; // Speed reduction on each wall hit (0.92 = loses 8% speed)
 
-// Shape types and their distribution (total 60 shapes)
-const SHAPE_COLOR_TYPES = {
-    circle: 13,    // ~22%
-    triangle: 15,  // 25%
-    square: 12,    // 20%
-    ellipse: 9,    // 15%
-    star: 6,       // 10%
-    pentagon: 5    // ~8%
+// Shape types with their size multipliers and speeds (ordered from slowest to fastest)
+// All shapes are the same size (4.5x), speeds vary
+const SHAPE_COLOR_CONFIG = {
+    circle:   { sizeMultiplier: 4.5, speed: 1.5 },
+    square:   { sizeMultiplier: 4.5, speed: 2.25 },
+    ellipse:  { sizeMultiplier: 4.5, speed: 3.0 },
+    triangle: { sizeMultiplier: 4.5, speed: 3.75 },
+    pentagon: { sizeMultiplier: 4.5, speed: 4.5 },
+    star:     { sizeMultiplier: 4.5, speed: 5.25 }
 };
+
+// Shape types in order
+const SHAPE_COLOR_CYCLE = ['circle', 'square', 'ellipse', 'triangle', 'pentagon', 'star'];
 
 // Fill colors for each shape type (shown only when shape is in motion)
 // Using the site's 6-color palette from the conic-gradient
@@ -5696,16 +5755,23 @@ const SHAPE_COLOR_FILL_COLORS = {
     pentagon: '#007A6F'   // Green
 };
 
-// State variables for Shape + Color shapes grid
+// State variables for Shape + Color bouncing shapes
 let shapeColorContainer = null;
-let shapeColorShapes = []; // Array of { element, x, y, baseX, baseY, shapeType }
-let shapeColorMouseX = -1000;
-let shapeColorMouseY = -1000;
+// Array of shape data: { element, x, y, vx, vy, shapeTypeIndex, colorFlashTime, shapeSize }
+let shapeColorShapes = [];
 let shapeColorAnimationId = null;
 let shapeColorInitialized = false;
+let shapeColorLastTime = 0; // For delta time calculation
 
-// Legacy alias for backwards compatibility
-let shapeColorSquares = shapeColorShapes;
+// Drag state variables
+let draggedShape = null;        // Currently dragged shape data
+let dragOffsetX = 0;            // Offset from shape center to mouse
+let dragOffsetY = 0;
+let dragLastX = 0;              // Last mouse position for velocity calculation
+let dragLastY = 0;
+let dragLastTime = 0;           // Last time for velocity calculation
+let dragVelocityX = 0;          // Calculated throw velocity
+let dragVelocityY = 0;
 
 // Helper function to create SVG for triangle shape
 function createTriangleSVG() {
@@ -5791,30 +5857,20 @@ function createPentagonSVG() {
     return svg;
 }
 
-// Helper function to generate shuffled shape types array
-function generateShuffledShapeTypes() {
-    const shapes = [];
-    
-    // Add shapes according to distribution
-    for (const [shapeType, count] of Object.entries(SHAPE_COLOR_TYPES)) {
-        for (let i = 0; i < count; i++) {
-            shapes.push(shapeType);
-        }
-    }
-    
-    // Shuffle array (Fisher-Yates algorithm)
-    for (let i = shapes.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shapes[i], shapes[j]] = [shapes[j], shapes[i]];
-    }
-    
-    return shapes;
+// Helper function to get a random velocity direction (positive or negative) with given speed
+function getRandomVelocity(speed) {
+    return Math.random() > 0.5 ? speed : -speed;
+}
+
+// Helper function to get shape type name from index
+function getShapeTypeName(index) {
+    return SHAPE_COLOR_CYCLE[index % SHAPE_COLOR_CYCLE.length];
 }
 
 // Apply fill color to a shape (handles both CSS-based and SVG-based shapes)
 function applyShapeColor(shapeData, color) {
     const element = shapeData.element;
-    const shapeType = shapeData.shapeType;
+    const shapeType = getShapeTypeName(shapeData.shapeTypeIndex);
     
     // CSS-based shapes (circle, square) - use backgroundColor
     if (shapeType === 'circle' || shapeType === 'square') {
@@ -5833,7 +5889,29 @@ function applyShapeColor(shapeData, color) {
     }
 }
 
-// Initialize Shape + Color shapes grid
+// Create a shape element with the given type
+function createShapeElement(shapeTypeIndex) {
+    const shapeType = getShapeTypeName(shapeTypeIndex);
+    const shape = document.createElement('div');
+    
+    // Add base class and shape-specific class
+    shape.className = `shape-color-shape shape-color-${shapeType}`;
+    
+    // Add SVG content for SVG-based shapes
+    if (shapeType === 'triangle') {
+        shape.appendChild(createTriangleSVG());
+    } else if (shapeType === 'star') {
+        shape.appendChild(createStarSVG());
+    } else if (shapeType === 'ellipse') {
+        shape.appendChild(createEllipseSVG());
+    } else if (shapeType === 'pentagon') {
+        shape.appendChild(createPentagonSVG());
+    }
+    
+    return shape;
+}
+
+// Initialize Shape + Color bouncing shapes
 function initializeShapeColorSquares() {
     shapeColorContainer = document.getElementById('shape-color-container');
     if (!shapeColorContainer) {
@@ -5841,10 +5919,8 @@ function initializeShapeColorSquares() {
         return;
     }
     
-    // Only initialize once (shapes are created once)
+    // Only initialize once
     if (shapeColorInitialized) {
-        // Just recalculate positions if already initialized
-        recalculateShapeColorGrid();
         return;
     }
     
@@ -5857,170 +5933,336 @@ function initializeShapeColorSquares() {
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
     
-    // Calculate grid spacing to center the grid (shifted 80px up)
-    const totalGridWidth = SHAPE_COLOR_GRID_COLS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
-    const totalGridHeight = SHAPE_COLOR_GRID_ROWS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
-    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2;
-    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2 - 80;
-    
-    // Generate shuffled shape types
-    const shapeTypes = generateShuffledShapeTypes();
-    let shapeIndex = 0;
-    
-    // Create 60 shapes (12 columns x 5 rows)
-    for (let row = 0; row < SHAPE_COLOR_GRID_ROWS; row++) {
-        for (let col = 0; col < SHAPE_COLOR_GRID_COLS; col++) {
-            const shapeType = shapeTypes[shapeIndex];
-            const shape = document.createElement('div');
-            
-            // Add base class and shape-specific class
-            shape.className = `shape-color-shape shape-color-${shapeType}`;
-            
-            // Add SVG content for triangle, star, ellipse, and pentagon shapes
-            if (shapeType === 'triangle') {
-                shape.appendChild(createTriangleSVG());
-            } else if (shapeType === 'star') {
-                shape.appendChild(createStarSVG());
-            } else if (shapeType === 'ellipse') {
-                shape.appendChild(createEllipseSVG());
-            } else if (shapeType === 'pentagon') {
-                shape.appendChild(createPentagonSVG());
-            }
-            
-            // Calculate initial position (center of each grid cell)
-            const baseX = startX + col * SHAPE_COLOR_CELL_SIZE;
-            const baseY = startY + row * SHAPE_COLOR_CELL_SIZE;
-            
-            // Position shape (using transform for better performance)
-            shape.style.left = '0';
-            shape.style.top = '0';
-            shape.style.transform = `translate(${baseX - SHAPE_COLOR_SHAPE_SIZE / 2}px, ${baseY - SHAPE_COLOR_SHAPE_SIZE / 2}px)`;
-            
-            shapeColorContainer.appendChild(shape);
-            
-            // Store shape data
-            shapeColorShapes.push({
-                element: shape,
-                x: baseX,
-                y: baseY,
-                baseX: baseX,
-                baseY: baseY,
-                shapeType: shapeType
-            });
-            
-            shapeIndex++;
-        }
-    }
-    
-    // Update legacy alias
-    shapeColorSquares = shapeColorShapes;
-    
-    // Set up mouse tracking
-    shapeColorContainer.addEventListener('mousemove', handleShapeColorMouseMove);
-    shapeColorContainer.addEventListener('mouseleave', handleShapeColorMouseLeave);
-    
-    // Set up touch tracking
-    shapeColorContainer.addEventListener('touchmove', handleShapeColorTouchMove, { passive: false });
-    shapeColorContainer.addEventListener('touchend', handleShapeColorMouseLeave);
-    
-    // Handle window resize
-    window.addEventListener('resize', recalculateShapeColorGrid);
+    // Create one of each shape type with specific size and speed
+    SHAPE_COLOR_CYCLE.forEach((shapeType, index) => {
+        const config = SHAPE_COLOR_CONFIG[shapeType];
+        const shapeSize = SHAPE_COLOR_BASE_SIZE * config.sizeMultiplier;
+        const halfSize = shapeSize / 2;
+        const speed = config.speed;
+        
+        // Create the shape element
+        const shape = createShapeElement(index);
+        
+        // Set the shape's size
+        shape.style.width = `${shapeSize}px`;
+        shape.style.height = `${shapeSize}px`;
+        
+        // Random position (within container bounds, avoiding edges)
+        const x = halfSize + Math.random() * (containerWidth - shapeSize);
+        const y = halfSize + Math.random() * (containerHeight - shapeSize);
+        
+        // Random velocity direction with shape-specific speed
+        const vx = getRandomVelocity(speed);
+        const vy = getRandomVelocity(speed);
+        
+        // Position shape
+        shape.style.left = '0';
+        shape.style.top = '0';
+        shape.style.transform = `translate(${x - halfSize}px, ${y - halfSize}px)`;
+        
+        shapeColorContainer.appendChild(shape);
+        
+        // Store shape data with velocity, size, and flash timing
+        shapeColorShapes.push({
+            element: shape,
+            x: x,
+            y: y,
+            vx: vx,
+            vy: vy,
+            shapeTypeIndex: index,
+            shapeSize: shapeSize,
+            colorFlashTime: 0 // 0 means no flash active
+        });
+    });
     
     shapeColorInitialized = true;
+    shapeColorLastTime = performance.now();
+    
+    // Set up drag event listeners
+    setupShapeDragHandlers();
     
     // Start animation loop
     startShapeColorAnimation();
 }
 
-// Recalculate grid positions on resize (but don't reset shape positions)
-function recalculateShapeColorGrid() {
-    if (!shapeColorContainer || shapeColorShapes.length === 0) return;
+// Set up drag and throw handlers for shapes
+function setupShapeDragHandlers() {
+    if (!shapeColorContainer) return;
+    
+    // Mouse events
+    shapeColorContainer.addEventListener('mousedown', handleShapeDragStart);
+    document.addEventListener('mousemove', handleShapeDragMove);
+    document.addEventListener('mouseup', handleShapeDragEnd);
+    
+    // Touch events
+    shapeColorContainer.addEventListener('touchstart', handleShapeTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleShapeTouchMove, { passive: false });
+    document.addEventListener('touchend', handleShapeTouchEnd);
+}
+
+// Find which shape was clicked/touched
+function findShapeAtPoint(clientX, clientY) {
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const x = clientX - containerRect.left;
+    const y = clientY - containerRect.top;
+    
+    // Check shapes in reverse order (top shapes first)
+    for (let i = shapeColorShapes.length - 1; i >= 0; i--) {
+        const shape = shapeColorShapes[i];
+        const halfSize = shape.shapeSize / 2;
+        
+        if (x >= shape.x - halfSize && x <= shape.x + halfSize &&
+            y >= shape.y - halfSize && y <= shape.y + halfSize) {
+            return shape;
+        }
+    }
+    return null;
+}
+
+// Mouse drag start
+function handleShapeDragStart(e) {
+    const shape = findShapeAtPoint(e.clientX, e.clientY);
+    if (!shape) return;
+    
+    e.preventDefault();
+    startDragging(shape, e.clientX, e.clientY);
+}
+
+// Touch drag start
+function handleShapeTouchStart(e) {
+    if (!e.touches || e.touches.length === 0) return;
+    
+    const touch = e.touches[0];
+    const shape = findShapeAtPoint(touch.clientX, touch.clientY);
+    if (!shape) return;
+    
+    e.preventDefault();
+    startDragging(shape, touch.clientX, touch.clientY);
+}
+
+// Start dragging a shape
+function startDragging(shape, clientX, clientY) {
+    draggedShape = shape;
     
     const containerRect = shapeColorContainer.getBoundingClientRect();
+    const mouseX = clientX - containerRect.left;
+    const mouseY = clientY - containerRect.top;
+    
+    // Calculate offset from shape center
+    dragOffsetX = mouseX - shape.x;
+    dragOffsetY = mouseY - shape.y;
+    
+    // Initialize velocity tracking
+    dragLastX = clientX;
+    dragLastY = clientY;
+    dragLastTime = performance.now();
+    dragVelocityX = 0;
+    dragVelocityY = 0;
+    
+    // Stop shape's current movement
+    shape.vx = 0;
+    shape.vy = 0;
+    
+    // Add dragging class
+    shape.element.classList.add('dragging');
+}
+
+// Mouse drag move
+function handleShapeDragMove(e) {
+    if (!draggedShape) return;
+    
+    e.preventDefault();
+    updateDragging(e.clientX, e.clientY);
+}
+
+// Touch drag move
+function handleShapeTouchMove(e) {
+    if (!draggedShape || !e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    updateDragging(touch.clientX, touch.clientY);
+}
+
+// Update dragging position and calculate velocity
+function updateDragging(clientX, clientY) {
+    if (!draggedShape || !shapeColorContainer) return;
+    
+    const containerRect = shapeColorContainer.getBoundingClientRect();
+    const mouseX = clientX - containerRect.left;
+    const mouseY = clientY - containerRect.top;
+    
+    // Calculate velocity based on movement
+    const currentTime = performance.now();
+    const dt = currentTime - dragLastTime;
+    
+    if (dt > 0) {
+        // Smooth velocity calculation
+        const instantVx = (clientX - dragLastX) / dt * 16; // Normalize to ~60fps
+        const instantVy = (clientY - dragLastY) / dt * 16;
+        
+        // Smooth with previous velocity
+        dragVelocityX = dragVelocityX * 0.5 + instantVx * 0.5;
+        dragVelocityY = dragVelocityY * 0.5 + instantVy * 0.5;
+    }
+    
+    dragLastX = clientX;
+    dragLastY = clientY;
+    dragLastTime = currentTime;
+    
+    // Update shape position (apply offset so shape doesn't jump to cursor)
+    const halfSize = draggedShape.shapeSize / 2;
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
     
-    // Calculate new grid starting position (shifted 80px up)
-    const totalGridWidth = SHAPE_COLOR_GRID_COLS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
-    const totalGridHeight = SHAPE_COLOR_GRID_ROWS * SHAPE_COLOR_CELL_SIZE - SHAPE_COLOR_GRID_GAP;
-    const startX = (containerWidth - totalGridWidth) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2;
-    const startY = (containerHeight - totalGridHeight) / 2 + SHAPE_COLOR_SHAPE_SIZE / 2 - 80;
+    // Constrain to container
+    draggedShape.x = Math.max(halfSize, Math.min(containerWidth - halfSize, mouseX - dragOffsetX));
+    draggedShape.y = Math.max(halfSize, Math.min(containerHeight - halfSize, mouseY - dragOffsetY));
     
-    // Update base positions (where shapes would return to)
-    let index = 0;
-    for (let row = 0; row < SHAPE_COLOR_GRID_ROWS; row++) {
-        for (let col = 0; col < SHAPE_COLOR_GRID_COLS; col++) {
-            if (index < shapeColorShapes.length) {
-                shapeColorShapes[index].baseX = startX + col * SHAPE_COLOR_CELL_SIZE;
-                shapeColorShapes[index].baseY = startY + row * SHAPE_COLOR_CELL_SIZE;
-                index++;
-            }
-        }
+    // Update DOM position
+    draggedShape.element.style.transform = `translate(${draggedShape.x - halfSize}px, ${draggedShape.y - halfSize}px)`;
+}
+
+// Mouse drag end
+function handleShapeDragEnd(e) {
+    if (!draggedShape) return;
+    endDragging();
+}
+
+// Touch drag end
+function handleShapeTouchEnd(e) {
+    if (!draggedShape) return;
+    endDragging();
+}
+
+// End dragging and apply throw velocity
+function endDragging() {
+    if (!draggedShape) return;
+    
+    // Apply throw velocity (clamped to reasonable range)
+    const maxVelocity = 15;
+    draggedShape.vx = Math.max(-maxVelocity, Math.min(maxVelocity, dragVelocityX));
+    draggedShape.vy = Math.max(-maxVelocity, Math.min(maxVelocity, dragVelocityY));
+    
+    // Remove dragging class
+    draggedShape.element.classList.remove('dragging');
+    
+    // Clear drag state
+    draggedShape = null;
+}
+
+// Transform shape to next type in cycle and trigger color flash
+function transformShapeToNext(shapeData) {
+    // Move to next shape in cycle
+    shapeData.shapeTypeIndex = (shapeData.shapeTypeIndex + 1) % SHAPE_COLOR_CYCLE.length;
+    const newShapeType = getShapeTypeName(shapeData.shapeTypeIndex);
+    
+    // Update element class
+    const oldElement = shapeData.element;
+    
+    // Remove old shape-specific class
+    SHAPE_COLOR_CYCLE.forEach(type => {
+        oldElement.classList.remove(`shape-color-${type}`);
+    });
+    
+    // Add new shape-specific class
+    oldElement.classList.add(`shape-color-${newShapeType}`);
+    
+    // Clear old SVG content and add new if needed
+    oldElement.innerHTML = '';
+    
+    if (newShapeType === 'triangle') {
+        oldElement.appendChild(createTriangleSVG());
+    } else if (newShapeType === 'star') {
+        oldElement.appendChild(createStarSVG());
+    } else if (newShapeType === 'ellipse') {
+        oldElement.appendChild(createEllipseSVG());
+    } else if (newShapeType === 'pentagon') {
+        oldElement.appendChild(createPentagonSVG());
     }
-}
-
-// Mouse move handler
-function handleShapeColorMouseMove(e) {
-    if (!shapeColorContainer) return;
     
-    const rect = shapeColorContainer.getBoundingClientRect();
-    shapeColorMouseX = e.clientX - rect.left;
-    shapeColorMouseY = e.clientY - rect.top;
-}
-
-// Mouse leave handler
-function handleShapeColorMouseLeave() {
-    shapeColorMouseX = -1000;
-    shapeColorMouseY = -1000;
-}
-
-// Touch move handler
-function handleShapeColorTouchMove(e) {
-    e.preventDefault();
-    if (!shapeColorContainer || !e.touches || e.touches.length === 0) return;
+    // Trigger color flash
+    shapeData.colorFlashTime = performance.now();
     
-    const rect = shapeColorContainer.getBoundingClientRect();
-    const touch = e.touches[0];
-    shapeColorMouseX = touch.clientX - rect.left;
-    shapeColorMouseY = touch.clientY - rect.top;
+    // Apply the shape's color immediately
+    const color = SHAPE_COLOR_FILL_COLORS[newShapeType];
+    applyShapeColor(shapeData, color);
 }
 
-// Animation loop - updates shape positions
+// Trigger color flash for a shape (without changing shape type)
+function flashShapeColor(shapeData) {
+    const shapeType = getShapeTypeName(shapeData.shapeTypeIndex);
+    shapeData.colorFlashTime = performance.now();
+    const color = SHAPE_COLOR_FILL_COLORS[shapeType];
+    applyShapeColor(shapeData, color);
+}
+
+// Animation loop - updates bouncing shape positions
 function updateShapeColorSquares() {
     if (!shapeColorContainer) return;
     
+    const currentTime = performance.now();
     const containerRect = shapeColorContainer.getBoundingClientRect();
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
-    const halfSize = SHAPE_COLOR_SHAPE_SIZE / 2;
     
     shapeColorShapes.forEach(shapeData => {
-        // Calculate distance from mouse to shape center
-        const dx = shapeData.x - shapeColorMouseX;
-        const dy = shapeData.y - shapeColorMouseY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        // Skip shape if it's being dragged
+        if (shapeData === draggedShape) return;
         
-        // If mouse is close enough, repel the shape
-        if (distance < SHAPE_COLOR_REPEL_RADIUS && distance > 0) {
-            // Calculate repulsion force (stronger when closer)
-            const force = (SHAPE_COLOR_REPEL_RADIUS - distance) / SHAPE_COLOR_REPEL_RADIUS;
-            const repelX = (dx / distance) * force * SHAPE_COLOR_REPEL_STRENGTH;
-            const repelY = (dy / distance) * force * SHAPE_COLOR_REPEL_STRENGTH;
+        // Use shape-specific size
+        const halfSize = shapeData.shapeSize / 2;
+        
+        // Update position based on velocity
+        shapeData.x += shapeData.vx;
+        shapeData.y += shapeData.vy;
+        
+        // Check for wall collisions and bounce
+        let hitWall = false;
+        
+        // Left wall
+        if (shapeData.x - halfSize <= 0) {
+            shapeData.x = halfSize;
+            shapeData.vx = Math.abs(shapeData.vx); // Reverse to positive
+            hitWall = true;
+        }
+        // Right wall
+        else if (shapeData.x + halfSize >= containerWidth) {
+            shapeData.x = containerWidth - halfSize;
+            shapeData.vx = -Math.abs(shapeData.vx); // Reverse to negative
+            hitWall = true;
+        }
+        
+        // Top wall
+        if (shapeData.y - halfSize <= 0) {
+            shapeData.y = halfSize;
+            shapeData.vy = Math.abs(shapeData.vy); // Reverse to positive
+            hitWall = true;
+        }
+        // Bottom wall
+        else if (shapeData.y + halfSize >= containerHeight) {
+            shapeData.y = containerHeight - halfSize;
+            shapeData.vy = -Math.abs(shapeData.vy); // Reverse to negative
+            hitWall = true;
+        }
+        
+        // If hit wall, apply damping and flash color
+        if (hitWall) {
+            // Reduce velocity (shape loses energy on each bounce)
+            shapeData.vx *= SHAPE_COLOR_BOUNCE_DAMPING;
+            shapeData.vy *= SHAPE_COLOR_BOUNCE_DAMPING;
             
-            // Update position
-            shapeData.x += repelX;
-            shapeData.y += repelY;
-            
-            // Constrain to container bounds
-            shapeData.x = Math.max(halfSize, Math.min(containerWidth - halfSize, shapeData.x));
-            shapeData.y = Math.max(halfSize, Math.min(containerHeight - halfSize, shapeData.y));
-            
-            // Shape is in motion - apply its color
-            const color = SHAPE_COLOR_FILL_COLORS[shapeData.shapeType];
-            applyShapeColor(shapeData, color);
-        } else {
-            // Shape is static - apply white
-            applyShapeColor(shapeData, '#ffffff');
+            flashShapeColor(shapeData);
+        }
+        
+        // Handle color flash timeout - return to white after flash duration
+        if (shapeData.colorFlashTime > 0) {
+            const elapsed = currentTime - shapeData.colorFlashTime;
+            if (elapsed >= SHAPE_COLOR_FLASH_DURATION) {
+                // Flash ended - return to white
+                applyShapeColor(shapeData, '#ffffff');
+                shapeData.colorFlashTime = 0;
+            }
         }
         
         // Update DOM element position
@@ -6212,6 +6454,7 @@ function updateActivePage(pageId, reason) {
 
 // Function to update the word text based on current parameter combination
 // Now populates two separate rectangles: left word and right word
+// Also updates text color to match the parameter's color
 function updateWordText() {
     const leftWordElement = document.getElementById('word-text-left');
     const rightWordElement = document.getElementById('word-text-right');
@@ -6220,8 +6463,14 @@ function updateWordText() {
     const leftWord = colorWords[selectedLeftIndex];
     const rightWord = colorWords[selectedRightIndex];
     
+    // Get the colors for each parameter
+    const leftColor = colors[selectedLeftIndex];
+    const rightColor = colors[selectedRightIndex];
+    
     // Helper function to populate a word element with letter spans
-    function populateWordElement(element, word) {
+    // Capitalizes first letter, rest lowercase (e.g., "Shape", "Color")
+    // Also sets the text color to match the parameter's color
+    function populateWordElement(element, word, textColor) {
         if (!element) return;
         
         // Clear existing content
@@ -6230,17 +6479,20 @@ function updateWordText() {
         // Create a span for each character
         for (let i = 0; i < word.length; i++) {
             const span = document.createElement('span');
-            span.textContent = word[i];
+            // Capitalize first letter, lowercase the rest
+            span.textContent = i === 0 ? word[i].toUpperCase() : word[i].toLowerCase();
             span.className = 'word-letter';
+            // Set the text color to match the parameter's color
+            span.style.color = textColor;
             element.appendChild(span);
         }
     }
     
-    // Populate left rectangle with left word (e.g., "SHAPE")
-    populateWordElement(leftWordElement, leftWord);
+    // Populate left rectangle with left word and its color (e.g., "Shape" in orange)
+    populateWordElement(leftWordElement, leftWord, leftColor);
     
-    // Populate right rectangle with right word (e.g., "COLOR")
-    populateWordElement(rightWordElement, rightWord);
+    // Populate right rectangle with right word and its color (e.g., "Color" in blue)
+    populateWordElement(rightWordElement, rightWord, rightColor);
 }
 
 // Function to update selected indices from both columns
@@ -6362,8 +6614,16 @@ let shapeNumberResizeObserver = null;
 const SHAPE_NUMBER_PANEL_W = 180;
 const SHAPE_NUMBER_STROKE_W = 3;
 
-const TOP_ROW = ["1","2","3","4","5"];
-const BOTTOM_ROW = ["6","7","8","9","0"];
+// Only show digits 7, 8, 9 centered on page
+const DIGIT_ROW = ["7","8","9"];
+
+// Shape cycling order for hover interaction
+const SHAPE_ORDER = ["circle", "square", "triangle", "ellipse", "star", "pentagon"];
+let currentShapeIndex = 0;
+
+// Hover state tracking for shape cycling
+let isHoveringDigit = false;
+let digitHitboxes = []; // Will store {x, y, width, height} for each digit
 
 let numShapes = 2;
 let shapeType = "circle";
@@ -6644,8 +6904,71 @@ function initializeShapeNumberCanvas() {
         window.addEventListener('resize', resizeShapeNumber);
     }
     
+    // Mouse tracking for count (X) and size (Y)
+    shapeNumberCanvas.addEventListener('mousemove', handleShapeNumberMouseMove);
+    shapeNumberCanvas.addEventListener('mouseleave', handleShapeNumberMouseLeave);
+    
     // Initial resize
     resizeShapeNumber();
+}
+
+// Handle mouse movement over the shape-number canvas
+function handleShapeNumberMouseMove(e) {
+    if (!shapeNumberContainer) return;
+    
+    const rect = shapeNumberContainer.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const W = rect.width;
+    const H = rect.height;
+    
+    // Map X position to count (1 to 20)
+    // Left edge = 1, right edge = 20
+    const countMin = 1;
+    const countMax = 20;
+    const normalizedX = Math.max(0, Math.min(1, mouseX / W));
+    numShapes = Math.round(countMin + normalizedX * (countMax - countMin));
+    
+    // Map Y position to size (0.2 to 4.0)
+    // Top = small (0.2), bottom = large (4.0)
+    const sizeMin = 0.2;
+    const sizeMax = 4.0;
+    const normalizedY = Math.max(0, Math.min(1, mouseY / H));
+    shapeSizeFactor = sizeMin + normalizedY * (sizeMax - sizeMin);
+    
+    // Check if mouse is hovering over any digit for shape cycling
+    checkDigitHover(mouseX, mouseY);
+    
+    // Redraw with new values
+    renderShapeNumber();
+}
+
+// Handle mouse leaving the canvas
+function handleShapeNumberMouseLeave() {
+    // Reset hover state when mouse leaves
+    isHoveringDigit = false;
+}
+
+// Check if mouse is hovering over any digit and cycle shape if entering
+function checkDigitHover(mouseX, mouseY) {
+    let currentlyOverDigit = false;
+    
+    for (const hitbox of digitHitboxes) {
+        if (mouseX >= hitbox.x && mouseX <= hitbox.x + hitbox.width &&
+            mouseY >= hitbox.y && mouseY <= hitbox.y + hitbox.height) {
+            currentlyOverDigit = true;
+            break;
+        }
+    }
+    
+    // If we just entered a digit area (wasn't hovering before, now hovering)
+    if (currentlyOverDigit && !isHoveringDigit) {
+        // Cycle to next shape
+        currentShapeIndex = (currentShapeIndex + 1) % SHAPE_ORDER.length;
+        shapeType = SHAPE_ORDER[currentShapeIndex];
+    }
+    
+    isHoveringDigit = currentlyOverDigit;
 }
 
 // Render function
@@ -6663,23 +6986,38 @@ function renderShapeNumber() {
     shapeNumberCtx.fillStyle = '#ffffff';
     shapeNumberCtx.fillRect(0, 0, W, H);
     
-    // Use full width, ignoring panel
-    // Spacing between digits: digitSpacing is the gap between each pair of digits
-    const cellW = W / 7.5; // Cell width for each digit
-    const cellH = H / 2;
-    const digitSpacing = 50; // Gap between digits in px (was 15, then 30 – increased to 50 for clearer separation)
+    // Clear hitboxes for hover detection
+    digitHitboxes = [];
     
-    // Center the rows horizontally: 5 cells + 4 gaps between them
-    const totalWidth = 5 * cellW + 4 * digitSpacing;
-    const startX = (W - totalWidth) / 2; // Centered (removed the -10px shift)
+    // 3 digits (7, 8, 9) centered on page
+    // Increase size by 30% compared to original (15% + 15%)
+    const baseCellW = W / 7.5;
+    const cellW = baseCellW * 1.30; // 30% larger
+    const cellH = H * 0.8; // Use 80% of height for taller digits
+    const digitSpacing = 70; // Gap between digits (increased by 10px)
     
-    // Top row: 1,2,3,4,5 - align left edge of digit 1
-    for (let i = 0; i < TOP_ROW.length; i++) {
-        drawDigitInCell(TOP_ROW[i], startX + i * (cellW + digitSpacing), -20, cellW, cellH);
-    }
-    // Bottom row: 6,7,8,9,0 - align left edge of digit 6 with digit 1
-    for (let i = 0; i < BOTTOM_ROW.length; i++) {
-        drawDigitInCell(BOTTOM_ROW[i], startX + i * (cellW + digitSpacing), cellH - 100 - 40, cellW, cellH);
+    // Center the single row horizontally: 3 cells + 2 gaps between them
+    const totalWidth = 3 * cellW + 2 * digitSpacing;
+    const startX = (W - totalWidth) / 2;
+    
+    // Center vertically, then move up by 70px
+    const startY = (H - cellH) / 2 - 70;
+    
+    // Draw the 3 digits (7, 8, 9) centered
+    for (let i = 0; i < DIGIT_ROW.length; i++) {
+        const x = startX + i * (cellW + digitSpacing);
+        const y = startY;
+        
+        // Store hitbox for hover detection
+        digitHitboxes.push({
+            x: x,
+            y: y,
+            width: cellW,
+            height: cellH,
+            digit: DIGIT_ROW[i]
+        });
+        
+        drawDigitInCell(DIGIT_ROW[i], x, y, cellW, cellH);
     }
 }
 
@@ -8892,8 +9230,7 @@ window.addEventListener('resize', () => {
 function initializeSynHoverEffect() {
     // Initialize SYN hover overlay - now using logo-container for unified hover
     const logoContainer = document.querySelector('.logo-container');
-    const synElement = document.querySelector('.black-rectangle-syn');
-    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
+    const logoElement = document.querySelector('.black-rectangle-logo');
     const synOverlay = document.getElementById('canvas-text-box-syn-overlay');
     const canvasTextBox = document.getElementById('canvas-text-box');
     
@@ -8917,14 +9254,10 @@ function initializeSynHoverEffect() {
             synOverlay.classList.remove('visible');
         };
         
-        // Show overlay when hovering on either SYN or [esthesia] rectangle
-        if (synElement) {
-            synElement.addEventListener('mouseenter', showOverlay);
-            synElement.addEventListener('mouseleave', hideOverlay);
-        }
-        if (ethesiaElement) {
-            ethesiaElement.addEventListener('mouseenter', showOverlay);
-            ethesiaElement.addEventListener('mouseleave', hideOverlay);
+        // Show overlay when hovering on logo rectangle
+        if (logoElement) {
+            logoElement.addEventListener('mouseenter', showOverlay);
+            logoElement.addEventListener('mouseleave', hideOverlay);
         }
     }
 }
@@ -9076,12 +9409,11 @@ function initializePerLineHighlights() {
     }
 }
 
-// Function to initialize logo hover effect - expands all scrollbar color items and pushes UI rectangles inward when hovering on SYN logo
+// Function to initialize logo hover effect - expands all scrollbar color items and pushes UI rectangles inward when hovering on logo
 function initializeColorKeyClickEffect() {
-    const synElement = document.querySelector('.black-rectangle-syn');
-    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
+    const logoElement = document.querySelector('.black-rectangle-logo');
     
-    if (!synElement && !ethesiaElement) return;
+    if (!logoElement) return;
     
     // Get all color items from both columns
     const allColorItems = document.querySelectorAll('.color-item');
@@ -9094,12 +9426,6 @@ function initializeColorKeyClickEffect() {
     // Get the logo hover overlay (darkens and blurs canvas area)
     const logoHoverOverlay = document.getElementById('logo-hover-overlay');
     
-    // Get the logo hover text boxes
-    const logoHoverTextBox1 = document.getElementById('logo-hover-text-box-1');
-    
-    // Flag to track if line backgrounds have been created (need to wait for visibility)
-    let logoTextBoxBackgroundsCreated = false;
-    
     // Helper function to handle hover in - expand all items and push UI rectangles inward
     const handleHoverIn = () => {
         // Add legend-expanded class to ALL items (both columns) for bulk hover effect
@@ -9108,24 +9434,12 @@ function initializeColorKeyClickEffect() {
         });
         
         // Add logo-hovered class to mask containers to push them inward (to 85px from edges)
-        if (maskIndex) maskIndex.classList.add('logo-hovered');
+        // Note: maskIndex is excluded - INDEX stays in place on logo hover
         if (maskLeft) maskLeft.classList.add('logo-hovered');
         if (maskRight) maskRight.classList.add('logo-hovered');
         
         // Show the logo hover overlay (10% black + blur on canvas area)
         if (logoHoverOverlay) logoHoverOverlay.classList.add('visible');
-        
-        // Show the logo hover text boxes
-        if (logoHoverTextBox1) logoHoverTextBox1.classList.add('visible');
-        
-        // Create line backgrounds on first hover (when text box is visible for accurate measurements)
-        // Use setTimeout to wait for CSS transition to complete (200ms transition + 50ms buffer)
-        if (!logoTextBoxBackgroundsCreated) {
-            setTimeout(() => {
-                initializeLogoTextBoxLineBackgrounds();
-                logoTextBoxBackgroundsCreated = true;
-            }, 250);
-        }
     };
     
     // Helper function to handle hover out - collapse all items and reset UI rectangles
@@ -9136,33 +9450,26 @@ function initializeColorKeyClickEffect() {
         });
         
         // Remove logo-hovered class from mask containers to reset their position (back to 50px)
-        if (maskIndex) maskIndex.classList.remove('logo-hovered');
+        // Note: maskIndex is excluded - INDEX stays in place on logo hover
         if (maskLeft) maskLeft.classList.remove('logo-hovered');
         if (maskRight) maskRight.classList.remove('logo-hovered');
         
         // Hide the logo hover overlay
         if (logoHoverOverlay) logoHoverOverlay.classList.remove('visible');
-        
-        // Hide the logo hover text boxes
-        if (logoHoverTextBox1) logoHoverTextBox1.classList.remove('visible');
     };
     
-    // Add event listeners to both logo rectangles for unified hover behavior
-    if (synElement) {
-        synElement.addEventListener('mouseenter', handleHoverIn);
-        synElement.addEventListener('mouseleave', handleHoverOut);
-    }
-    if (ethesiaElement) {
-        ethesiaElement.addEventListener('mouseenter', handleHoverIn);
-        ethesiaElement.addEventListener('mouseleave', handleHoverOut);
+    // Add event listeners to logo rectangle for hover behavior
+    if (logoElement) {
+        logoElement.addEventListener('mouseenter', handleHoverIn);
+        logoElement.addEventListener('mouseleave', handleHoverOut);
     }
 }
 
-// Function to initialize line backgrounds for logo hover text boxes
+// Function to initialize line backgrounds for about page text boxes
 // Creates gray background blocks behind each line of text, aligned to the right edge
-function initializeLogoTextBoxLineBackgrounds() {
-    // Initialize backgrounds for both text boxes
-    initializeLineBackgroundsForTextBox('logo-hover-text-box-1');
+function initializeAboutTextBoxLineBackgrounds() {
+    // Initialize backgrounds for the about text box
+    initializeLineBackgroundsForTextBox('about-text-box-1');
 }
 
 // Helper function to create line backgrounds for a specific text box
@@ -9177,7 +9484,7 @@ function initializeLineBackgroundsForTextBox(textBoxId) {
     if (paragraphs.length === 0) return;
     
     // Remove any existing line backgrounds
-    const existingBgs = textBox.querySelectorAll('.logo-line-bg');
+    const existingBgs = textBox.querySelectorAll('.about-line-bg');
     existingBgs.forEach(bg => bg.remove());
     
     // Temporarily force visibility for accurate measurements
@@ -9273,7 +9580,7 @@ function initializeLineBackgroundsForTextBox(textBoxId) {
     
     lines.forEach((lineRect) => {
         const bgDiv = document.createElement('div');
-        bgDiv.className = 'logo-line-bg';
+        bgDiv.className = 'about-line-bg';
         
         // Position based on actual line position (left + width)
         // This works for right-aligned text because each line has different left position
@@ -9410,41 +9717,147 @@ function initializeIndexHoverEffect() {
     });
 }
 
-// Function to align PARAMETER TEXT-BOX rectangles with logo bottom edge
-// Note: SIGNAL rectangle is now positioned at bottom via CSS, no JS alignment needed
-// Note: Positioning is now on mask containers (.ui-rect-mask-left, .ui-rect-mask-right)
+// Function to initialize ABOUT hover effect - shows white overlay on canvas when hovering on ABOUT button
+function initializeAboutHoverEffect() {
+    const aboutButton = document.querySelector('.black-corner-rectangle-about');
+    const aboutPageOverlay = document.getElementById('about-page-overlay');
+    const paramRectLeft = document.querySelector('.black-bottom-rectangle-left');
+    const paramRectRight = document.querySelector('.black-bottom-rectangle-right');
+    
+    if (!aboutButton || !aboutPageOverlay) return;
+    
+    // Track if about is currently open
+    let aboutIsOpen = false;
+    
+    // Flag to track if line backgrounds have been created (need to wait for visibility)
+    let aboutTextBoxBackgroundsCreated = false;
+    
+    // Helper to open about (show overlay, expand letters, hide param rects)
+    const openAbout = () => {
+        aboutIsOpen = true;
+        aboutPageOverlay.classList.add('visible');
+        aboutButton.classList.add('color-key-expanded'); // Keep letters expanded
+        if (paramRectLeft) paramRectLeft.classList.add('about-hovered');
+        if (paramRectRight) paramRectRight.classList.add('about-hovered');
+        
+        // Create line backgrounds on first open (when text box is visible for accurate measurements)
+        // Use setTimeout to wait for CSS transition to complete (300ms transition + 50ms buffer)
+        if (!aboutTextBoxBackgroundsCreated) {
+            setTimeout(() => {
+                initializeAboutTextBoxLineBackgrounds();
+                aboutTextBoxBackgroundsCreated = true;
+            }, 350);
+        }
+    };
+    
+    // Helper to close about (hide overlay, collapse letters, show param rects)
+    const closeAbout = () => {
+        aboutIsOpen = false;
+        aboutPageOverlay.classList.remove('visible');
+        aboutButton.classList.remove('color-key-expanded'); // Collapse letters
+        if (paramRectLeft) paramRectLeft.classList.remove('about-hovered');
+        if (paramRectRight) paramRectRight.classList.remove('about-hovered');
+    };
+    
+    // ABOUT button: open if closed, close if open
+    aboutButton.addEventListener('mouseenter', () => {
+        if (aboutIsOpen) {
+            // Close when hovering on ABOUT while overlay is open
+            closeAbout();
+        } else {
+            // Open when hovering on ABOUT while overlay is closed
+            openAbout();
+        }
+    });
+    
+    // When leaving ABOUT button to overlay, keep open; otherwise close
+    aboutButton.addEventListener('mouseleave', (e) => {
+        // If moving to overlay, keep open state
+        if (aboutPageOverlay.contains(e.relatedTarget)) {
+            // Moving to overlay - keep open
+            return;
+        }
+        // If overlay is not open anymore (was closed by mouseenter), don't do anything
+        if (!aboutIsOpen) {
+            return;
+        }
+        // Leaving to somewhere else while open - close
+        closeAbout();
+    });
+    
+    // Overlay: keep about open when hovering over it
+    aboutPageOverlay.addEventListener('mouseenter', () => {
+        // Keep open state and expanded letters
+        openAbout();
+    });
+    
+    // When leaving overlay, close unless going to ABOUT button
+    aboutPageOverlay.addEventListener('mouseleave', (e) => {
+        if (!aboutButton.contains(e.relatedTarget)) {
+            closeAbout();
+        }
+    });
+}
+
+// Function to align PARAMETER TEXT-BOX rectangles with gradient header bottom edge
+// Note: Positioning is now on mask containers (.ui-rect-mask-left, .ui-rect-mask-right, .ui-rect-mask-index)
 function alignRectanglesWithEsthesia() {
     // Wait for fonts to load if available, then wait for layout to stabilize
     const waitForLayout = () => {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                // Use logo-container for alignment (contains both SYN and [esthesia] rectangles)
+                // Use logo-container for horizontal alignment of INDEX
                 const logoContainer = document.querySelector('.logo-container');
                 // Get mask containers instead of rectangles for positioning
                 const maskLeft = document.querySelector('.ui-rect-mask-left');
                 const maskRight = document.querySelector('.ui-rect-mask-right');
+                const maskIndex = document.querySelector('.ui-rect-mask-index');
+                const maskAbout = document.querySelector('.ui-rect-mask-about');
                 
                 if (!logoContainer) {
                     console.warn('Logo alignment: Missing logo container element');
                     return;
                 }
                 
-                // Measure the logo container using getBoundingClientRect()
-                const logoContainerBounds = logoContainer.getBoundingClientRect();
-                const logoBottom = logoContainerBounds.bottom;
+                // Get the bottom edge of the gradient header (100vh / 6)
+                const gradientBottom = window.innerHeight / 6;
                 
-                // Align left mask container
+                // Get actual mask heights from CSS (dynamically reads the current values)
+                // Parameter masks (left/right) and index/about masks may have different heights
+                const paramMaskHeight = maskLeft ? parseFloat(getComputedStyle(maskLeft).height) : 40;
+                const indexMaskHeight = maskIndex ? parseFloat(getComputedStyle(maskIndex).height) : 28;
+                
+                // Position rectangles so their bottom edge aligns with gradient bottom
+                const paramRectTop = gradientBottom - paramMaskHeight;
+                const indexRectTop = gradientBottom - indexMaskHeight;
+                
+                // Get logo right edge for INDEX horizontal positioning
+                const logoContainerBounds = logoContainer.getBoundingClientRect();
+                const logoRight = logoContainerBounds.right;
+                
+                // Align left mask container - bottom edge at gradient bottom
                 if (maskLeft) {
-                    const leftRectHeight = 40; // Fixed height of mask/rectangle
-                    const leftTop = logoBottom - leftRectHeight;
-                    maskLeft.style.top = `${leftTop}px`;
+                    maskLeft.style.top = `${paramRectTop}px`;
                 }
                 
-                // Align right mask container
+                // Align right mask container - bottom edge at gradient bottom
                 if (maskRight) {
-                    const rightRectHeight = 40; // Fixed height of mask/rectangle
-                    const rightTop = logoBottom - rightRectHeight;
-                    maskRight.style.top = `${rightTop}px`;
+                    maskRight.style.top = `${paramRectTop}px`;
+                }
+                
+                // Align ABOUT mask container - 50px to the right of logo, bottom edge at gradient bottom
+                if (maskAbout) {
+                    const aboutLeft = logoRight + 50; // 50px to the right of logo
+                    maskAbout.style.top = `${indexRectTop}px`;
+                    maskAbout.style.left = `${aboutLeft}px`;
+                }
+                
+                // Align INDEX mask container - 50px to the right of ABOUT, bottom edge at gradient bottom
+                if (maskIndex && maskAbout) {
+                    const aboutBounds = maskAbout.getBoundingClientRect();
+                    const indexLeft = aboutBounds.right + 50; // 50px to the right of ABOUT
+                    maskIndex.style.top = `${indexRectTop}px`;
+                    maskIndex.style.left = `${indexLeft}px`;
                 }
                 
             });
@@ -10378,6 +10791,84 @@ function updateGradientBarHeights(progress) {
     });
 }
 
+// Function to scroll both wheels from center area scroll
+// Used during post-demo phase (after demo ends, before START is clicked)
+// Scrolls right wheel down, left wheel up (same direction as demo)
+function scrollWheelsFromCenter(deltaY) {
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    
+    if (!leftColumn || !rightColumn) return;
+    
+    // Calculate scroll boundaries (same as in initializeColumn)
+    const itemHeight = window.innerHeight / 6;
+    const singleSetHeight = 6 * itemHeight;
+    const topBoundary = singleSetHeight * 0.5;
+    const bottomBoundary = singleSetHeight * 1.5;
+    
+    // CRITICAL: Stop scroll hint animation when user scrolls from center
+    // This resets isProgrammaticScroll = false, allowing START button to appear
+    if (scrollHintAnimationActive) {
+        stopScrollHintAnimation();
+    }
+    
+    // CRITICAL: Disable scroll-snap to allow smooth programmatic scrolling
+    // Without this, scroll-snap overrides our scrollTop changes immediately
+    leftColumn.style.scrollSnapType = 'none';
+    rightColumn.style.scrollSnapType = 'none';
+    
+    // CRITICAL: Mark this as user interaction so START button can appear
+    // Center scrolling is a valid user interaction that should trigger START
+    if (!userInteracted && !isInitializing) {
+        userInteracted = true;
+    }
+    
+    // Scroll multiplier to adjust sensitivity
+    const scrollMultiplier = 1.5;
+    
+    // CRITICAL FIX: Mark as programmatic scroll to prevent individual boundary logic from firing
+    // We will handle boundary logic ourselves in a synchronized way below
+    isProgrammaticScroll = true;
+    
+    // Right wheel scrolls down (same direction as deltaY)
+    // Left wheel scrolls up (opposite direction)
+    rightColumn.scrollTop += deltaY * scrollMultiplier;
+    leftColumn.scrollTop -= deltaY * scrollMultiplier;
+    
+    // SYNCHRONIZED INFINITE SCROLL: Check boundaries for BOTH columns together
+    // When one column needs to recenter, the other must also recenter to stay in sync
+    const leftScrollTop = leftColumn.scrollTop;
+    const rightScrollTop = rightColumn.scrollTop;
+    
+    // Helper function to snap to tile
+    const snapToTile = (scrollTop) => {
+        const tileIndex = Math.round(scrollTop / itemHeight);
+        return tileIndex * itemHeight;
+    };
+    
+    // Check if either column needs recentering
+    const leftNeedsJumpForward = leftScrollTop < topBoundary;  // scrolled too far up
+    const leftNeedsJumpBackward = leftScrollTop > bottomBoundary;  // scrolled too far down
+    const rightNeedsJumpForward = rightScrollTop < topBoundary;  // scrolled too far up
+    const rightNeedsJumpBackward = rightScrollTop > bottomBoundary;  // scrolled too far down
+    
+    // If any column needs recentering, recenter BOTH columns together
+    if (leftNeedsJumpForward || rightNeedsJumpBackward) {
+        // Left went too far up OR right went too far down
+        // Jump left forward (add singleSetHeight), jump right backward (subtract singleSetHeight)
+        leftColumn.scrollTop = snapToTile(leftScrollTop + singleSetHeight);
+        rightColumn.scrollTop = snapToTile(rightScrollTop - singleSetHeight);
+    } else if (leftNeedsJumpBackward || rightNeedsJumpForward) {
+        // Left went too far down OR right went too far up
+        // Jump left backward (subtract singleSetHeight), jump right forward (add singleSetHeight)
+        leftColumn.scrollTop = snapToTile(leftScrollTop - singleSetHeight);
+        rightColumn.scrollTop = snapToTile(rightScrollTop + singleSetHeight);
+    }
+    
+    // Reset programmatic flag after scroll is applied
+    isProgrammaticScroll = false;
+}
+
 // Function to initialize center scroll trigger for intro
 function initializeCenterScrollTrigger() {
     const gradientContainer = document.getElementById('gradient-intro-container');
@@ -10398,6 +10889,29 @@ function initializeCenterScrollTrigger() {
         // CRITICAL: Block center scroll during START click transition (programmatic transition active)
         if (startClickTransitionActive) {
             return;
+        }
+        
+        // NEW: Center scroll drives wheels during post-demo phase
+        // Active when: demo ended (instruction text shown), but intro not yet completed
+        // This allows scrolling the wheels from the center area between demo end and START click
+        if (!isDemoActive && initialInstructionTextShown && !introCompleted) {
+            // Check if the event originated from a scrollbar column
+            const target = e.target;
+            const isInScrollbar = target.closest('.column-container');
+            if (isInScrollbar) {
+                // This is a scrollbar scroll - let it work normally
+                return;
+            }
+            
+            // Check if mouse is in center area (between scrollbars)
+            const mouseX = e.clientX;
+            const { leftInnerX, rightInnerX } = getClosedScrollbarInnerEdges();
+            
+            if (mouseX >= leftInnerX && mouseX <= rightInnerX) {
+                e.preventDefault();
+                scrollWheelsFromCenter(e.deltaY);
+                return;
+            }
         }
         
         // CRITICAL: Disable scroll-to-close after START appears - only click should trigger transition
@@ -11497,15 +12011,10 @@ function restartIntro() {
     }
     
     // Ensure logo remains clickable after restart
-    const synElement = document.querySelector('.black-rectangle-syn');
-    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
-    if (synElement) {
-        synElement.style.pointerEvents = 'auto';
-        synElement.style.cursor = 'pointer';
-    }
-    if (ethesiaElement) {
-        ethesiaElement.style.pointerEvents = 'auto';
-        ethesiaElement.style.cursor = 'pointer';
+    const logoElement = document.querySelector('.black-rectangle-logo');
+    if (logoElement) {
+        logoElement.style.pointerEvents = 'auto';
+        logoElement.style.cursor = 'pointer';
     }
     
     // Re-initialize the gradient intro (this will create new rectangles and start the animation)
@@ -11516,11 +12025,10 @@ function restartIntro() {
 
 // Function to initialize logo click handler
 function initializeLogoClickHandler() {
-    const synElement = document.querySelector('.black-rectangle-syn');
-    const ethesiaElement = document.querySelector('.black-rectangle-ethesia');
+    const logoElement = document.querySelector('.black-rectangle-logo');
     
-    if (!synElement && !ethesiaElement) {
-        console.warn('Logo elements (.black-rectangle-syn, .black-rectangle-ethesia) not found');
+    if (!logoElement) {
+        console.warn('Logo element (.black-rectangle-logo) not found');
         return;
     }
     
@@ -11538,20 +12046,12 @@ function initializeLogoClickHandler() {
         }
     };
     
-    // Set up SYN rectangle
-    if (synElement) {
+    // Set up logo rectangle
+    if (logoElement) {
         // CRITICAL: Enable pointer events (CSS has pointer-events: none by default)
-        synElement.style.pointerEvents = 'auto';
-        synElement.style.cursor = 'pointer';
-        synElement.addEventListener('click', handleLogoClick);
-    }
-    
-    // Set up [esthesia] rectangle
-    if (ethesiaElement) {
-        // CRITICAL: Enable pointer events
-        ethesiaElement.style.pointerEvents = 'auto';
-        ethesiaElement.style.cursor = 'pointer';
-        ethesiaElement.addEventListener('click', handleLogoClick);
+        logoElement.style.pointerEvents = 'auto';
+        logoElement.style.cursor = 'pointer';
+        logoElement.addEventListener('click', handleLogoClick);
     }
 }
 
@@ -11735,6 +12235,10 @@ function scrollBothColumnsProgrammatically(duration) {
         }
         
         isDemoActive = false;
+        
+        // CRITICAL: Reset isProgrammaticScroll to allow user scrolling to be detected
+        // This was staying true after demo, blocking all user interaction detection
+        isProgrammaticScroll = false;
         
         // CRITICAL: Set grace period flag to prevent START from triggering immediately
         // This prevents scroll-snap and residual events from triggering START

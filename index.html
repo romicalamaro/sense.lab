@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>synesthesia</title>
+    <title>Sense Lab</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -72,13 +72,12 @@
     <div class="ui-layer">
         <div class="ui-rect-mask ui-rect-mask-index">
             <div class="black-corner-rectangle">
-                <div class="color-key-text">
-                    <span class="letter-i">I</span>
-                    <span class="letter-n">N</span>
-                    <span class="letter-d">D</span>
-                    <span class="letter-e">E</span>
-                    <span class="letter-x">X</span>
-                </div>
+                <div class="color-key-text">[index]</div>
+            </div>
+        </div>
+        <div class="ui-rect-mask ui-rect-mask-about">
+            <div class="black-corner-rectangle black-corner-rectangle-about">
+                <div class="color-key-text">[about]</div>
             </div>
         </div>
         <div class="ui-rect-mask ui-rect-mask-left">
@@ -103,11 +102,8 @@
         </div>
         <div class="logo-clip-mask">
             <div class="logo-container">
-                <div class="black-rectangle-syn">
-                    <div class="syn-text"><span class="syn-word"><span class="syn-letter-s">S</span><span class="syn-letter-y">Y</span><span class="syn-letter-n">N</span></span></div>
-                </div>
-                <div class="black-rectangle-ethesia">
-                    <span class="ethesia-text">[esthesia]</span>
+                <div class="black-rectangle-logo">
+                    <div class="logo-text"><span class="logo-word"><span class="logo-letter">S</span><span class="logo-letter">e</span><span class="logo-letter">n</span><span class="logo-letter">s</span><span class="logo-letter">e</span><span class="logo-space"> </span><span class="logo-letter">L</span><span class="logo-letter">a</span><span class="logo-letter">b</span></span></div>
                 </div>
             </div>
         </div>
@@ -206,7 +202,7 @@
         </div>
         <!-- Number + Color text box -->
         <div class="canvas-text-box-number-color" id="canvas-text-box-number-color">
-            <p>(1+2+3)×(4+5−1)+6^2−(3×2)+(5+1)×(4−2)+(6+3)÷(1+2)+4^2−(5−1)×3+(2+6)×(1+4)−(3+3)+5^2÷(1+4)+(6−2)×(3+1)</p>
+            <p>[1+2+3]×[4+5−1]+6^2−[3×2]+[5+1]×[4−2]+[6+3]÷[1+2]+4^2−[5−1]×3+[2+6]×[1+4]−[3+3]+5^2÷[1+4]+[6−2]×[3+1]</p>
         </div>
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
@@ -772,10 +768,6 @@
         </div>
         <!-- Logo hover overlay: darkens and blurs canvas when hovering on SYN logo -->
         <div class="logo-hover-overlay" id="logo-hover-overlay"></div>
-        <!-- Logo hover text boxes: appear when hovering on SYN logo -->
-        <div class="logo-hover-text-box logo-hover-text-box-1" id="logo-hover-text-box-1">
-            <p>This website explores synesthesia as a way of understanding how the world is perceived when senses intertwine. Instead of relying on theory, the project translates synesthesia into interactive, sensory-based experiences. All texts and quotations throughout the site are drawn from real testimonies of syntesthetes, reflecting their personal and subjective experiences of letter, number, sound, color, shape, and emotion. Synesthesia is not a metaphor or an imaginative association, but a consistent and involuntary way of perceiving the world.</p>
-        </div>
         <!-- Index page overlay: white background shown on INDEX hover -->
         <div class="index-page-overlay" id="index-page-overlay">
             <!-- Shutter animation container - 5 horizontal strips that slide up to reveal content -->
@@ -834,6 +826,17 @@
             <div class="index-line"></div>
             <div class="index-item" data-left="4" data-right="4"><span class="index-item-name">[Emotion + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + emotion.png" alt=""></div>
             <div class="index-line"></div>
+        </div>
+        <!-- About page overlay: white background shown on ABOUT hover -->
+        <div class="about-page-overlay" id="about-page-overlay">
+            <!-- About text box: synesthesia explanation -->
+            <div class="about-text-box about-text-box-1" id="about-text-box-1">
+                <p>This website explores synesthesia as a way of understanding how the world is perceived when senses intertwine. Instead of relying on theory, the project translates synesthesia into interactive, sensory-based experiences. All texts and quotations throughout the site are drawn from real testimonies of syntesthetes, reflecting their personal and subjective experiences of letter, number, sound, color, shape, and emotion. Synesthesia is not a metaphor or an imaginative association, but a consistent and involuntary way of perceiving the world.</p>
+            </div>
+            <!-- About page footer -->
+            <footer class="about-footer">
+                <span class="copyright-symbol">©</span> 2026 | by Romi Calamaro | Made with Cursor
+            </footer>
         </div>
     </div>
     <div class="line line-outer-left"></div>

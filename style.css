@@ -761,7 +761,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
    ================== */
 .ui-rect-mask {
     position: absolute;
-    height: 40px; /* Same as rectangle height */
+    height: 28px; /* Same as rectangle height */
     overflow: hidden; /* Clip content - creates the mask effect */
     z-index: 1; /* Relative to ui-layer */
     pointer-events: none; /* Let events pass through to child rectangle */
@@ -775,10 +775,9 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     height: 40px !important; /* Same height as parameter rectangles */
 }
 
-/* INDEX mask - positioned at bottom right */
+/* INDEX mask - positioned at gradient bottom edge, 50px right of logo */
+/* left and top are set dynamically via JavaScript in alignRectanglesWithEsthesia() */
 .ui-rect-mask-index {
-    right: 50px;
-    bottom: 0;
     min-width: 100px;
     width: auto;
 }
@@ -788,6 +787,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     left: 50px;
     min-width: 100px;
     width: auto;
+    height: 40px; /* Parameter rectangles use 40px height */
 }
 
 /* WORD right mask - positioned at right, top set by JS */
@@ -795,6 +795,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     right: 50px;
     min-width: 100px;
     width: auto;
+    height: 40px; /* Parameter rectangles use 40px height */
 }
 
 /* Intro state positioning - WORD rectangles positioned 85px from screen edges during intro */
@@ -827,78 +828,51 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     position: relative; /* Changed from absolute - now inside mask container */
     width: auto; /* Auto width based on content - same as parameter rectangles */
     min-width: 100px; /* Minimum width - same as parameter rectangles */
-    height: 40px; /* Same height as parameter rectangles */
-    background-color: #2C2C2C; /* Same black as .black-rectangle */
+    height: 28px; /* Same height as parameter rectangles */
+    background-color: #2C2C2C; /* Black background for INDEX and ABOUT buttons */
     z-index: 1; /* Relative to ui-layer */
     pointer-events: auto; /* Enable hover interactions */
     box-sizing: border-box; /* Ensure width includes padding/border */
     margin: 0; /* Remove any default margins */
-    padding: 0; /* Remove any default padding */
-    transition: width 0.2s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* Width for hover, transform for slide-in */
+    padding: 0 10px; /* Horizontal padding for text spacing */
+    transition: width 0.2s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease; /* Width for hover, transform for slide-in, background for color swap */
     cursor: pointer; /* Indicate interactivity */
     display: flex;
     align-items: center; /* Vertically centers text within rectangle */
-    justify-content: flex-end; /* Align text to right (inner edge of right scrollbar) */
+    justify-content: center; /* Center text horizontally */
     overflow: hidden; /* Ensure text stays within bounds */
 }
 
-/* Text styling for COLOR KEY */
+/* Text styling for INDEX and ABOUT buttons */
 .black-corner-rectangle .color-key-text {
-    color: white; /* Match white canvas color */
-    font-family: Helvetica, sans-serif;
-    font-size: 0; /* Remove spacing between inline-block children */
-    font-weight: bold;
-    letter-spacing: -0.05em; /* -5% letter spacing */
+    color: white; /* White text on black background */
+    font-family: 'JetBrains Mono NL', monospace; /* Site standard monospace font */
+    font-size: 15px; /* Site standard size for JetBrains Mono */
+    font-weight: bold; /* Bold text */
+    letter-spacing: 0.03em; /* Standard letter spacing for JetBrains Mono */
     white-space: nowrap;
-    text-transform: uppercase;
-    padding: 0 0 0 10px; /* Left padding only - flush against right edge */
-    box-sizing: border-box;
-    position: relative;
-    top: 9px; /* Moved up 3px from 12px */
-    right: 0; /* Align to right edge of rectangle (inner edge of right scrollbar) */
-    display: flex;
-    justify-content: flex-end; /* Align text to right */
+    text-transform: none; /* Keep lowercase as written */
+    line-height: 1; /* Ensure proper vertical centering */
+    transition: color 0.2s ease; /* Smooth color transition on hover */
 }
 
-/* Default letter-spacing for each letter - -5% spacing */
-.black-corner-rectangle .color-key-text .letter-i,
-.black-corner-rectangle .color-key-text .letter-n,
-.black-corner-rectangle .color-key-text .letter-d,
-.black-corner-rectangle .color-key-text .letter-e,
-.black-corner-rectangle .color-key-text .letter-x {
-    display: inline-block; /* Allow individual letter control */
-    font-size: 34px; /* Reset font-size from parent's 0 */
-    letter-spacing: -0.05em; /* -5% letter spacing */
-    transition: letter-spacing 0.3s ease, margin-right 0.3s ease; /* Smooth transition */
+/* Hover effect for INDEX and ABOUT buttons - swap colors */
+/* Also stays inverted when overlay is open (color-key-expanded class) */
+.black-corner-rectangle:hover,
+.black-corner-rectangle.color-key-expanded {
+    background-color: white; /* White background on hover or when overlay is open */
 }
 
-/* Expanded letter-spacing on hover - reversed progressive spacing (largest at I, smallest at E, X stays static) */
-.black-corner-rectangle:hover .color-key-text .letter-i,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-i {
-    letter-spacing: 0.46em; /* largest gap - between I and N */
+.black-corner-rectangle:hover .color-key-text,
+.black-corner-rectangle.color-key-expanded .color-key-text {
+    color: #2C2C2C; /* Black text on hover or when overlay is open */
 }
 
-.black-corner-rectangle:hover .color-key-text .letter-n,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-n {
-    letter-spacing: 0.36em; /* between N and D */
+/* About button - gray background on hover instead of white */
+.black-corner-rectangle-about:hover,
+.black-corner-rectangle-about.color-key-expanded {
+    background-color: #E0E0E0; /* Gray background on hover */
 }
-
-.black-corner-rectangle:hover .color-key-text .letter-d,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-d {
-    letter-spacing: 0.26em; /* between D and E */
-}
-
-.black-corner-rectangle:hover .color-key-text .letter-e,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-e {
-    letter-spacing: 0.16em; /* smallest gap - between E and X */
-}
-
-.black-corner-rectangle:hover .color-key-text .letter-x,
-.black-corner-rectangle.color-key-expanded .color-key-text .letter-x {
-    letter-spacing: -0.05em; /* stays at default - X is static */
-}
-
-/* Rectangle width stays static on hover - only letter-spacing changes */
 
 /* Left parameter rectangle - inside mask container */
 .black-bottom-rectangle-left {
@@ -906,7 +880,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     width: auto; /* Auto width based on content */
     min-width: 100px; /* Minimum width */
     height: 40px;
-    background-color: #2C2C2C;
+    background-color: white;
     z-index: 1; /* Relative to ui-layer */
     pointer-events: auto;
     box-sizing: border-box;
@@ -915,7 +889,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     cursor: default;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center; /* Center text horizontally */
     overflow: hidden;
 }
 
@@ -925,7 +899,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     width: auto; /* Auto width based on content */
     min-width: 100px; /* Minimum width */
     height: 40px;
-    background-color: #2C2C2C;
+    background-color: white;
     z-index: 1; /* Relative to ui-layer */
     pointer-events: auto;
     box-sizing: border-box;
@@ -934,7 +908,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     cursor: default;
     display: flex;
     align-items: center;
-    justify-content: flex-end; /* Align text to right edge for right rectangle */
+    justify-content: center; /* Center text horizontally */
     overflow: hidden;
 }
 
@@ -1002,28 +976,20 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     pointer-events: none; /* Let pointer events pass through to children */
 }
 
-/* Logo container - wrapper for SYN and [esthesia] rectangles */
-/* Uses fixed pixel offset instead of percentage to prevent left edge shift during hover transition */
-/* The -50% percentage causes issues because it recalculates as width changes, causing animation glitches */
+/* Logo container - wrapper for Sense Lab rectangle */
+/* Positioned 330px from left edge of screen */
 .logo-container {
     position: absolute;
-    left: 50%; /* Centered horizontally */
-    transform: translateX(-131.75px); /* Fixed offset: half of non-hover width (263.5/2) - keeps left edge stable */
-    top: calc(100vh / 6 - 75px); /* Positioned so bottom edge stays at calc(100vh / 6) */
-    height: 75px;
+    left: 330px; /* Fixed position from left edge */
+    top: calc(100vh / 6 - 90px); /* Positioned so bottom edge stays at calc(100vh / 6) */
+    height: 90px;
     z-index: 1; /* Relative to logo-clip-mask */
     pointer-events: none; /* Container doesn't block interactions - children handle them */
     display: flex;
     flex-direction: row;
-    align-items: flex-end; /* Align children to bottom */
-    gap: 0; /* No gap - rectangles are attached */
-    transition: none; /* No transform transition needed - left edge stays fixed */
-}
-
-/* On hover - keep same transform to maintain fixed left edge */
-/* Container width grows from 263.5px to 323.5px, but left edge stays at same position */
-.logo-container:hover {
-    transform: translateX(-131.75px); /* Same as non-hover - left edge stays fixed */
+    align-items: center; /* Center children vertically */
+    gap: 0;
+    transition: none;
 }
 
 /* ==================
@@ -1049,120 +1015,87 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
 
 /* When entering (animating), set final position - animation triggered by removing logo-intro-hidden */
 .logo-container.logo-entering:not(.logo-intro-hidden) {
-    top: calc(100vh / 6 - 75px); /* Final position - bottom edge at gradient bottom */
+    top: calc(100vh / 6 - 90px); /* Final position - bottom edge at gradient bottom */
 }
 
 /* Final visible state - logo is in its normal position */
 .logo-container.logo-visible {
-    top: calc(100vh / 6 - 75px); /* Same as default position */
+    top: calc(100vh / 6 - 90px); /* Same as default position */
     /* No transform transition needed - left edge stays fixed with pixel-based offset */
 }
 
-/* Hover states maintain same fixed transform to keep left edge stable */
+/* Hover states - no transform needed with fixed left positioning */
 .logo-container.logo-entering:hover,
 .logo-container.logo-visible:hover {
-    transform: translateX(-131.75px); /* Same fixed offset - left edge stays fixed */
+    /* No transform needed - left edge stays fixed at 330px */
 }
 
-/* SYN rectangle - contains the large SYN letters */
-.black-rectangle-syn {
+/* Sense Lab rectangle - contains the logo text */
+.black-rectangle-logo {
     position: relative;
-    width: 160px;
-    height: 75px;
-    background-color: #2C2C2C;
+    width: 310px;
+    height: 90px;
+    background-color: #2C2C2C; /* Black background */
+    border: none; /* No border */
     pointer-events: auto; /* Enable hover interactions */
     cursor: pointer; /* Indicate interactivity */
-    overflow: visible; /* Allow SYN text to extend beyond container on hover */
-    transition: width 0.3s ease, z-index 0s; /* Smooth expansion on hover */
+    overflow: visible; /* Allow text to extend beyond container on hover */
+    transition: background-color 0.3s ease; /* Smooth color transition on hover */
     z-index: 1; /* Default z-index */
+    display: flex; /* Use flexbox for centering */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
 }
 
-/* [esthesia] rectangle - contains the smaller text */
-.black-rectangle-ethesia {
-    position: relative;
-    height: 40px; /* Smaller height for the text */
-    background-color: #2C2C2C;
-    pointer-events: auto; /* Enable hover interactions */
-    cursor: pointer; /* Indicate interactivity */
-    display: flex;
-    align-items: center; /* Vertically center the text */
-    padding: 0 10px 0 0; /* Right padding only - text flush against left edge */
-    z-index: 0; /* Lower z-index so SYN can overlap it on hover */
-    margin-left: -1px; /* Close any sub-pixel gap */
-}
-
-.black-rectangle-syn .syn-text {
-    position: absolute;
-    bottom: -6px; /* Negative offset to make glyphs touch bottom edge */
-    left: 0; /* Flush with left edge of black rectangle */
+.black-rectangle-logo .logo-text {
     font-family: Helvetica, sans-serif;
-    font-size: 88px;
+    font-size: 52px; /* Slightly smaller to fit well centered */
     font-weight: bold;
-    letter-spacing: -0.17em; /* -17% letter spacing */
-    color: white; /* Match white canvas color */
-    text-transform: uppercase;
-    line-height: 0.8; /* Tight line-height to make glyphs touch bottom edge */
+    letter-spacing: 0; /* Normal letter spacing */
+    color: white; /* White text */
+    line-height: 1; /* Normal line height for centered text */
     margin: 0;
     padding: 0;
-    transform: translateX(-4px); /* Pull text left to eliminate gap from font sidebearings */
-    white-space: nowrap; /* Prevent line breaking when letters expand */
+    white-space: nowrap; /* Prevent line breaking */
     overflow: visible; /* Allow text to extend beyond container */
+    transition: color 0.3s ease; /* Smooth color transition on hover */
 }
 
-.black-rectangle-syn .syn-text .syn-word {
+.black-rectangle-logo .logo-text .logo-word {
     display: inline-block;
     position: relative;
     white-space: nowrap; /* Prevent line breaking when letters expand */
 }
 
-/* Default letter-spacing for each SYN letter */
-.black-rectangle-syn .syn-text .syn-letter-s,
-.black-rectangle-syn .syn-text .syn-letter-y,
-.black-rectangle-syn .syn-text .syn-letter-n {
+/* Default letter-spacing for each logo letter */
+.black-rectangle-logo .logo-text .logo-letter {
     display: inline-block; /* Allow individual letter control */
-    letter-spacing: -0.17em; /* -17% letter spacing - matches original */
+    letter-spacing: 0; /* Normal letter spacing */
     transition: letter-spacing 0.3s ease; /* Smooth transition */
 }
 
-/* Specific S letter spacing - 3px tighter than default */
-.black-rectangle-syn .syn-text .syn-letter-s {
-    letter-spacing: -0.204em; /* -0.17em - 0.034em (3px at 88px font) */
+/* Space between words */
+.black-rectangle-logo .logo-text .logo-space {
+    display: inline-block;
+    width: 0.3em; /* Space width */
+    transition: width 0.3s ease; /* Smooth transition */
 }
 
-/* SYN rectangle expands to the right on hover to match SYN text expansion */
-.black-rectangle-syn:hover,
-.logo-container:hover .black-rectangle-syn {
-    width: 220px; /* Expand to match the letter-spacing expansion of SYN text (~60px growth) */
-    z-index: 2; /* Higher z-index to appear above [esthesia] */
+/* Logo color inversion on hover - rectangle becomes gray, text becomes dark gray */
+.black-rectangle-logo:hover,
+.logo-container:hover .black-rectangle-logo {
+    background-color: white; /* White background on hover */
 }
 
-/* Expanded letter-spacing on hover - progressive spacing */
-.black-rectangle-syn:hover .syn-text .syn-letter-s,
-.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-s {
-    letter-spacing: 0.068em; /* ~6px at 88px font */
+.black-rectangle-logo:hover .logo-text,
+.logo-container:hover .black-rectangle-logo .logo-text {
+    color: #2C2C2C; /* Dark gray text (same as UI rectangles) */
 }
 
-.black-rectangle-syn:hover .syn-text .syn-letter-y,
-.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-y {
-    letter-spacing: 0.205em; /* ~18px at 88px font */
-}
-
-.black-rectangle-syn:hover .syn-text .syn-letter-n,
-.logo-container:hover .black-rectangle-syn .syn-text .syn-letter-n {
-    letter-spacing: -0.17em; /* Keep same as default */
-}
-
-/* [esthesia] text styling */
-.black-rectangle-ethesia .ethesia-text {
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    letter-spacing: 0.03em; /* 3% letter spacing */
-    color: white;
-    white-space: nowrap;
-    text-transform: none; /* Keep lowercase */
-    line-height: 1;
-    margin: 0;
-    padding: 0;
+/* Explicit color for logo letters on hover - ensures inheritance works properly */
+.black-rectangle-logo:hover .logo-text .logo-letter,
+.logo-container:hover .black-rectangle-logo .logo-text .logo-letter {
+    color: #2C2C2C; /* Dark gray text (same as UI rectangles) */
 }
 
 
@@ -1187,50 +1120,46 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
 
 /* Text styling for left parameter word */
 .black-bottom-rectangle-left .word-text-left {
-    color: white;
+    color: #2C2C2C;
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
     letter-spacing: -0.05em;
     white-space: nowrap;
-    text-transform: uppercase;
-    text-align: left;
-    padding: 0 10px 0 0; /* Right padding for spacing from edge */
+    text-transform: none; /* Capitalization handled in JS */
+    text-align: center;
+    padding: 0 10px; /* Equal padding on both sides */
     margin: 0;
     box-sizing: border-box;
     position: relative;
-    top: 9px;
-    left: -2px;
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
 }
 
 /* Text styling for right parameter word */
 .black-bottom-rectangle-right .word-text-right {
-    color: white;
+    color: #2C2C2C;
     font-family: Helvetica, sans-serif;
     font-size: 0; /* Remove spacing between inline-block children */
     font-weight: bold;
     letter-spacing: -0.05em;
     white-space: nowrap;
-    text-transform: uppercase;
-    text-align: right;
-    padding: 0 0 0 10px; /* Left padding for spacing from edge */
+    text-transform: none; /* Capitalization handled in JS */
+    text-align: center;
+    padding: 0 10px; /* Equal padding on both sides */
     margin: 0;
     box-sizing: border-box;
     position: relative;
-    top: 9px;
-    right: 0px; /* Moved 2px left (was -2px) */
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 /* Default letter-spacing for each letter in both rectangles */
 .black-bottom-rectangle-left .word-text-left .word-letter,
 .black-bottom-rectangle-right .word-text-right .word-letter {
     display: inline-block;
-    font-size: 34px;
-    letter-spacing: -0.05em;
+    font-size: 32px;
+    letter-spacing: 0;
 }
 
 .text-box {
@@ -1984,7 +1913,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     /* Width is calculated automatically via left and right */
     font-family: Helvetica, sans-serif;
     font-size: 100px;
-    line-height: 107px;
+    line-height: 112px;
     font-weight: bold;
     color: #2C2C2C; /* Same black as UI rectangles */
     z-index: 11; /* Below main canvas text box (z-index: 12) but above canvas */
@@ -2021,7 +1950,7 @@ body.scroll-hint-active .reel-triangle-mask-right .reel-triangle {
     text-align: left; /* Left-aligned text */
     /* Normal font size and line height for proper text flow */
     font-size: 100px; /* Match container font-size */
-    line-height: 107px; /* Match container line-height */
+    line-height: 112px; /* Match container line-height */
     /* Ensure proper word wrapping - no word splitting */
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -2458,11 +2387,28 @@ h1 {
     height: 110px;
     background: #ffffff; /* White fill */
     box-sizing: border-box;
-    pointer-events: none; /* Shapes don't block mouse events */
+    pointer-events: auto; /* Allow grabbing shapes */
+    cursor: grab;
     will-change: transform; /* Optimize for animations */
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Smooth color transition for flash effect */
+    transition: background-color 0.15s ease-out;
+}
+
+/* Dragging state cursor */
+.shape-color-shape:active,
+.shape-color-shape.dragging {
+    cursor: grabbing;
+}
+
+/* SVG stroke and fill settings for consistent 3px outline */
+.shape-color-shape svg polygon,
+.shape-color-shape svg ellipse {
+    transition: fill 0.15s ease-out;
+    stroke-width: 3px;
+    vector-effect: non-scaling-stroke; /* Stroke stays 3px regardless of SVG scaling */
 }
 
 /* Square shape (25%) */
@@ -2621,6 +2567,7 @@ h1 {
 }
 
 .shape-number-panel {
+    display: none !important; /* Hidden - mouse now controls count/size */
     position: absolute;
     right: 0px;
     bottom: 40px;
@@ -2989,9 +2936,11 @@ h1 {
     height: 100px;
     pointer-events: auto; /* Enable drag interactions */
     cursor: grab;
-    transition: box-shadow 0.2s ease;
+    transition: background-color 0.15s ease;
     z-index: 2; /* Above lines (z-index: 1) */
     mix-blend-mode: multiply; /* Colors blend/darken where squares overlap */
+    border: 3px solid #2C2C2C; /* Black border so white squares are visible */
+    box-sizing: border-box; /* Include border in size calculation */
     /* Position will be set by JavaScript */
 }
 
@@ -3000,9 +2949,9 @@ h1 {
     cursor: grabbing;
 }
 
-/* Hover effect for squares */
+/* Hover effect for squares - no shadow */
 .sound-color-square:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    /* No shadow effect */
 }
 
 /* Wrapper that isolates blend mode to only affect squares, not lines */
@@ -3530,18 +3479,15 @@ h1 {
 }
 
 /* ==================
-   LOGO HOVER TEXT BOXES
+   ABOUT PAGE TEXT BOXES
    ================== */
-/* Text boxes that appear when hovering on SYN logo */
-.logo-hover-text-box {
+/* Text boxes inside the About page overlay */
+.about-text-box {
     position: absolute;
-    top: 85px; /* 85px from top of canvas-container (which is at bottom of gradient header) */
-    width: 400px;
-    z-index: 101; /* Above logo-hover-overlay (100) */
+    left: 0; /* 0 from overlay edge = 50px from viewport edge (canvas-container has left: 50px) */
+    right: 0; /* 0 from overlay edge = 50px from viewport edge (canvas-container has right: 50px) */
+    z-index: 10; /* Above other about page content */
     pointer-events: none; /* Don't block interactions */
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
     /* Typography */
     font-family: 'JetBrains Mono NL', monospace;
     font-size: 15px;
@@ -3550,12 +3496,11 @@ h1 {
     color: #2C2C2C;
 }
 
-/* First text box: 3px from left scrollbar (expanded 85px state), left-aligned, Helvetica 56px bold */
-/* Canvas-container has left: 50px, expanded scrollbar inner edge is 35px further in, plus 3px gap = 38px */
-.logo-hover-text-box-1 {
-    top: 5px;
-    left: 41px;
-    width: 1360px;
+/* First text box: top-aligned, Helvetica 57px bold */
+.about-text-box-1 {
+    top: 11px; /* 11px from top of overlay - moved 1px up to close gap */
+    left: 10px; /* 10px from left edge - gray blocks have 10px padding so they start at 50px from viewport */
+    right: 20px; /* 20px from right edge */
     text-align: left;
     font-family: Helvetica, sans-serif;
     font-size: 57px;
@@ -3563,30 +3508,13 @@ h1 {
     line-height: 54.5px;
 }
 
-
-/* Title styling */
-.logo-hover-text-title {
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
-    font-weight: normal;
-    letter-spacing: 0.03em;
-    margin-bottom: 12px;
-    color: #2C2C2C;
-}
-
 /* Paragraph styling */
-.logo-hover-text-box p {
+.about-text-box p {
     margin: 0;
 }
 
-/* Visible state */
-.logo-hover-text-box.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Line background blocks for logo hover text box */
-.logo-hover-text-box .logo-line-bg {
+/* Line background blocks for about text box */
+.about-text-box .about-line-bg {
     position: absolute;
     background-color: #E0E0E0;
     border-radius: 0;
@@ -3618,6 +3546,13 @@ h1 {
     justify-content: flex-start; /* Items start from top */
     padding: 0; /* No padding - lines span full width */
     overflow-y: auto; /* Enable vertical scrolling */
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+}
+
+/* Hide scrollbar for Chrome, Safari, Opera */
+.index-page-overlay::-webkit-scrollbar {
+    display: none;
 }
 
 .index-page-overlay.visible {
@@ -3671,6 +3606,7 @@ h1 {
     flex-shrink: 0; /* Don't shrink the name */
     width: 200px; /* Fixed width for consistent centering */
     text-align: center; /* Center the text within the column */
+    font-weight: bold; /* Bold parameter titles */
 }
 
 /* Index item quote preview - truncated quote text */
@@ -3798,6 +3734,90 @@ h1 {
 }
 
 /* ==================
+   ABOUT PAGE OVERLAY
+   ================== */
+
+/* ABOUT mask - positioned at gradient bottom edge, to the right of INDEX */
+/* left and top are set dynamically via JavaScript in alignRectanglesWithEsthesia() */
+.ui-rect-mask-about {
+    min-width: 100px;
+    width: auto;
+}
+
+/* Logo hover effect - no position change for ABOUT, only slide-out animation */
+.ui-rect-mask-about.logo-hovered {
+    /* Position stays at current location - slide-out happens via transform on child */
+}
+
+/* ABOUT hover effect - slide parameter rectangles out (down) when hovering on ABOUT */
+.ui-layer.words-revealed .black-bottom-rectangle-left.about-hovered,
+.ui-layer.words-revealed .black-bottom-rectangle-right.about-hovered {
+    transform: translateY(100%); /* Slide down out of view - into the mask */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth ease-out slide */
+}
+
+/* Logo hover effect - slide ABOUT rectangle out (down) when hovering on SYN logo */
+.ui-layer.words-revealed .ui-rect-mask-about.logo-hovered .black-corner-rectangle-about {
+    transform: translateY(100%); /* Slide down out of view - into the mask */
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); /* Same timing as WORD rectangles */
+}
+
+/* About page overlay - covers canvas container when hovering on ABOUT button */
+.about-page-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7); /* White background at 70% opacity */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px); /* Safari support */
+    z-index: 150; /* Above all canvas content (10-13), above logo-hover-overlay (100), but inside canvas-container so below scrollbars */
+    pointer-events: none; /* Don't block interactions when visible */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    /* Flexbox column layout */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center content vertically */
+    align-items: center; /* Center content horizontally */
+    padding: 0;
+}
+
+.about-page-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto; /* Enable interactions when visible */
+}
+
+/* About page footer - fixed to bottom of about overlay */
+.about-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background-color: #2C2C2C;
+    /* Center text horizontally and vertically */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Typography */
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 14px;
+    color: #FFFFFF;
+    /* Ensure footer appears above other about content */
+    z-index: 160;
+}
+
+/* Copyright symbol - slightly larger than rest of footer text */
+.about-footer .copyright-symbol {
+    font-size: 16px;
+    margin-right: 4px;
+}
+
+/* ==================
    LETTER + EMOTION DRAGGABLE GRID
    3 rows x 5 columns grid with draggable dividers
    ================== */
@@ -3866,6 +3886,26 @@ h1 {
     bottom: 0;
     width: 2px;
     cursor: col-resize;
+}
+
+/* Pseudo-element to extend hover hit area by 10px on each side */
+.letter-emotion-divider::before {
+    content: '';
+    position: absolute;
+}
+
+.letter-emotion-divider-h::before {
+    left: 0;
+    right: 0;
+    top: -10px;
+    bottom: -10px;
+}
+
+.letter-emotion-divider-v::before {
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    right: -10px;
 }
 
 /* Hover state for dividers */
@@ -3956,6 +3996,26 @@ h1 {
     bottom: 0;
     width: 2px;
     cursor: col-resize;
+}
+
+/* Pseudo-element to extend hover hit area by 10px on each side */
+.sound-number-divider::before {
+    content: '';
+    position: absolute;
+}
+
+.sound-number-divider-h::before {
+    left: 0;
+    right: 0;
+    top: -10px;
+    bottom: -10px;
+}
+
+.sound-number-divider-v::before {
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    right: -10px;
 }
 
 /* Hover state for dividers - green (Number color) */
@@ -4057,7 +4117,7 @@ h1 {
 .emotion-color-divider-h {
     left: 0;
     right: 0;
-    height: 3px;
+    height: 2px;
     cursor: row-resize;
 }
 
@@ -4065,8 +4125,28 @@ h1 {
 .emotion-color-divider-v {
     top: 0;
     bottom: 0;
-    width: 3px;
+    width: 2px;
     cursor: col-resize;
+}
+
+/* Pseudo-element to extend hover hit area by 10px on each side */
+.emotion-color-divider::before {
+    content: '';
+    position: absolute;
+}
+
+.emotion-color-divider-h::before {
+    left: 0;
+    right: 0;
+    top: -10px;
+    bottom: -10px;
+}
+
+.emotion-color-divider-v::before {
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    right: -10px;
 }
 
 /* Hover state for dividers */
