@@ -6,8 +6,9 @@ const colors = ['#EF4538', '#891951', '#FAB01B', '#007A6F', '#EB4781', '#293990'
 const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
-// Single centered line for intro
-const INTRO_LINE_2_TEXT = '[scroll the bars to combine senses]';
+// Two intro text lines - line 1 is the explanation, line 2 is the instruction
+const INTRO_LINE_1_TEXT = '[Synesthesia is an experience where senses blend]';
+const INTRO_LINE_2_TEXT = '[scroll the bars on the sides of the screen to combine senses]';
 // Legacy constant for backward compatibility (used in some checks)
 const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
 
@@ -53,6 +54,13 @@ let scrollHintAnimationTriggered = false; // Flag to prevent multiple scroll hin
 let scrollHintAnimationActive = false; // Flag to track if scroll hint animation is currently running
 const SCROLL_THRESHOLD = 3000; // Threshold for full collapse (3x slower: requires ~3 scroll gestures to complete collapse)
 
+// Idle scroll hint for main screen (after intro completes)
+let mainScreenIdleTimer = null; // Timer ID for idle detection
+let mainScreenHintActive = false; // Flag to track if main screen hint is running
+let isFirstMainScreenHint = true; // Flag to track if this is the first hint after intro completes
+const FIRST_HINT_DELAY = 3000; // 3 seconds for first hint after main screen opens
+const IDLE_HINT_DELAY = 10000; // 10 seconds for subsequent hints
+
 // Initialize columns
 document.addEventListener('DOMContentLoaded', () => {
     const leftColumn = document.querySelector('.left-column');
@@ -65,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize selected indices from initial scroll positions
     selectedLeftIndex = getSelectedColorIndex(leftColumn);
     selectedRightIndex = getSelectedColorIndex(rightColumn);
+    
+    // Initialize top row markers for hover disable logic
+    updateTopRowMarkers();
     
     // Initialize word text with initial combination
     updateWordText();
@@ -81,9 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize LETTER & COLOR text box visibility
     updateLetterColorTextBox(initialPageId);
-    
-    // Initialize NUMBER & COLOR text box visibility
-    updateNumberColorTextBox(initialPageId);
     
     // Initialize SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(initialPageId);
@@ -124,6 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Shape + Shape canvas visibility (ellipses interaction)
     updateShapeShapeCanvasVisibility(initialPageId);
     
+    // Initialize Shape + Shape circle visibility (concentric rings with black square)
+    updateShapeShapeCircle(initialPageId);
+    
     // Initialize Shape & Number canvas (not using p5.js)
     initializeShapeNumberCanvas();
     
@@ -141,6 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Emotion + Color grid visibility
     updateEmotionColorVisibility(initialPageId);
+    
+    // Initialize Number + Color grid visibility
+    updateNumberColorGrid(initialPageId);
     
     // Initialize SYN logo hover effect
     initializeSynHoverEffect();
@@ -433,6 +447,23 @@ function initializeColumn(column, side) {
         // but skip user interaction tracking during initialization or programmatic adjustments
         if (isProgrammaticScroll || isAdjusting || isInitializing) {
             
+            // Only disable hover expansion during intro phase (before intro completes)
+            // This prevents flicker during demo without affecting main screen behavior
+            if (!introCompleted) {
+                if (!isScrolling) {
+                    isScrolling = true;
+                    setHoverEnabled(false);
+                }
+                // Clear any pending scroll-end timeout and set a new one
+                if (scrollEndTimeout) {
+                    clearTimeout(scrollEndTimeout);
+                }
+                scrollEndTimeout = setTimeout(() => {
+                    isScrolling = false;
+                    setHoverEnabled(true);
+                }, 100);
+            }
+            
             // Update gradients even during programmatic scrolls (demo will use this)
                 updateSelectedIndices();
             
@@ -444,6 +475,23 @@ function initializeColumn(column, side) {
         // Log scroll event for debugging
         
         if (isDemoActive) {
+            // Only disable hover expansion during intro phase (before intro completes)
+            // This prevents flicker during demo without affecting main screen behavior
+            if (!introCompleted) {
+                if (!isScrolling) {
+                    isScrolling = true;
+                    setHoverEnabled(false);
+                }
+                // Clear any pending scroll-end timeout and set a new one
+                if (scrollEndTimeout) {
+                    clearTimeout(scrollEndTimeout);
+                }
+                scrollEndTimeout = setTimeout(() => {
+                    isScrolling = false;
+                    setHoverEnabled(true);
+                }, 100);
+            }
+            
             // Demo is active - update gradients but don't trigger START logic
             updateSelectedIndices();
             return;
@@ -521,6 +569,7 @@ function initializeColumn(column, side) {
         }
         
         // Mark as scrolling and disable hover expansion
+        // This applies both during intro and after - rectangles collapse during scroll
         if (!isScrolling) {
             isScrolling = true;
             setHoverEnabled(false);
@@ -535,6 +584,8 @@ function initializeColumn(column, side) {
         scrollEndTimeout = setTimeout(() => {
             isScrolling = false;
             setHoverEnabled(true);
+            // Update top row markers for hover disable logic
+            updateTopRowMarkers();
         }, 100); // 100ms - match snap timeout
         
         const scrollTop = column.scrollTop;
@@ -601,6 +652,8 @@ function initializeColumn(column, side) {
                 
                 // Update selected indices after snap completes (this will trigger gradient update)
                 updateSelectedIndices();
+                // Update top row markers for hover disable logic
+                updateTopRowMarkers();
             }
         }, 100); // 100ms - balance between responsiveness and letting CSS snap work
         
@@ -637,6 +690,8 @@ function initializeColumn(column, side) {
         }
         
         updateSelectedIndices();
+        // Update top row markers for hover disable logic
+        updateTopRowMarkers();
     });
     
     // Detect real user wheel interaction
@@ -647,6 +702,9 @@ function initializeColumn(column, side) {
             e.stopPropagation();
             return;
         }
+        
+        // Reset idle timer on user scroll (for main screen hint)
+        resetMainScreenIdleTimer();
         
         // This is a real user interaction
         if (!hasUserInteracted) {
@@ -695,6 +753,9 @@ function initializeColumn(column, side) {
             skipDemo();
             return;
         }
+        
+        // Reset idle timer on user scroll (for main screen hint)
+        resetMainScreenIdleTimer();
         
         // This is a real user interaction
         if (!hasUserInteracted) {
@@ -777,6 +838,30 @@ function getColorFromIndex(index) {
     return colors[safeIndex];
 }
 
+// Function to mark items that are currently in the top row (affecting gradient)
+// This is used to disable hover expansion for top-row items on the home screen
+function updateTopRowMarkers() {
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    if (!leftColumn || !rightColumn) return;
+    
+    const itemHeight = window.innerHeight / 6;
+    
+    [leftColumn, rightColumn].forEach(column => {
+        const scrollTop = column.scrollTop;
+        const topTileIndex = Math.round(scrollTop / itemHeight);
+        
+        // Remove class from all items in this column
+        column.querySelectorAll('.color-item').forEach((item, index) => {
+            item.classList.remove('affects-gradient');
+            // Add class to item that is currently at the top
+            if (index === topTileIndex) {
+                item.classList.add('affects-gradient');
+            }
+        });
+    });
+}
+
 // Current active page ID (based on color combination)
 let activePageId = null;
 
@@ -817,11 +902,11 @@ const canvasTextBoxContent = {
     '4-2': '"Letters have very distinct personalities to me. \'H\' is a very dependable, stoic male figure who doesn\'t say much but is always there. \'S\' is a flamboyant, slightly gossipy woman who likes to be the center of attention. When I see words, it\'s like watching a social interaction. For example, the word \'The\' looks like a very serious conversation between a leader (T) and two followers (h and e)."',
     
     // 6. Number + Color (ספרות + צבע) - number=3, color=5
-    '3-5': '"Numbers have had colors since I was a toddler. 1 is white, 2 is a pale yellow, 3 is pink, 4 is a dark blood-red, and 5 is grass green. Math was always easy for me because I didn\'t see equations; I saw color patterns. Adding 2 and 3 was like watching yellow and pink come together to create the green of 5. It makes the world of data feel very aesthetic and organized."',
-    '5-3': '"Numbers have had colors since I was a toddler. 1 is white, 2 is a pale yellow, 3 is pink, 4 is a dark blood-red, and 5 is grass green. Math was always easy for me because I didn\'t see equations; I saw color patterns. Adding 2 and 3 was like watching yellow and pink come together to create the green of 5. It makes the world of data feel very aesthetic and organized."',
+    '3-5': '"Numbers have had colors since I was a toddler. 1 is white, 2 is a pale yellow, 3 is pink, 4 is a dark blood-red, and 5 is grass green. Math was always easy for me because I didn\'t see equations; I saw color patterns. Adding 2 and 3 was like watching yellow and pink come together to create the green of 5. It makes the world of data feel very aesthetic and organized visually and spatially."',
+    '5-3': '"Numbers have had colors since I was a toddler. 1 is white, 2 is a pale yellow, 3 is pink, 4 is a dark blood-red, and 5 is grass green. Math was always easy for me because I didn\'t see equations; I saw color patterns. Adding 2 and 3 was like watching yellow and pink come together to create the green of 5. It makes the world of data feel very aesthetic and organized visually and spatially."',
     
     // 7. Number + Emotion (ספרות + רגש) - number=3, emotion=4
-    '3-4': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row."',
+    '3-4': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row. Each number carries a personality, a role, and a place in the group."',
     
     // 8. Number + Shape (ספרות + צורה) - number=3, shape=0
     '3-0': '"When I think of numbers, they exist on a physical path in space around me. Numbers 1 through 20 go in a straight line directly in front of my chest. At 21, the line takes a sharp 90-degree turn to the left and starts climbing upwards until it reaches 100. From 100 onwards, the numbers disappear into a vast spiral that goes behind my head. I have to physically \'look\' to the left in my mind to remember dates or do mental math."',
@@ -832,8 +917,8 @@ const canvasTextBoxContent = {
     '5-0': '"Shapes have inherent colors that can never be changed. A circle is always a deep, ocean blue. A square is a solid, opaque orange. Triangles are always a sharp, acidic lemon yellow. When I see a black-and-white drawing of geometric patterns, my brain automatically fills them in with these colors. A star shape is especially vivid; it\'s always a shimmering metallic silver with a hint of violet at the edges."',
     
     // 10. Shape + Emotion (צורה + רגש) - shape=0, emotion=4
-    '0-4': '"I have a strange reaction to certain shapes. Perfectly smooth, rounded surfaces give me a feeling of immense relief and calm. However, seeing a cluster of small, irregular triangles or jagged shapes makes me feel extremely anxious and \'itchy\' inside. It\'s a visceral emotional reaction to the geometry of objects. Looking at a clear, rectangular building makes me feel organized and \'correct,\' while complex, messy shapes make me feel depressed."',
-    '4-0': '"I have a strange reaction to certain shapes. Perfectly smooth, rounded surfaces give me a feeling of immense relief and calm. However, seeing a cluster of small, irregular triangles or jagged shapes makes me feel extremely anxious and \'itchy\' inside. It\'s a visceral emotional reaction to the geometry of objects. Looking at a clear, rectangular building makes me feel organized and \'correct,\' while complex, messy shapes make me feel depressed."',
+    '0-4': '"I have a strange reaction to certain shapes. Perfectly smooth, rounded surfaces give me a feeling of immense relief and calm. However, seeing a cluster of small, irregular triangles or jagged shapes makes me feel extremely anxious and \'itchy\' inside. It\'s a visceral emotional reaction to the geometry of objects. Complex, messy shapes make me feel deeply depressed and unsettled."',
+    '4-0': '"I have a strange reaction to certain shapes. Perfectly smooth, rounded surfaces give me a feeling of immense relief and calm. However, seeing a cluster of small, irregular triangles or jagged shapes makes me feel extremely anxious and \'itchy\' inside. It\'s a visceral emotional reaction to the geometry of objects. Complex, messy shapes make me feel deeply depressed and unsettled."',
     
     // 11. Letter + Shape (אותיות + צורה) - letter=2, shape=0
     '2-0': '"Letters don\'t appear to me as signs; they appear as forms. Each letter has a physical presence of its own, independent of sound or meaning. Some feel narrow and tense, others wide and relaxed. The letter W feels sharp to me, pointed and angular, while G is broader and rounded, heavier in its curve. When I read, my attention moves from one form to another, sensing their edges and weight."',
@@ -844,19 +929,19 @@ const canvasTextBoxContent = {
     '4-5': '"Colors are the primary way I experience emotions. If I\'m feeling happy, the world actually looks brighter, as if someone turned up the saturation, and I see flashes of gold in my peripheral vision. Grief is not just a feeling; it\'s a heavy, oppressive charcoal grey that seems to coat everything I look at. When I\'m angry, I see sparks of a very specific, dirty orange-red that clouds my vision."',
     
     // 13. Letter + Number (אותיות + ספרות) - letter=2, number=3
-    '2-3': '"My mind organizes all sequences together. Letters and numbers share the same physical \'track\' in my head. The letters A-Z occupy the first half of a great circle, and as soon as Z ends, the number 1 starts and continues the circle. They are made of the same \'material\' in my mind. It\'s like they belong to the same family of objects, arranged on a continuous, rotating ring."',
-    '3-2': '"My mind organizes all sequences together. Letters and numbers share the same physical \'track\' in my head. The letters A-Z occupy the first half of a great circle, and as soon as Z ends, the number 1 starts and continues the circle. They are made of the same \'material\' in my mind. It\'s like they belong to the same family of objects, arranged on a continuous, rotating ring."',
+    '2-3': '"My mind organizes all sequences together. Letters and numbers share the same physical \'track\' in my head. The letters A-Z occupy the first half of a great circle, and as soon as Z ends, the number 1 starts and continues the circle. They are made of the same \'material\' in my mind. It\'s like they belong to the same family of objects, arranged on a continuous, rotating ring in space."',
+    '3-2': '"My mind organizes all sequences together. Letters and numbers share the same physical \'track\' in my head. The letters A-Z occupy the first half of a great circle, and as soon as Z ends, the number 1 starts and continues the circle. They are made of the same \'material\' in my mind. It\'s like they belong to the same family of objects, arranged on a continuous, rotating ring in space."',
     
     // 14. Sound + Letter (סאונד + אותיות) - sound=1, letter=2
-    '1-2': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
-    '2-1': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly."',
+    '1-2': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly as if alive."',
+    '2-1': '"When I hear people speak, I see the letters of the words they are saying scrolling across a screen in my mind, like closed captions. But the letters are influenced by the sound; if someone has a gravelly, deep voice, the letters look blocky and made of stone. If someone has a high-pitched, melodic voice, the letters appear in a flowing, cursive script that glows slightly as if alive."',
     
     // 15. Sound + Number (סאונד + ספרה) - sound=1, number=3
     '1-3': '"For me, the world of sounds is a world of visual mathematics. When I hear a drum beat, I see a sequence of numbers flashing to the rhythm of the music. Every sound has a numerical \'value\'- sharp, high-pitched sounds feel like the numbers 1 or 4, while deeper sounds look like larger, rounder numbers like 8 or 0. When I listen to a song, every musical note is immediately translated into a different digit."',
     '3-1': '"For me, the world of sounds is a world of visual mathematics. When I hear a drum beat, I see a sequence of numbers flashing to the rhythm of the music. Every sound has a numerical \'value\'- sharp, high-pitched sounds feel like the numbers 1 or 4, while deeper sounds look like larger, rounder numbers like 8 or 0. When I listen to a song, every musical note is immediately translated into a different digit."',
     
     // 16. Emotion + Number (רגש + ספרות) - emotion=4, number=3
-    '4-3': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row."',
+    '4-3': '"Numbers have social lives. 1 is very lonely and a bit of an elitist. 2 is kind and motherly, always looking after 1. 3 is a bratty child, and 4 is a grumpy old man who is tired of 3\'s antics. 7 is the \'cool\' teenager of the group, very aloof and mysterious. When I see a phone number, I don\'t just see digits; I see a whole family dynamic playing out in a row. Each number carries a personality, a role, and a place in the group."',
     
     // ==================
     // SAME-TYPE PAGES (Definition Texts)
@@ -1066,6 +1151,12 @@ function updateCanvasTextBox(pageId) {
     // Render text with per-line grey backgrounds
     renderTextWithLineBackgrounds(textBox, content);
     
+    // Add page-specific class for Shape + Shape page (for orange text styling)
+    if (pageId === '0-0') {
+        textBox.classList.add('page-shape-shape');
+    } else {
+        textBox.classList.remove('page-shape-shape');
+    }
 }
 
 // Function to wrap text letters in spans for hover interaction
@@ -1075,23 +1166,23 @@ function updateCanvasTextBox(pageId) {
 // Mapping object: uppercase letter (A-Z) → shape specification
 const LETTER_SHAPES = {
     'A': { type: 'triangle', points: '22.5,5 40,40 5,40' },
-    'B': { type: 'roundedRect', width: 35, height: 35, rx: 8 },
+    'B': { type: 'rect', width: 35, height: 35 },
     'C': { type: 'polygon', points: '22.5,3 27.5,13.5 39,13.5 30,19.5 34.5,30.5 22.5,24.5 10.5,30.5 15,19.5 6,13.5 17.5,13.5' },
     'D': { type: 'diamond', points: '22.5,5 40,22.5 22.5,40 5,22.5' },
-    'E': { type: 'ellipse', rx: 18, ry: 12, strokeWidth: 5 },
+    'E': { type: 'ellipse', rx: 18, ry: 12 },
     'F': { type: 'triangle', points: '5,5 40,5 5,40' },
-    'G': { type: 'roundedRect', width: 38, height: 30, rx: 5, strokeWidth: 5 },
+    'G': { type: 'rect', width: 38, height: 30 },
     'H': { type: 'rect', width: 8, height: 35 },
-    'I': { type: 'path', d: 'M 22.5,5 Q 28,11.25 22.5,17.5 Q 17,23.75 22.5,30 Q 28,36.25 22.5,40', strokeWidth: 5 },
+    'I': { type: 'path', d: 'M 22.5,5 Q 28,11.25 22.5,17.5 Q 17,23.75 22.5,30 Q 28,36.25 22.5,40' },
     'J': { type: 'arc', startAngle: 90, endAngle: 270, largeArc: 0 },
     'K': { type: 'polygon', points: '5,5 5,40 22.5,22.5 40,5 40,15' },
-    'L': { type: 'polygon', points: '22.5,5 5,40 40,40', strokeWidth: 5 },
+    'L': { type: 'polygon', points: '5,5 5,40 40,40' },
     'M': { type: 'polygon', points: '5,40 15,10 22.5,25 30,10 40,40' },
     'N': { type: 'polygon', points: '5,40 5,5 35,40 35,5' },
     'O': { type: 'circle', cx: 22.5, cy: 22.5, r: 18 },
-    'P': { type: 'roundedRect', width: 12, height: 35, rx: 6 },
+    'P': { type: 'rect', width: 12, height: 35 },
     'Q': { type: 'circle', cx: 22.5, cy: 22.5, r: 15 },
-    'R': { type: 'polygon', points: '5,5 5,40 25,40 35,25 25,5', strokeWidth: 5 },
+    'R': { type: 'polygon', points: '5,5 5,40 25,40 35,25 25,5' },
     'S': { type: 'arc', startAngle: 180, endAngle: 0, largeArc: 1 },
     'T': { type: 'polygon', points: '5,5 40,5 22.5,5 22.5,40' },
     'U': { type: 'arc', startAngle: 180, endAngle: 360, largeArc: 0 },
@@ -1172,20 +1263,13 @@ function renderShape(shapeSpec, color = '#2C2C2C') {
         shapeSpec.type === 'arc' ? 'path' :
         shapeSpec.type === 'path' ? 'path' : 'polygon');
     
-    // Check if shape should use stroke instead of fill
-    if (shapeSpec.strokeWidth) {
-        shape.setAttribute('fill', 'none');
-        shape.setAttribute('stroke', color);
-        shape.setAttribute('stroke-width', shapeSpec.strokeWidth.toString());
-        // Add rounded corners for polygons and triangles when using stroke
-        if (shapeSpec.type === 'polygon' || shapeSpec.type === 'triangle' || shapeSpec.type === 'diamond') {
-            shape.setAttribute('stroke-linejoin', 'round');
-            shape.setAttribute('stroke-linecap', 'round');
-        }
-    } else {
-        shape.setAttribute('fill', color);
-        shape.setAttribute('stroke', 'none');
-    }
+    // All shapes use stroke only (no fill) with ~3px visual stroke (1.63px in viewBox, scaled to 83px display)
+    shape.setAttribute('fill', 'none');
+    shape.setAttribute('stroke', '#2C2C2C');
+    shape.setAttribute('stroke-width', '1.63');
+    // Sharp corners for all shapes (no rounding)
+    shape.setAttribute('stroke-linejoin', 'miter');
+    shape.setAttribute('stroke-linecap', 'butt');
     
     // Render based on shape type
     switch (shapeSpec.type) {
@@ -1235,7 +1319,7 @@ function renderShape(shapeSpec, color = '#2C2C2C') {
             shape.setAttribute('x2', shapeSpec.x2.toString());
             shape.setAttribute('y2', shapeSpec.y2.toString());
             shape.setAttribute('stroke', color);
-            shape.setAttribute('stroke-width', (shapeSpec.strokeWidth || '3').toString());
+            shape.setAttribute('stroke-width', (shapeSpec.strokeWidth || '1.63').toString());
             shape.setAttribute('fill', 'none');
             break;
             
@@ -1243,7 +1327,7 @@ function renderShape(shapeSpec, color = '#2C2C2C') {
             // Direct path specification (for wavy lines, custom paths, etc.)
             shape.setAttribute('d', shapeSpec.d);
             shape.setAttribute('stroke', color);
-            shape.setAttribute('stroke-width', (shapeSpec.strokeWidth || '3').toString());
+            shape.setAttribute('stroke-width', (shapeSpec.strokeWidth || '1.63').toString());
             shape.setAttribute('fill', 'none');
             break;
             
@@ -1763,220 +1847,6 @@ function updateLetterColorTextBox(pageId) {
 }
 
 // ==================
-// NUMBER + COLOR INTERACTION
-// ==================
-// Initialize hover interaction for Number + Color page
-// Similar to letter-color but for digits (1-6) with mathematical operators as static
-function initializeNumberColorInteraction() {
-    const numberColorTextBox = document.getElementById('canvas-text-box-number-color');
-    if (!numberColorTextBox) {
-        return;
-    }
-    
-    const paragraph = numberColorTextBox.querySelector('p');
-    if (!paragraph) {
-        return;
-    }
-    
-    // Check if already initialized (has digit spans)
-    if (paragraph.querySelector('.digit-span')) {
-        return;
-    }
-    
-    // Get the text content - use textContent as source of truth
-    const originalText = paragraph.textContent;
-    
-    // Split text into individual characters and wrap each in a span
-    // Define mathematical operators that should remain static (no animation, no color)
-    const mathOperators = /[+\-×÷^()=\s]/;
-    // Define digits that should have color interaction
-    const digits = /[1-6]/;
-    
-    const wrappedText = originalText.split('').map((char) => {
-        // Handle spaces and math operators
-        if (char === ' ' || char === '\n') {
-            return char === '\n' ? '<br>' : '<span class="digit-span space" data-digit=" "> </span>';
-        } else if (mathOperators.test(char)) {
-            // Math operators remain static - no animation, no color
-            const escapedChar = char
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-            return `<span class="digit-span space" data-digit="${escapedChar}">${escapedChar}</span>`;
-        } else if (digits.test(char)) {
-            // Digits 1-6 get the interactive treatment
-            return `<span class="digit-span" data-digit="${char}">${char}</span>`;
-        } else {
-            // Other characters (0, 7, 8, 9, etc.) remain static
-            const escapedChar = char
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-            return `<span class="digit-span space" data-digit="${escapedChar}">${escapedChar}</span>`;
-        }
-    }).join('');
-    
-    // Replace paragraph content with wrapped digits
-    paragraph.innerHTML = wrappedText;
-    
-    // Inject colored digits for each digit
-    const digitSpans = paragraph.querySelectorAll('.digit-span:not(.space)');
-    
-    for (let index = 0; index < digitSpans.length; index++) {
-        const span = digitSpans[index];
-        
-        try {
-            const digit = span.getAttribute('data-digit');
-            if (!digit) {
-                continue;
-            }
-            
-            const colorHex = DIGIT_COLORS[digit];
-            
-            // Create and inject colored digit (fallback to grey if digit not mapped)
-            const coloredDigit = renderColoredLetter(digit, colorHex || '#9E9E9E');
-            if (coloredDigit) {
-                // Change class from letter-color to digit-color for CSS targeting
-                coloredDigit.className = 'digit-color';
-                span.appendChild(coloredDigit);
-            }
-        } catch (error) {
-            console.error('Error injecting colored digit at index', index, ':', error);
-        }
-    }
-    
-    // Restructure: wrap each digit-span in a digit-slot container
-    // Create static glyph for layout and sliding glyph inside mask
-    const allDigitSpans = paragraph.querySelectorAll('.digit-span:not(.space)');
-    allDigitSpans.forEach(span => {
-        // Get the text content (exclude color div by getting only text nodes)
-        let textContent = '';
-        for (let node of span.childNodes) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                textContent += node.textContent;
-            }
-        }
-        textContent = textContent.trim();
-        
-        // Get the color square
-        const colorSquare = span.querySelector('.digit-color');
-        
-        // Create digit-slot container (natural size, no clipping)
-        const slot = document.createElement('span');
-        slot.className = 'digit-slot';
-        slot.setAttribute('data-digit', span.getAttribute('data-digit') || '');
-        
-        // Create static glyph for normal layout (visible by default)
-        const staticGlyph = document.createElement('span');
-        staticGlyph.className = 'digit-glyph-static';
-        staticGlyph.textContent = textContent;
-        
-        // Create digit-mask (45×45px clipping area, centered)
-        const mask = document.createElement('span');
-        mask.className = 'digit-mask';
-        
-        // Create sliding glyph inside mask (hidden by default, slides on hover)
-        const slidingGlyph = document.createElement('span');
-        slidingGlyph.className = 'digit-glyph';
-        slidingGlyph.textContent = textContent;
-        
-        // Add sliding glyph to mask
-        mask.appendChild(slidingGlyph);
-        
-        // Add color square to mask if it exists (inside mask, so it's clipped with the digit)
-        if (colorSquare) {
-            mask.appendChild(colorSquare);
-        }
-        
-        // Add static glyph to slot (for layout)
-        slot.appendChild(staticGlyph);
-        
-        // Add mask to slot
-        slot.appendChild(mask);
-        
-        // Replace the original span with the new slot
-        span.parentNode.replaceChild(slot, span);
-    });
-    
-    // Add robust hover state management to prevent blank states during rapid hover
-    const allSlots = paragraph.querySelectorAll('.digit-slot');
-    allSlots.forEach(slot => {
-        let hoverOutTimeout = null;
-        let isHovered = false;
-        
-        // Mouse enter: immediately activate hover state, cancel any pending hover-out
-        slot.addEventListener('mouseenter', () => {
-            isHovered = true;
-            
-            // Cancel any pending hover-out timeout
-            if (hoverOutTimeout) {
-                clearTimeout(hoverOutTimeout);
-                hoverOutTimeout = null;
-            }
-            
-            // Remove hover-leaving class if present
-            slot.classList.remove('hover-leaving');
-            
-            // Immediately add hover-active class to force hover-in state
-            slot.classList.add('hover-active');
-        });
-        
-        // Mouse leave: start delayed hover-out sequence
-        slot.addEventListener('mouseleave', () => {
-            isHovered = false;
-            
-            // Cancel any existing timeout
-            if (hoverOutTimeout) {
-                clearTimeout(hoverOutTimeout);
-            }
-            
-            // Wait for delay before starting hover-out animation
-            hoverOutTimeout = setTimeout(() => {
-                // Double-check we're still not hovered (user might have re-entered)
-                if (!isHovered) {
-                    // Add hover-leaving class to trigger push-up animation
-                    slot.classList.add('hover-leaving');
-                    
-                    // Remove hover-active class to trigger hover-out transitions
-                    slot.classList.remove('hover-active');
-                    
-                    // After animation completes, remove hover-leaving class
-                    setTimeout(() => {
-                        if (!isHovered && !slot.classList.contains('hover-active')) {
-                            slot.classList.remove('hover-leaving');
-                        }
-                    }, 315); // 105ms delay + 300ms animation = 315ms total
-                }
-                hoverOutTimeout = null;
-            }, 105); // 105ms delay matches CSS delay before hover-out transition starts
-        });
-    });
-}
-
-// Function to update visibility of NUMBER & COLOR text box
-function updateNumberColorTextBox(pageId) {
-    const numberColorTextBox = document.getElementById('canvas-text-box-number-color');
-    if (!numberColorTextBox) return;
-    
-    // Show text box only for NUMBER & COLOR pages (pageId "3-5" or "5-3")
-    // Parameter indices: 0=shape, 1=sound, 2=letter, 3=number, 4=emotion, 5=color
-    const isNumberColorPage = pageId === '3-5' || pageId === '5-3';
-    
-    if (isNumberColorPage) {
-        numberColorTextBox.classList.add('visible');
-        // Initialize number color interaction when text box becomes visible
-        // Use a small delay to ensure the element is rendered
-        setTimeout(() => {
-            initializeNumberColorInteraction();
-        }, 50);
-    } else {
-        numberColorTextBox.classList.remove('visible');
-    }
-}
 
 // Function to update visibility of canvas instruction text
 function updateSoundShapeInstructionText(pageId) {
@@ -2043,7 +1913,8 @@ function calculateAngle(centerX, centerY, pointX, pointY) {
 // Apply rotation to a ring group using SVG transform attribute
 // This ensures rotation happens around the SVG center point (0,0)
 function applyRingRotation(ringIndex, angle) {
-    const ringGroup = document.querySelector(`.ring-group[data-ring="${ringIndex}"]`);
+    // Specifically target the letter-letter rings SVG to avoid matching shape-shape rings
+    const ringGroup = document.querySelector(`#concentric-rings-svg .ring-group[data-ring="${ringIndex}"]`);
     if (ringGroup) {
         // Use SVG's native transform attribute with explicit center point (0,0)
         // This is the center of our viewBox and where all circles are centered
@@ -2277,6 +2148,96 @@ function resetEmotionRings() {
 }
 
 // ==================
+// SHAPE + SHAPE RINGS (Black Square)
+// ==================
+// Track rotation angles for each shape ring
+let shapeRingRotations = [0, 0, 0, 0, 0];
+let shapeRingsInitialized = false;
+
+// Function to update Shape + Shape circle visibility
+function updateShapeShapeCircle(pageId) {
+    const circleContainer = document.getElementById('shape-shape-circle-container');
+    if (!circleContainer) return;
+    
+    // Show circle only for Shape + Shape page (pageId "0-0")
+    // Parameter indices: 0=shape
+    const isShapeShapePage = pageId === '0-0';
+    
+    if (isShapeShapePage) {
+        circleContainer.classList.add('visible');
+        // Initialize ring rotation functionality when page becomes visible
+        requestAnimationFrame(() => {
+            initializeShapeRings();
+        });
+    } else {
+        circleContainer.classList.remove('visible');
+        // Reset ring rotations when leaving the page
+        resetShapeRings();
+    }
+}
+
+// Get the center point of the Shape rings SVG in page coordinates
+function getShapeRingsCenterPoint() {
+    const svg = document.getElementById('shape-shape-rings-svg');
+    if (!svg) return { x: 0, y: 0 };
+    
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Apply rotation to a shape ring group
+function applyShapeRingRotation(ringIndex, angle) {
+    const ringGroup = document.querySelector(`#shape-shape-rings-svg .shape-ring-group[data-ring="${ringIndex}"]`);
+    if (ringGroup) {
+        ringGroup.setAttribute('transform', `rotate(${angle}, 0, 0)`);
+    }
+}
+
+// Handle mouse move for shape rings
+function handleShapeRingMouseMove(e) {
+    // Only work when shape rings container is visible
+    const container = document.getElementById('shape-shape-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getShapeRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Apply rotation to each ring with its own multiplier (same as other rings)
+    for (let i = 0; i < 5; i++) {
+        const rotation = mouseAngle * ringMultipliers[i];
+        shapeRingRotations[i] = rotation;
+        applyShapeRingRotation(i, rotation);
+    }
+}
+
+// Initialize the shape concentric rings interaction
+function initializeShapeRings() {
+    if (shapeRingsInitialized) return;
+    
+    const svg = document.getElementById('shape-shape-rings-svg');
+    if (!svg) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleShapeRingMouseMove);
+    
+    shapeRingsInitialized = true;
+}
+
+// Reset all shape ring rotations to 0
+function resetShapeRings() {
+    shapeRingRotations = [0, 0, 0, 0, 0];
+    
+    // Apply reset rotations to all shape rings
+    for (let i = 0; i < 5; i++) {
+        applyShapeRingRotation(i, 0);
+    }
+}
+
+// ==================
 // Function to update MELODY circle visibility (Sound + Letter page)
 function updateMelodyCircle(pageId) {
     const melodyContainer = document.getElementById('melody-circle-container');
@@ -2326,7 +2287,7 @@ function updateSoundColorSquares(pageId) {
 // ==================
 // Function to update Sound + Sound wave visualization visibility
 function updateSoundSoundWave(pageId) {
-    const waveContainer = document.getElementById('sound-sound-wave-container');
+    const waveContainer = document.getElementById('sound-sound-circle-container');
     if (!waveContainer) return;
     
     // Show wave only for Sound + Sound pages (pageId "1-1")
@@ -2339,115 +2300,61 @@ function updateSoundSoundWave(pageId) {
         requestAnimationFrame(() => {
             initializeSoundSoundWave();
         });
+        // Initialize ring rotation functionality
+        requestAnimationFrame(() => {
+            initializeSoundRings();
+        });
     } else {
         waveContainer.classList.remove('visible');
-        // Stop the wave animation and release microphone when leaving the page
+        // Stop the wave animation when leaving the page
         stopSoundSoundWave();
+        // Reset ring rotations when leaving the page
+        resetSoundRings();
     }
 }
 
 // ==================
 // SOUND + SOUND Wave Visualization State
 // ==================
-let soundSoundAudioCtx = null;       // AudioContext for microphone
-let soundSoundAnalyser = null;       // AnalyserNode for frequency analysis
-let soundSoundDataArray = null;      // Uint8Array to hold waveform data
 let soundSoundAnimationId = null;    // requestAnimationFrame ID
-let soundSoundMicActive = false;     // Whether microphone is active
-let soundSoundMicStream = null;      // MediaStream from microphone
+let soundSoundWaveActive = false;    // Whether autonomous wave is active
 let soundSoundInitialized = false;   // Whether the wave has been initialized
 
-// Wave visualization constants
-const SOUND_WAVE_WIDTH = 600;        // Width of the wave in pixels
-const SOUND_WAVE_HEIGHT = 100;       // Height of the SVG container
-const SOUND_WAVE_POINTS = 50;        // Number of points to sample for the wave
-const SOUND_WAVE_SMOOTHING = 0.3;    // Smoothing factor for the analyser (lower = more responsive)
-const SOUND_WAVE_SENSITIVITY = 4.0;  // Sensitivity multiplier for quiet sounds (higher = more sensitive)
+// Wave visualization constants (for rings SVG with viewBox centered at 0,0)
+const SOUND_WAVE_WIDTH = 600;        // Width of the wave from -300 to 300
+const SOUND_WAVE_POINTS = 64;        // Number of points to sample for the wave (more points = smoother curve)
+
+// Autonomous wave parameters for organic movement
+const WAVE_BASE_AMPLITUDE = 65;      // Base amplitude of the wave (increased for more intensity)
+const WAVE_AMPLITUDE_VARIATION = 35; // How much amplitude varies over time (more dramatic changes)
+const WAVE_SPEED = 1.4;              // Base speed of wave movement (faster)
+const WAVE_COMPLEXITY = 5;           // Number of overlapping sine waves for organic feel
 
 // Initialize the Sound + Sound wave visualization
 function initializeSoundSoundWave() {
     if (soundSoundInitialized) return;
     soundSoundInitialized = true;
     
-    const micButton = document.getElementById('sound-wave-mic-btn');
-    const wavePath = document.getElementById('sound-wave-path');
+    const wavePaths = document.querySelectorAll('#sound-sound-rings-svg .ring-wave');
     
-    if (!micButton || !wavePath) return;
+    if (!wavePaths || wavePaths.length === 0) return;
     
-    // Draw initial flat line
-    drawFlatWaveLine();
-    
-    // Set up click handler for microphone button
-    micButton.addEventListener('click', handleMicButtonClick);
+    // Start the autonomous wave animation (no microphone needed)
+    startAutonomousWave();
 }
 
-// Handle microphone button click
-async function handleMicButtonClick() {
-    const micButton = document.getElementById('sound-wave-mic-btn');
-    
-    if (soundSoundMicActive) {
-        // If already active, stop the microphone
-        stopSoundSoundMicrophone();
-        micButton.textContent = '[enable microphone]';
-        micButton.classList.remove('active');
-    } else {
-        // Request microphone access
-        try {
-            await initializeSoundSoundMicrophone();
-            micButton.textContent = '[disable microphone]';
-            micButton.classList.add('active');
-        } catch (error) {
-            console.warn('Microphone access denied:', error);
-            micButton.textContent = '[microphone access denied]';
-            setTimeout(() => {
-                micButton.textContent = '[enable microphone]';
-            }, 2000);
-        }
-    }
-}
-
-// Initialize microphone and Web Audio API
-async function initializeSoundSoundMicrophone() {
-    // Request microphone access
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    soundSoundMicStream = stream;
-    
-    // Create AudioContext
-    soundSoundAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Resume AudioContext if suspended (required by some browsers)
-    if (soundSoundAudioCtx.state === 'suspended') {
-        await soundSoundAudioCtx.resume();
-    }
-    
-    // Create analyser node
-    soundSoundAnalyser = soundSoundAudioCtx.createAnalyser();
-    soundSoundAnalyser.fftSize = 256; // Small FFT size for quick response
-    soundSoundAnalyser.smoothingTimeConstant = SOUND_WAVE_SMOOTHING;
-    
-    // Create buffer for time domain data
-    const bufferLength = soundSoundAnalyser.frequencyBinCount;
-    soundSoundDataArray = new Uint8Array(bufferLength);
-    
-    // Create gain node to boost microphone signal for better sensitivity
-    const gainNode = soundSoundAudioCtx.createGain();
-    gainNode.gain.value = 2.0; // Boost signal by 2x for better sensitivity to quiet sounds
-    
-    // Connect microphone -> gain -> analyser
-    const source = soundSoundAudioCtx.createMediaStreamSource(stream);
-    source.connect(gainNode);
-    gainNode.connect(soundSoundAnalyser);
-    // Don't connect to destination - we don't want to hear the microphone through speakers
-    
-    soundSoundMicActive = true;
+// Start the autonomous wave animation
+function startAutonomousWave() {
+    if (soundSoundWaveActive) return;
+    soundSoundWaveActive = true;
     
     // Start the animation loop
-    drawSoundWave();
+    drawAutonomousWave();
 }
 
-// Stop microphone and clean up
-function stopSoundSoundMicrophone() {
-    soundSoundMicActive = false;
+// Stop the autonomous wave animation
+function stopAutonomousWave() {
+    soundSoundWaveActive = false;
     
     // Stop animation
     if (soundSoundAnimationId) {
@@ -2455,80 +2362,87 @@ function stopSoundSoundMicrophone() {
         soundSoundAnimationId = null;
     }
     
-    // Stop microphone stream
-    if (soundSoundMicStream) {
-        soundSoundMicStream.getTracks().forEach(track => track.stop());
-        soundSoundMicStream = null;
-    }
-    
-    // Close AudioContext
-    if (soundSoundAudioCtx) {
-        soundSoundAudioCtx.close();
-        soundSoundAudioCtx = null;
-    }
-    
-    soundSoundAnalyser = null;
-    soundSoundDataArray = null;
-    
-    // Draw flat line when microphone is stopped
+    // Draw flat line when wave is stopped
     drawFlatWaveLine();
 }
 
 // Stop the wave visualization completely (when leaving the page)
 function stopSoundSoundWave() {
-    stopSoundSoundMicrophone();
+    stopAutonomousWave();
     soundSoundInitialized = false;
-    
-    // Reset button state
-    const micButton = document.getElementById('sound-wave-mic-btn');
-    if (micButton) {
-        micButton.textContent = '[enable microphone]';
-        micButton.classList.remove('active');
-    }
 }
 
-// Draw a flat horizontal line (when no audio)
+// Draw a flat horizontal line (when no audio) - for rings coordinate system centered at (0,0)
 function drawFlatWaveLine() {
-    const wavePath = document.getElementById('sound-wave-path');
-    if (!wavePath) return;
+    const wavePaths = document.querySelectorAll('#sound-sound-rings-svg .ring-wave');
+    if (!wavePaths || wavePaths.length === 0) return;
     
-    const centerY = SOUND_WAVE_HEIGHT / 2;
-    wavePath.setAttribute('d', `M 0 ${centerY} L ${SOUND_WAVE_WIDTH} ${centerY}`);
+    // Flat line from left edge to right edge of rings (x: -300 to 300, y: 0)
+    const flatPathData = 'M -300 0 L 300 0';
+    
+    // Apply the same flat line to all ring wave paths
+    wavePaths.forEach(wavePath => {
+        wavePath.setAttribute('d', flatPathData);
+    });
 }
 
-// Animation loop to draw the sound wave
-function drawSoundWave() {
-    if (!soundSoundMicActive || !soundSoundAnalyser || !soundSoundDataArray) {
+// Animation loop to draw autonomous organic wave - for rings coordinate system centered at (0,0)
+// Uses multiple overlapping sine waves with varying frequencies and phases for natural movement
+function drawAutonomousWave() {
+    if (!soundSoundWaveActive) {
         return;
     }
     
-    // Get time domain data (waveform)
-    soundSoundAnalyser.getByteTimeDomainData(soundSoundDataArray);
+    const wavePaths = document.querySelectorAll('#sound-sound-rings-svg .ring-wave');
+    if (!wavePaths || wavePaths.length === 0) return;
     
-    const wavePath = document.getElementById('sound-wave-path');
-    if (!wavePath) return;
+    // Get current time in seconds for smooth animation
+    const time = performance.now() / 1000;
     
     // Calculate points for the wave
+    // In the rings coordinate system: x goes from -300 to 300, y is centered at 0
     const points = [];
-    const sliceWidth = SOUND_WAVE_WIDTH / (SOUND_WAVE_POINTS - 1);
-    const bufferLength = soundSoundDataArray.length;
+    const startX = -300;
+    const endX = 300;
+    const totalWidth = endX - startX; // 600
+    const sliceWidth = totalWidth / (SOUND_WAVE_POINTS - 1);
+    
+    // Dynamic amplitude that varies over time with sharper changes
+    const dynamicAmplitude = WAVE_BASE_AMPLITUDE + 
+        Math.sin(time * 0.5) * WAVE_AMPLITUDE_VARIATION * 0.6 +
+        Math.sin(time * 0.31) * WAVE_AMPLITUDE_VARIATION * 0.4 +
+        Math.sin(time * 0.73) * WAVE_AMPLITUDE_VARIATION * 0.3;
+    
+    // Varying base frequency for more dynamic movement
+    const baseFreq = 0.015 + Math.sin(time * 0.2) * 0.008;
     
     for (let i = 0; i < SOUND_WAVE_POINTS; i++) {
-        const x = i * sliceWidth;
+        const x = startX + i * sliceWidth;
         
-        // Sample from the data array
-        const dataIndex = Math.floor((i / SOUND_WAVE_POINTS) * bufferLength);
-        const value = soundSoundDataArray[dataIndex];
+        // Normalize x position for wave calculation (0 to 1)
+        const normalizedX = i / (SOUND_WAVE_POINTS - 1);
         
-        // Convert from 0-255 to wave amplitude
-        // 128 is the center (silence), values deviate from there
-        const normalizedValue = (value - 128) / 128; // -1 to 1
+        // Combine multiple sine waves with stronger, sharper movements
+        // Each wave has different frequency, phase, and amplitude
+        let y = 0;
         
-        // Scale to our wave height with sensitivity boost for quiet sounds
-        // Clamp to prevent wave from going outside the SVG bounds
-        const rawAmplitude = normalizedValue * (SOUND_WAVE_HEIGHT / 2) * SOUND_WAVE_SENSITIVITY;
-        const amplitude = Math.max(-SOUND_WAVE_HEIGHT / 2 + 5, Math.min(SOUND_WAVE_HEIGHT / 2 - 5, rawAmplitude));
-        const y = (SOUND_WAVE_HEIGHT / 2) + amplitude;
+        // Primary wave - main movement (stronger)
+        y += Math.sin(normalizedX * Math.PI * 2 * 2.5 + time * WAVE_SPEED) * dynamicAmplitude * 0.55;
+        
+        // Secondary wave - adds complexity (stronger and faster)
+        y += Math.sin(normalizedX * Math.PI * 2 * 4 + time * WAVE_SPEED * 1.6 + 0.5) * dynamicAmplitude * 0.35;
+        
+        // Tertiary wave - sharper high frequency detail
+        y += Math.sin(normalizedX * Math.PI * 2 * 6 + time * WAVE_SPEED * 2.1 + 1.2) * dynamicAmplitude * 0.25;
+        
+        // Medium wave - creates sharper shifts in the overall shape
+        y += Math.sin(normalizedX * Math.PI * 2 * 1.5 + time * WAVE_SPEED * 0.9 + 2.1) * dynamicAmplitude * 0.35;
+        
+        // Fast modulation wave - adds quick variations
+        y += Math.sin(normalizedX * Math.PI * 2 * 7 + time * WAVE_SPEED * 2.5 + 3.7) * dynamicAmplitude * 0.15;
+        
+        // Clamp to prevent extreme values
+        y = Math.max(-95, Math.min(95, y));
         
         points.push({ x, y });
     }
@@ -2558,10 +2472,96 @@ function drawSoundWave() {
     const secondLastPoint = points[points.length - 2];
     pathData += ` Q ${secondLastPoint.x} ${secondLastPoint.y} ${lastPoint.x} ${lastPoint.y}`;
     
-    wavePath.setAttribute('d', pathData);
+    // Apply the same path data to all ring wave paths
+    wavePaths.forEach(wavePath => {
+        wavePath.setAttribute('d', pathData);
+    });
     
     // Continue animation
-    soundSoundAnimationId = requestAnimationFrame(drawSoundWave);
+    soundSoundAnimationId = requestAnimationFrame(drawAutonomousWave);
+}
+
+// ==================
+// SOUND + SOUND RINGS (Wave Line) - Ring Rotation
+// ==================
+// Track rotation angles for each sound ring
+let soundRingRotations = [0, 0, 0, 0, 0];
+let soundRingsInitialized = false;
+let soundPrevAngle = null;
+let soundCumulativeRotation = 0;
+
+// Get the center point of the Sound rings SVG in page coordinates
+function getSoundRingsCenterPoint() {
+    const svg = document.getElementById('sound-sound-rings-svg');
+    if (!svg) return { x: 0, y: 0 };
+    
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    };
+}
+
+// Apply rotation to a sound ring group
+function applySoundRingRotation(ringIndex, angle) {
+    const ringGroup = document.querySelector(`#sound-sound-rings-svg .sound-ring-group[data-ring="${ringIndex}"]`);
+    if (ringGroup) {
+        ringGroup.setAttribute('transform', `rotate(${angle}, 0, 0)`);
+    }
+}
+
+// Handle mouse move for sound rings
+function handleSoundRingMouseMove(e) {
+    // Only work when sound rings container is visible
+    const container = document.getElementById('sound-sound-circle-container');
+    if (!container || !container.classList.contains('visible')) return;
+    
+    // Calculate current angle from center to mouse position
+    const center = getSoundRingsCenterPoint();
+    const mouseAngle = calculateAngle(center.x, center.y, e.clientX, e.clientY);
+    
+    // Calculate delta and normalize to prevent jumps at ±180° boundary
+    let angleDelta = 0;
+    if (soundPrevAngle !== null) {
+        angleDelta = mouseAngle - soundPrevAngle;
+        if (angleDelta > 180) angleDelta -= 360;
+        if (angleDelta < -180) angleDelta += 360;
+        soundCumulativeRotation += angleDelta;
+    }
+    soundPrevAngle = mouseAngle;
+    
+    // Apply rotation to each ring with different multipliers (outer rings rotate more)
+    const ringMultipliers = [1.0, 0.8, 0.6, 0.4, 0.2]; // Outer to inner
+    for (let i = 0; i < 5; i++) {
+        const rotation = soundCumulativeRotation * ringMultipliers[i];
+        soundRingRotations[i] = rotation;
+        applySoundRingRotation(i, rotation);
+    }
+}
+
+// Initialize the sound concentric rings interaction
+function initializeSoundRings() {
+    if (soundRingsInitialized) return;
+    
+    const svg = document.getElementById('sound-sound-rings-svg');
+    if (!svg) return;
+    
+    // Add mouse move listener to document - rings follow mouse position
+    document.addEventListener('mousemove', handleSoundRingMouseMove);
+    
+    soundRingsInitialized = true;
+}
+
+// Reset all sound ring rotations to 0
+function resetSoundRings() {
+    soundRingRotations = [0, 0, 0, 0, 0];
+    soundPrevAngle = null;
+    soundCumulativeRotation = 0;
+    
+    // Reset all ring transforms
+    for (let i = 0; i < 5; i++) {
+        applySoundRingRotation(i, 0);
+    }
 }
 
 // ==================
@@ -2904,6 +2904,15 @@ function stopLetterNumberAnimation() {
 let colorColorRingRotations = [0, 0, 0, 0, 0];
 let colorColorRingsInitialized = false;
 
+// Mouse position zones mapped to segment indices
+// Canvas is divided into 6 pie-slice zones (60° each), starting from top going clockwise:
+// Zone 0 (330° to 30°): Top → Segment 0 (Red)
+// Zone 1 (30° to 90°): Top-Right → Segment 1 (Purple)  
+// Zone 2 (90° to 150°): Bottom-Right → Segment 2 (Yellow)
+// Zone 3 (150° to 210°): Bottom → Segment 3 (Green)
+// Zone 4 (210° to 270°): Bottom-Left → Segment 4 (Pink)
+// Zone 5 (270° to 330°): Top-Left → Segment 5 (Blue)
+
 // Function to update Color + Color circle visibility
 function updateColorColorCircle(pageId) {
     const circleContainer = document.getElementById('color-color-circle-container');
@@ -2947,6 +2956,43 @@ function applyColorColorRingRotation(ringIndex, angle) {
     }
 }
 
+// Get which segment should be revealed based on mouse angle from center
+// Returns segment index (0-5) based on which zone the mouse is in
+function getRevealedSegmentFromAngle(mouseAngle) {
+    // Normalize angle to 0-360 range
+    let angle = mouseAngle;
+    while (angle < 0) angle += 360;
+    while (angle >= 360) angle -= 360;
+    
+    // Determine which 60° zone the mouse is in
+    // Offset by 30° so zone 0 is centered at top (330° to 30°)
+    const adjustedAngle = (angle + 30) % 360;
+    const zoneIndex = Math.floor(adjustedAngle / 60);
+    
+    return zoneIndex;
+}
+
+// Update color segment reveal states based on mouse position on canvas
+// Only the segment corresponding to the mouse's zone is revealed
+function updateColorColorSegmentRevealByZone(revealedSegmentIndex) {
+    const container = document.getElementById('color-color-circle-container');
+    if (!container) return;
+    
+    // Get all segments across all rings
+    const allSegments = container.querySelectorAll('.color-segment');
+    
+    allSegments.forEach(segment => {
+        const segmentIndex = parseInt(segment.getAttribute('data-segment'));
+        
+        // Reveal only the segment that matches the mouse zone
+        if (segmentIndex === revealedSegmentIndex) {
+            segment.classList.add('revealed');
+        } else {
+            segment.classList.remove('revealed');
+        }
+    });
+}
+
 // Rotation multipliers for each ring
 // Even rings (0, 2, 4) rotate clockwise, odd rings (1, 3) rotate counterclockwise
 // Ring 0 (outer) rotates slowest, Ring 4 (inner) rotates fastest
@@ -2968,6 +3014,10 @@ function handleColorColorRingMouseMove(e) {
         colorColorRingRotations[i] = rotation;
         applyColorColorRingRotation(i, rotation);
     }
+    
+    // Reveal segment based on mouse position zone (not rotation)
+    const revealedSegment = getRevealedSegmentFromAngle(mouseAngle);
+    updateColorColorSegmentRevealByZone(revealedSegment);
 }
 
 // Initialize the color concentric rings interaction
@@ -2983,13 +3033,20 @@ function initializeColorColorRings() {
     colorColorRingsInitialized = true;
 }
 
-// Reset all color ring rotations to 0
+// Reset all color ring rotations to 0 and hide all segment colors
 function resetColorColorRings() {
     colorColorRingRotations = [0, 0, 0, 0, 0];
     
-    // Apply reset rotations to all rings
+    // Apply reset rotations to all rings and remove revealed class from segments
     for (let i = 0; i < 5; i++) {
         applyColorColorRingRotation(i, 0);
+        
+        // Remove revealed class from all segments in this ring
+        const ring = document.querySelector(`.color-color-ring[data-ring="${i}"]`);
+        if (ring) {
+            const segments = ring.querySelectorAll('.color-segment');
+            segments.forEach(segment => segment.classList.remove('revealed'));
+        }
     }
 }
 
@@ -3374,6 +3431,414 @@ function resizeLetterEmotionColumns(dividerIndex, deltaPercent) {
 }
 
 // ==================
+// NUMBER + COLOR GRID
+// ==================
+// Draggable 2x5 grid with digits 0-9
+// Each column has independent row heights (per-column horizontal dividers)
+
+// State variables for Number + Color grid
+let numberColorGridContainer = null;
+let numberColorCells = []; // Array of 10 cells (0-9)
+let numberColorDividersH = []; // Horizontal dividers (5 - one per column)
+let numberColorDividersV = []; // Vertical dividers (4)
+// Per-column row heights: each column has its own [topRowHeight, bottomRowHeight]
+// Array of 5 columns, each with 2 row heights that sum to 100%
+let numberColorPerColRowHeights = [
+    [30, 70],  // Column 0: 0 smaller, 5 larger
+    [10, 90],  // Column 1: 1 very small, 6 very large
+    [35, 65],  // Column 2: 2 medium, 7 larger
+    [55, 45],  // Column 3: 3 larger, 8 smaller
+    [25, 75]   // Column 4: 4 small, 9 large
+];
+let numberColorColWidths = [15, 25, 15, 20, 25]; // Varied column widths
+const NUMBER_COLOR_MIN_SIZE = 5; // Minimum percentage for row/column
+
+// Color palette for digit reveal effect (from scrollbar colors)
+const NUMBER_COLOR_PALETTE = [
+    '#EF4538', // Red
+    '#891951', // Purple
+    '#FAB01B', // Yellow
+    '#007A6F', // Teal
+    '#EB4781', // Pink
+    '#293990'  // Blue
+];
+
+// Drag state for grid dividers
+let numberColorIsDragging = false;
+let numberColorDragType = null; // 'h' for horizontal, 'v' for vertical
+let numberColorDragIndex = -1; // For vertical dividers: index between columns. For horizontal: column index
+let numberColorDragStartPos = 0;
+let numberColorGridInitialized = false;
+
+// Function to update Number + Color grid visibility
+function updateNumberColorGrid(pageId) {
+    const gridContainer = document.getElementById('number-color-grid-container');
+    if (!gridContainer) return;
+    
+    // Show grid only for Number + Color pages (pageId "3-5" or "5-3")
+    // Parameter indices: 3=number, 5=color
+    const isNumberColorPage = pageId === '3-5' || pageId === '5-3';
+    
+    if (isNumberColorPage) {
+        gridContainer.classList.remove('hidden');
+        // Initialize grid when page becomes visible
+        requestAnimationFrame(() => {
+            initializeNumberColorGrid();
+        });
+    } else {
+        gridContainer.classList.add('hidden');
+    }
+}
+
+// Initialize Number + Color grid
+function initializeNumberColorGrid() {
+    numberColorGridContainer = document.getElementById('number-color-grid-container');
+    if (!numberColorGridContainer) return;
+    
+    // Get all cells and dividers
+    numberColorCells = Array.from(numberColorGridContainer.querySelectorAll('.number-color-cell'));
+    numberColorDividersH = Array.from(numberColorGridContainer.querySelectorAll('.number-color-divider-h'));
+    numberColorDividersV = Array.from(numberColorGridContainer.querySelectorAll('.number-color-divider-v'));
+    
+    // Reset to asymmetric initial sizes matching the design
+    numberColorPerColRowHeights = [
+        [30, 70],  // Column 0: 0 smaller, 5 larger
+        [10, 90],  // Column 1: 1 very small, 6 very large
+        [35, 65],  // Column 2: 2 medium, 7 larger
+        [55, 45],  // Column 3: 3 larger, 8 smaller
+        [25, 75]   // Column 4: 4 small, 9 large
+    ];
+    numberColorColWidths = [15, 25, 15, 20, 25]; // Varied column widths
+    
+    // Apply initial layout
+    updateNumberColorGridLayout();
+    
+    // Only add event listeners once
+    if (numberColorGridInitialized) return;
+    numberColorGridInitialized = true;
+    
+    // Add mouse event listeners for horizontal dividers (per-column)
+    numberColorDividersH.forEach((divider) => {
+        const colIndex = parseInt(divider.dataset.col);
+        divider.addEventListener('mousedown', (e) => handleNumberColorDividerMouseDown(e, 'h', colIndex));
+    });
+    
+    // Add mouse event listeners for vertical dividers
+    numberColorDividersV.forEach((divider, index) => {
+        divider.addEventListener('mousedown', (e) => handleNumberColorDividerMouseDown(e, 'v', index));
+    });
+    
+    // Add document-level mouse move and up handlers
+    document.addEventListener('mousemove', handleNumberColorDividerMouseMove);
+    document.addEventListener('mouseup', handleNumberColorDividerMouseUp);
+    
+    // Add touch event listeners for horizontal dividers (per-column)
+    numberColorDividersH.forEach((divider) => {
+        const colIndex = parseInt(divider.dataset.col);
+        divider.addEventListener('touchstart', (e) => handleNumberColorDividerTouchStart(e, 'h', colIndex), { passive: false });
+    });
+    
+    // Add touch event listeners for vertical dividers
+    numberColorDividersV.forEach((divider, index) => {
+        divider.addEventListener('touchstart', (e) => handleNumberColorDividerTouchStart(e, 'v', index), { passive: false });
+    });
+    
+    document.addEventListener('touchmove', handleNumberColorDividerTouchMove, { passive: false });
+    document.addEventListener('touchend', handleNumberColorDividerTouchEnd);
+}
+
+// Update the visual layout of the grid based on current row heights and column widths
+function updateNumberColorGridLayout() {
+    if (!numberColorGridContainer) return;
+    
+    const containerRect = numberColorGridContainer.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calculate cumulative positions for columns
+    let colPositions = [0]; // Start positions for each column
+    for (let i = 0; i < numberColorColWidths.length; i++) {
+        colPositions.push(colPositions[i] + numberColorColWidths[i]);
+    }
+    
+    // Position each cell - using per-column row heights
+    numberColorCells.forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        
+        // Get this column's row heights
+        const colRowHeights = numberColorPerColRowHeights[col];
+        
+        // Calculate row position within this column
+        const rowTopPercent = row === 0 ? 0 : colRowHeights[0];
+        const rowHeightPercent = colRowHeights[row];
+        
+        const top = (rowTopPercent / 100) * containerHeight;
+        const left = (colPositions[col] / 100) * containerWidth;
+        const height = (rowHeightPercent / 100) * containerHeight;
+        const width = (numberColorColWidths[col] / 100) * containerWidth;
+        
+        cell.style.top = `${top}px`;
+        cell.style.left = `${left}px`;
+        cell.style.height = `${height}px`;
+        cell.style.width = `${width}px`;
+    });
+    
+    // Position horizontal dividers (per-column, between rows 0 and 1)
+    numberColorDividersH.forEach((divider) => {
+        const col = parseInt(divider.dataset.col);
+        const colRowHeights = numberColorPerColRowHeights[col];
+        
+        // Divider is at the bottom of row 0 (top of row 1)
+        const top = (colRowHeights[0] / 100) * containerHeight - 1;
+        const left = (colPositions[col] / 100) * containerWidth;
+        const width = (numberColorColWidths[col] / 100) * containerWidth;
+        
+        divider.style.top = `${top}px`;
+        divider.style.left = `${left}px`;
+        divider.style.width = `${width}px`;
+    });
+    
+    // Position vertical dividers (between columns)
+    numberColorDividersV.forEach((divider, index) => {
+        const left = (colPositions[index + 1] / 100) * containerWidth - 1; // Center the 2px line
+        divider.style.left = `${left}px`;
+    });
+}
+
+// Update digit colors based on dragging state
+// Only the cells affected by the current drag reveal their colors
+// dragType: 'h' for horizontal (affects 2 cells in one column), 'v' for vertical (affects 4 cells in 2 columns)
+// dragIndex: for 'h' = column index, for 'v' = divider index between columns
+function updateNumberColorDigitColors(isDragging, dragType, dragIndex) {
+    numberColorCells.forEach(cell => {
+        const digitText = cell.querySelector('.number-color-digit');
+        if (!digitText) return;
+        
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        
+        // Determine if this cell is affected by the current drag
+        let isAffected = false;
+        if (isDragging) {
+            if (dragType === 'h') {
+                // Horizontal divider affects both rows in this column only
+                isAffected = (col === dragIndex);
+            } else if (dragType === 'v') {
+                // Vertical divider at index X is between columns X and X+1
+                // Affects all cells in both adjacent columns
+                isAffected = (col === dragIndex || col === dragIndex + 1);
+            }
+        }
+        
+        if (isAffected) {
+            // Reveal color based on digit value (0-9 mapped to 6 colors)
+            const digit = parseInt(digitText.textContent);
+            const colorIndex = digit % NUMBER_COLOR_PALETTE.length;
+            digitText.style.fill = NUMBER_COLOR_PALETTE[colorIndex];
+        } else {
+            // Return to black (or stay black if not dragging)
+            digitText.style.fill = '#2C2C2C';
+        }
+    });
+}
+
+// Mouse down handler for dividers
+function handleNumberColorDividerMouseDown(e, type, index) {
+    e.preventDefault();
+    
+    numberColorIsDragging = true;
+    numberColorDragType = type;
+    numberColorDragIndex = index; // For 'h': column index. For 'v': divider index between columns
+    numberColorDragStartPos = type === 'h' ? e.clientY : e.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' 
+        ? numberColorDividersH.find(d => parseInt(d.dataset.col) === index)
+        : numberColorDividersV[index];
+    if (divider) divider.classList.add('active');
+    numberColorGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+    
+    // Reveal digit colors for affected cells only
+    updateNumberColorDigitColors(true, type, index);
+}
+
+// Mouse move handler for dividers
+function handleNumberColorDividerMouseMove(e) {
+    if (!numberColorIsDragging) return;
+    
+    e.preventDefault();
+    
+    const containerRect = numberColorGridContainer.getBoundingClientRect();
+    
+    if (numberColorDragType === 'h') {
+        // Horizontal divider - affects row heights for this column only
+        const deltaY = e.clientY - numberColorDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeNumberColorRows(numberColorDragIndex, deltaPercent);
+        numberColorDragStartPos = e.clientY;
+    } else {
+        // Vertical divider - affects column widths
+        const deltaX = e.clientX - numberColorDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeNumberColorColumns(numberColorDragIndex, deltaPercent);
+        numberColorDragStartPos = e.clientX;
+    }
+    
+    updateNumberColorGridLayout();
+}
+
+// Mouse up handler for dividers
+function handleNumberColorDividerMouseUp(e) {
+    if (!numberColorIsDragging) return;
+    
+    // Remove visual feedback
+    const divider = numberColorDragType === 'h' 
+        ? numberColorDividersH.find(d => parseInt(d.dataset.col) === numberColorDragIndex)
+        : numberColorDividersV[numberColorDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    numberColorGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    // Return digits to black when drag ends
+    updateNumberColorDigitColors(false);
+    
+    numberColorIsDragging = false;
+    numberColorDragType = null;
+    numberColorDragIndex = -1;
+}
+
+// Touch start handler for dividers
+function handleNumberColorDividerTouchStart(e, type, index) {
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    numberColorIsDragging = true;
+    numberColorDragType = type;
+    numberColorDragIndex = index;
+    numberColorDragStartPos = type === 'h' ? touch.clientY : touch.clientX;
+    
+    // Add visual feedback
+    const divider = type === 'h' 
+        ? numberColorDividersH.find(d => parseInt(d.dataset.col) === index)
+        : numberColorDividersV[index];
+    if (divider) divider.classList.add('active');
+    numberColorGridContainer.classList.add(type === 'h' ? 'dragging-h' : 'dragging-v');
+    
+    // Reveal digit colors for affected cells only
+    updateNumberColorDigitColors(true, type, index);
+}
+
+// Touch move handler for dividers
+function handleNumberColorDividerTouchMove(e) {
+    if (!numberColorIsDragging) return;
+    if (!e.touches || e.touches.length === 0) return;
+    
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const containerRect = numberColorGridContainer.getBoundingClientRect();
+    
+    if (numberColorDragType === 'h') {
+        const deltaY = touch.clientY - numberColorDragStartPos;
+        const deltaPercent = (deltaY / containerRect.height) * 100;
+        
+        resizeNumberColorRows(numberColorDragIndex, deltaPercent);
+        numberColorDragStartPos = touch.clientY;
+    } else {
+        const deltaX = touch.clientX - numberColorDragStartPos;
+        const deltaPercent = (deltaX / containerRect.width) * 100;
+        
+        resizeNumberColorColumns(numberColorDragIndex, deltaPercent);
+        numberColorDragStartPos = touch.clientX;
+    }
+    
+    updateNumberColorGridLayout();
+}
+
+// Touch end handler for dividers
+function handleNumberColorDividerTouchEnd(e) {
+    if (!numberColorIsDragging) return;
+    
+    // Remove visual feedback
+    const divider = numberColorDragType === 'h' 
+        ? numberColorDividersH.find(d => parseInt(d.dataset.col) === numberColorDragIndex)
+        : numberColorDividersV[numberColorDragIndex];
+    
+    if (divider) divider.classList.remove('active');
+    numberColorGridContainer.classList.remove('dragging-h', 'dragging-v');
+    
+    // Return digits to black when drag ends
+    updateNumberColorDigitColors(false);
+    
+    numberColorIsDragging = false;
+    numberColorDragType = null;
+    numberColorDragIndex = -1;
+}
+
+// Resize rows for a specific column (per-column row heights)
+function resizeNumberColorRows(colIndex, deltaPercent) {
+    // Get current row heights for this column
+    const colRowHeights = numberColorPerColRowHeights[colIndex];
+    
+    // Calculate new heights
+    let newTopHeight = colRowHeights[0] + deltaPercent;
+    let newBottomHeight = colRowHeights[1] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newTopHeight < NUMBER_COLOR_MIN_SIZE) {
+        const adjustment = NUMBER_COLOR_MIN_SIZE - newTopHeight;
+        newTopHeight = NUMBER_COLOR_MIN_SIZE;
+        newBottomHeight -= adjustment;
+    }
+    
+    if (newBottomHeight < NUMBER_COLOR_MIN_SIZE) {
+        const adjustment = NUMBER_COLOR_MIN_SIZE - newBottomHeight;
+        newBottomHeight = NUMBER_COLOR_MIN_SIZE;
+        newTopHeight -= adjustment;
+    }
+    
+    // Final clamp
+    if (newTopHeight >= NUMBER_COLOR_MIN_SIZE && newBottomHeight >= NUMBER_COLOR_MIN_SIZE) {
+        numberColorPerColRowHeights[colIndex] = [newTopHeight, newBottomHeight];
+    }
+}
+
+// Resize adjacent columns (accordion style)
+function resizeNumberColorColumns(dividerIndex, deltaPercent) {
+    // Divider at index i is between column i and column i+1
+    const leftColIndex = dividerIndex;
+    const rightColIndex = dividerIndex + 1;
+    
+    // Calculate new widths
+    let newLeftWidth = numberColorColWidths[leftColIndex] + deltaPercent;
+    let newRightWidth = numberColorColWidths[rightColIndex] - deltaPercent;
+    
+    // Enforce minimum size constraints
+    if (newLeftWidth < NUMBER_COLOR_MIN_SIZE) {
+        const adjustment = NUMBER_COLOR_MIN_SIZE - newLeftWidth;
+        newLeftWidth = NUMBER_COLOR_MIN_SIZE;
+        newRightWidth -= adjustment;
+    }
+    
+    if (newRightWidth < NUMBER_COLOR_MIN_SIZE) {
+        const adjustment = NUMBER_COLOR_MIN_SIZE - newRightWidth;
+        newRightWidth = NUMBER_COLOR_MIN_SIZE;
+        newLeftWidth -= adjustment;
+    }
+    
+    // Final clamp
+    if (newLeftWidth >= NUMBER_COLOR_MIN_SIZE && newRightWidth >= NUMBER_COLOR_MIN_SIZE) {
+        numberColorColWidths[leftColIndex] = newLeftWidth;
+        numberColorColWidths[rightColIndex] = newRightWidth;
+    }
+}
+
+// ==================
 // SOUND + NUMBER GRID
 // ==================
 // Draggable 3x3 grid with digit 1 in center cell
@@ -3425,14 +3890,14 @@ function initializeSoundNumberGrid() {
     soundNumberGridContainer = document.getElementById('sound-number-container');
     if (!soundNumberGridContainer) return;
     
-    // Get center cell and dividers
-    soundNumberCell = soundNumberGridContainer.querySelector('.sound-number-cell');
+    // Get center cell (the one with the digit) and dividers
+    soundNumberCell = soundNumberGridContainer.querySelector('.sound-number-cell-center');
     soundNumberDividersH = Array.from(soundNumberGridContainer.querySelectorAll('.sound-number-divider-h'));
     soundNumberDividersV = Array.from(soundNumberGridContainer.querySelectorAll('.sound-number-divider-v'));
     
-    // Reset to default layout - wide and short center cell (shows digit 8)
-    soundNumberRowHeights = [30, 40, 30];
-    soundNumberColWidths = [15, 70, 15];
+    // Reset to default layout - narrow and tall center cell (shows digit 3), shifted right
+    soundNumberRowHeights = [15, 70, 15];
+    soundNumberColWidths = [55, 20, 25];
     
     // Apply initial layout
     updateSoundNumberGridLayout();
@@ -3487,21 +3952,22 @@ function updateSoundNumberGridLayout() {
         colPositions.push(colPositions[i] + soundNumberColWidths[i]);
     }
     
-    // Position the center cell (row 1, col 1)
-    if (soundNumberCell) {
-        const row = 1;
-        const col = 1;
+    // Position all cells (9 total: 8 outer + 1 center)
+    const allCells = soundNumberGridContainer.querySelectorAll('.sound-number-cell');
+    allCells.forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
         
         const top = (rowPositions[row] / 100) * containerHeight;
         const left = (colPositions[col] / 100) * containerWidth;
         const height = (soundNumberRowHeights[row] / 100) * containerHeight;
         const width = (soundNumberColWidths[col] / 100) * containerWidth;
         
-        soundNumberCell.style.top = `${top}px`;
-        soundNumberCell.style.left = `${left}px`;
-        soundNumberCell.style.height = `${height}px`;
-        soundNumberCell.style.width = `${width}px`;
-    }
+        cell.style.top = `${top}px`;
+        cell.style.left = `${left}px`;
+        cell.style.height = `${height}px`;
+        cell.style.width = `${width}px`;
+    });
     
     // Position horizontal dividers (between rows)
     soundNumberDividersH.forEach((divider, index) => {
@@ -3556,6 +4022,22 @@ function updateSoundNumberDigit() {
     if (digitElement) {
         digitElement.textContent = digit.toString();
     }
+    
+    // Calculate frequency for pitch labels (same logic as updateSoundNumberFrequency)
+    const minFreq = 150;
+    const maxFreq = 800;
+    const clampedRatio = Math.max(0.2, Math.min(5.0, ratio));
+    const logMin = Math.log(0.2);
+    const logMax = Math.log(5.0);
+    const logRatio = Math.log(clampedRatio);
+    const normalizedRatio = (logRatio - logMin) / (logMax - logMin);
+    const frequency = Math.round(maxFreq - (normalizedRatio * (maxFreq - minFreq)));
+    
+    // Update all pitch labels with the current frequency
+    const pitchLabels = soundNumberGridContainer.querySelectorAll('.sound-number-pitch-label');
+    pitchLabels.forEach(label => {
+        label.textContent = `${frequency} hz`;
+    });
 }
 
 // Start the sine wave sound when dragging begins
@@ -5806,7 +6288,7 @@ function createStarSVG() {
         points.push(`${x},${y}`);
     }
     polygon.setAttribute('points', points.join(' '));
-    polygon.setAttribute('fill', '#ffffff');
+    polygon.setAttribute('fill', 'none');
     polygon.setAttribute('stroke', '#2C2C2C');
     polygon.setAttribute('stroke-width', '3');
     
@@ -5825,7 +6307,7 @@ function createEllipseSVG() {
     ellipse.setAttribute('cy', '50');
     ellipse.setAttribute('rx', '47'); // Horizontal radius (wider)
     ellipse.setAttribute('ry', '30'); // Vertical radius (shorter)
-    ellipse.setAttribute('fill', '#ffffff');
+    ellipse.setAttribute('fill', 'none');
     ellipse.setAttribute('stroke', '#2C2C2C');
     ellipse.setAttribute('stroke-width', '3');
     
@@ -5849,7 +6331,7 @@ function createPentagonSVG() {
         points.push(`${x},${y}`);
     }
     polygon.setAttribute('points', points.join(' '));
-    polygon.setAttribute('fill', '#ffffff');
+    polygon.setAttribute('fill', 'none');
     polygon.setAttribute('stroke', '#2C2C2C');
     polygon.setAttribute('stroke-width', '3');
     
@@ -6294,26 +6776,16 @@ function initializeShapeColorCanvas() {
 }
 
 // Update Shape + Color visibility based on current page
+// NOTE: Bouncing shapes interaction has been removed from this page.
+// The ellipses interaction (from Shape+Shape) is now shown here instead.
+// See updateShapeShapeCanvasVisibility for the new logic.
 function updateShapeColorCanvasVisibility(pageId) {
     const container = document.getElementById('shape-color-container');
     if (!container) return;
     
-    // Show for pageId "0-5" or "5-0" (Shape + Color)
-    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
-    
-    if (isShapeColorPage) {
-        container.classList.remove('hidden');
-        // Initialize squares after a brief delay to ensure container is visible
-        setTimeout(() => {
-            if (container && !container.classList.contains('hidden')) {
-                initializeShapeColorSquares();
-                startShapeColorAnimation();
-            }
-        }, 50);
-    } else {
-        container.classList.add('hidden');
-        stopShapeColorAnimation();
-    }
+    // Always hide - bouncing shapes interaction is no longer used
+    container.classList.add('hidden');
+    stopShapeColorAnimation();
 }
 
 // Function to hide SOUND & SHAPE instruction text (called when user starts drawing)
@@ -6386,9 +6858,6 @@ function updateActivePage(pageId, reason) {
     // Update LETTER & COLOR text box visibility
     updateLetterColorTextBox(pageId);
     
-    // Update NUMBER & COLOR text box visibility
-    updateNumberColorTextBox(pageId);
-    
     // Update SOUND & SHAPE instruction text visibility
     updateSoundShapeInstructionText(pageId);
     
@@ -6434,6 +6903,9 @@ function updateActivePage(pageId, reason) {
     // Update Shape + Shape canvas visibility (ellipses interaction)
     updateShapeShapeCanvasVisibility(pageId);
     
+    // Update Shape + Shape circle visibility (concentric rings with black square)
+    updateShapeShapeCircle(pageId);
+    
     // Update Sound & Shape canvas visibility
     updateSoundShapeCanvasVisibility(pageId);
     
@@ -6445,6 +6917,9 @@ function updateActivePage(pageId, reason) {
     
     // Update Emotion + Color grid visibility
     updateEmotionColorVisibility(pageId);
+    
+    // Update Number + Color grid visibility
+    updateNumberColorGrid(pageId);
     
     // Also update visibility based on colors (for orange+yellow combination)
     const leftColor = getColorFromIndex(selectedLeftIndex);
@@ -6468,7 +6943,7 @@ function updateWordText() {
     const rightColor = colors[selectedRightIndex];
     
     // Helper function to populate a word element with letter spans
-    // Capitalizes first letter, rest lowercase (e.g., "Shape", "Color")
+    // All letters are uppercase (e.g., "SHAPE", "COLOR")
     // Also sets the text color to match the parameter's color
     function populateWordElement(element, word, textColor) {
         if (!element) return;
@@ -6479,8 +6954,8 @@ function updateWordText() {
         // Create a span for each character
         for (let i = 0; i < word.length; i++) {
             const span = document.createElement('span');
-            // Capitalize first letter, lowercase the rest
-            span.textContent = i === 0 ? word[i].toUpperCase() : word[i].toLowerCase();
+            // All letters uppercase
+            span.textContent = word[i].toUpperCase();
             span.className = 'word-letter';
             // Set the text color to match the parameter's color
             span.style.color = textColor;
@@ -6990,11 +7465,11 @@ function renderShapeNumber() {
     digitHitboxes = [];
     
     // 3 digits (7, 8, 9) centered on page
-    // Increase size by 30% compared to original (15% + 15%)
+    // Increase size by 69% compared to original
     const baseCellW = W / 7.5;
-    const cellW = baseCellW * 1.30; // 30% larger
+    const cellW = baseCellW * 1.69; // 69% larger (30% increase from 1.30)
     const cellH = H * 0.8; // Use 80% of height for taller digits
-    const digitSpacing = 70; // Gap between digits (increased by 10px)
+    const digitSpacing = 91; // Gap between digits (30% increase from 70)
     
     // Center the single row horizontally: 3 cells + 2 gaps between them
     const totalWidth = 3 * cellW + 2 * digitSpacing;
@@ -7039,7 +7514,7 @@ function drawChain(points, cx, cy, boxSize) {
     const left = cx - boxSize / 2;
     const top = cy - boxSize / 2;
     
-    const baseSize = boxSize * 0.16;
+    const baseSize = boxSize * 0.208; // 30% larger (0.16 * 1.30)
     const size = baseSize * shapeSizeFactor;
     
     // Path
@@ -7768,17 +8243,19 @@ window.addEventListener('resize', () => {
 });
 
 // Function to update Shape + Shape canvas visibility (ellipses interaction)
+// NOTE: Ellipses interaction has been moved from Shape+Shape page to Shape+Color page.
+// Shape+Shape page (0-0) is now empty.
 function updateShapeShapeCanvasVisibility(pageId) {
     const shapeShapeContainer = document.getElementById('shape-shape-container');
     
     if (!shapeShapeContainer) return;
     
-    // Show Shape + Shape canvas only for pageId "0-0"
-    // Parameter indices: 0=shape, 0=shape
-    const isShapeShapePage = pageId === '0-0';
+    // Show ellipses for Shape + Color page (0-5 or 5-0) instead of Shape + Shape (0-0)
+    // Parameter indices: 0=shape, 5=color
+    const isShapeColorPage = pageId === '0-5' || pageId === '5-0';
     
-    if (isShapeShapePage) {
-        // Show Shape + Shape container
+    if (isShapeColorPage) {
+        // Show ellipses container on Shape + Color page
         shapeShapeContainer.classList.remove('hidden');
         // Initialize ellipses after a brief delay to ensure container is visible
         setTimeout(() => {
@@ -7788,7 +8265,7 @@ function updateShapeShapeCanvasVisibility(pageId) {
             }
         }, 50);
     } else {
-        // Hide Shape + Shape container
+        // Hide ellipses container (including for old Shape+Shape page which is now empty)
         shapeShapeContainer.classList.add('hidden');
     }
 }
@@ -7811,13 +8288,13 @@ let isDraggingEllipse = false;
 let dragStartX = 0;
 let dragEdgeIndex = -1; // The index of the edge being dragged (0-5, where edge i is between ellipse i and i+1)
 
-// Initialize ellipses interaction
+// Initialize shapes interaction (ellipses, triangles, rectangles)
 function initializeShapeEllipses() {
     shapeEllipsesContainer = document.getElementById('shape-shape-ellipses');
     if (!shapeEllipsesContainer) return;
     
-    // Select the wrapper elements (not the SVG ellipses themselves)
-    shapeEllipses = Array.from(shapeEllipsesContainer.querySelectorAll('.shape-ellipse-wrapper'));
+    // Select the wrapper elements (not the SVG shapes themselves)
+    shapeEllipses = Array.from(shapeEllipsesContainer.querySelectorAll('.shape-wrapper'));
     if (shapeEllipses.length !== 7) return;
     
     // Varied initial widths to hint at resize capability (total = 100%)
@@ -7853,20 +8330,62 @@ function updateEllipseWidths() {
     });
 }
 
+// Calculate distance from a point to a line segment
+function distanceToLineSegment(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    
+    if (lenSq !== 0) param = dot / lenSq;
+    
+    let xx, yy;
+    
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+    
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 // Detect which edge is being clicked (returns edge index 0-5, or -1 if not on edge)
 function detectEdge(clientX, clientY) {
     if (!shapeEllipses || shapeEllipses.length !== 7) return -1;
     
-    const edgeZone = 15; // Pixels from edge that count as "on edge"
+    const edgeZone = 20; // Pixels from edge that count as "on edge"
     
-    // Check each ellipse (except the last) for right edge proximity
-    for (let i = 0; i < shapeEllipses.length - 1; i++) {
-        const rect = shapeEllipses[i].getBoundingClientRect();
-        const rightEdge = rect.right;
+    // Check each shape for edge proximity
+    for (let i = 0; i < shapeEllipses.length; i++) {
+        const wrapper = shapeEllipses[i];
+        const rect = wrapper.getBoundingClientRect();
+        const shapeType = wrapper.dataset.shape;
         
-        // Check if click is near the right edge of this ellipse (which is the left edge of the next)
-        if (Math.abs(clientX - rightEdge) < edgeZone) {
-            return i; // Return the edge index
+        // For all shapes, check wrapper edges (works for ellipse, rectangle, pentagon, hexagon)
+        // Check right edge of this shape (edge between shape i and i+1)
+        if (i < shapeEllipses.length - 1) {
+            if (Math.abs(clientX - rect.right) < edgeZone) {
+                return i;
+            }
+        }
+        
+        // Check left edge of this shape (edge between shape i-1 and i)
+        if (i > 0) {
+            if (Math.abs(clientX - rect.left) < edgeZone) {
+                return i - 1;
+            }
         }
     }
     
@@ -7887,20 +8406,32 @@ function handleEllipseMouseDown(e) {
 }
 
 function handleEllipseMouseMove(e) {
-    if (!isDraggingEllipse) return;
+    // If dragging, handle the drag
+    if (isDraggingEllipse) {
+        e.preventDefault();
+        const deltaX = e.clientX - dragStartX;
+        
+        // Calculate width change as percentage of container
+        const containerWidth = shapeEllipsesContainer.getBoundingClientRect().width;
+        const deltaPercent = (deltaX / containerWidth) * 100;
+        
+        // Apply the change to the two adjacent ellipses
+        resizeAdjacentEllipses(dragEdgeIndex, deltaPercent);
+        
+        // Update start position for next move
+        dragStartX = e.clientX;
+        return;
+    }
     
-    e.preventDefault();
-    const deltaX = e.clientX - dragStartX;
-    
-    // Calculate width change as percentage of container
-    const containerWidth = shapeEllipsesContainer.getBoundingClientRect().width;
-    const deltaPercent = (deltaX / containerWidth) * 100;
-    
-    // Apply the change to the two adjacent ellipses
-    resizeAdjacentEllipses(dragEdgeIndex, deltaPercent);
-    
-    // Update start position for next move
-    dragStartX = e.clientX;
+    // If not dragging, update cursor based on edge proximity
+    if (shapeEllipsesContainer) {
+        const edgeIndex = detectEdge(e.clientX, e.clientY);
+        if (edgeIndex !== -1) {
+            shapeEllipsesContainer.style.cursor = 'ew-resize';
+        } else {
+            shapeEllipsesContainer.style.cursor = 'default';
+        }
+    }
 }
 
 function handleEllipseMouseUp(e) {
@@ -8023,35 +8554,35 @@ let soundShapeDrawCanvas = null;
 let soundShapeDrawCtx = null;
 let soundShapeBrushCanvas = null;
 let soundShapeBrushCtx = null;
-let soundShapePlayBtn = null;
-let soundShapeResetBtn = null;
-let soundShapeExportBtn = null;
 let soundShapeResizeObserver = null;
 let soundShapeAnimationId = null;
 
 // Config
 const SOUND_SHAPE_SIZE = 40;        // Size of draggable shapes
 const SOUND_SHAPE_STAMP_SIZE = 40;  // Size of stamps (trail)
-const SOUND_SHAPE_STEP_DIST = 30;   // Distance between stamps (smaller = denser trail)
+const SOUND_SHAPE_STEP_DIST = 10;   // Distance between stamps (smaller = denser trail)
 const SOUND_SHAPE_STROKE_W = 3;     // Stroke weight
 const SOUND_SHAPE_EASING = 0.4;     // Smoothing factor (higher = follows mouse faster)
 const SOUND_SHAPE_SPACING = 70;     // Vertical spacing between shapes
-const SOUND_SHAPE_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'star', 'pentagon'];
+const SOUND_SHAPE_TYPES = ['circle', 'square', 'triangle', 'ellipse', 'pentagon'];
 
 // Colors
 const SOUND_SHAPE_BG_COLOR = '#FFFFFF';
 const SOUND_SHAPE_FILL_COLOR = '#FFFFFF';
-const SOUND_SHAPE_STROKE_COLOR = '#000000';
+const SOUND_SHAPE_STROKE_COLOR = '#2C2C2C';
 
 // State
 let soundShapePositions = [];       // { x, y, shapeType }
 let soundShapeDraggedIndex = -1;    // -1 means no shape is being dragged
 let soundShapeDragOffsetX = 0;
 let soundShapeDragOffsetY = 0;
+let soundShapeLastStampX = 0;       // Last position where we stamped
+let soundShapeLastStampY = 0;
 let soundShapeRecordedPoints = [];  // { x, y, shape } for playback
 let soundShapeIsReplaying = false;
 let soundShapeReplayIndex = 0;
 let soundShapeActive = false;       // Whether the canvas is active
+let soundShapeAutoPlayTimer = null; // Timer for auto-play after 3 seconds of inactivity
 
 // Sound state (Web Audio API)
 let soundShapeAudioCtx = null;
@@ -8071,9 +8602,6 @@ function initializeSoundShapeCanvas() {
     
     soundShapeDrawCanvas = document.getElementById('sound-shape-draw-surface');
     soundShapeBrushCanvas = document.getElementById('sound-shape-brush-layer');
-    soundShapePlayBtn = document.getElementById('sound-shape-play-btn');
-    soundShapeResetBtn = document.getElementById('sound-shape-reset-btn');
-    soundShapeExportBtn = document.getElementById('sound-shape-export-btn');
     
     if (!soundShapeDrawCanvas || !soundShapeBrushCanvas) {
         console.error('Sound & Shape canvas elements not found');
@@ -8100,21 +8628,6 @@ function initializeSoundShapeCanvas() {
             resetSoundShapeCanvas();
         }
     });
-    
-    // Play button
-    if (soundShapePlayBtn) {
-        soundShapePlayBtn.addEventListener('click', handleSoundShapePlayClick);
-    }
-    
-    // Reset button
-    if (soundShapeResetBtn) {
-        soundShapeResetBtn.addEventListener('click', resetSoundShapeCanvas);
-    }
-    
-    // Export button
-    if (soundShapeExportBtn) {
-        soundShapeExportBtn.addEventListener('click', exportSoundShapeCanvas);
-    }
     
     // Resize handler
     if (window.ResizeObserver) {
@@ -8183,7 +8696,7 @@ function initializeSoundShapePositions() {
         soundShapePositions.push({
             x: centerX,
             y: startY + i * SOUND_SHAPE_SPACING,
-            shapeType: i
+            shapeType: SOUND_SHAPE_TYPES[i]  // Store shape name instead of index
         });
     }
 }
@@ -8246,7 +8759,7 @@ function drawSoundShapeDraggableShapes() {
 // Draw a single draggable shape
 function drawSoundShapeDraggable(ctx, x, y, baseSize, shapeType, isBeingDragged) {
     // Size multipliers for different shapes
-    const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3]; // circle, square, triangle, ellipse, star, pentagon
+    const multipliers = { circle: 1.0, square: 1.3, triangle: 1.5, ellipse: 1.4, star: 1.2, pentagon: 1.3 };
     let size = baseSize * (multipliers[shapeType] || 1.0);
     
     if (isBeingDragged) {
@@ -8268,23 +8781,23 @@ function drawSoundShapeDraggable(ctx, x, y, baseSize, shapeType, isBeingDragged)
 function drawSoundShapeByType(ctx, x, y, size, shapeType) {
     ctx.beginPath();
     
-    if (shapeType === 0) {
+    if (shapeType === 'circle') {
         // Circle
         ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-    } else if (shapeType === 1) {
+    } else if (shapeType === 'square') {
         // Square
         ctx.rect(x - size / 2, y - size / 2, size, size);
-    } else if (shapeType === 2) {
+    } else if (shapeType === 'triangle') {
         // Triangle
         const h = size * 0.9;
         ctx.moveTo(x, y - h / 2);
         ctx.lineTo(x - h / 2, y + h / 2);
         ctx.lineTo(x + h / 2, y + h / 2);
         ctx.closePath();
-    } else if (shapeType === 3) {
+    } else if (shapeType === 'ellipse') {
         // Ellipse
         ctx.ellipse(x, y, size * 0.75, size * 0.45, 0, 0, Math.PI * 2);
-    } else if (shapeType === 4) {
+    } else if (shapeType === 'star') {
         // Star (5-pointed)
         for (let i = 0; i < 10; i++) {
             const angle = (i * Math.PI) / 5 - Math.PI / 2;
@@ -8295,7 +8808,7 @@ function drawSoundShapeByType(ctx, x, y, size, shapeType) {
             else ctx.lineTo(px, py);
         }
         ctx.closePath();
-    } else if (shapeType === 5) {
+    } else if (shapeType === 'pentagon') {
         // Pentagon
         for (let i = 0; i < 5; i++) {
             const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
@@ -8315,8 +8828,8 @@ function drawSoundShapeByType(ctx, x, y, size, shapeType) {
 function drawSoundShapeStamp(x, y, shapeType) {
     if (!soundShapeBrushCtx) return;
     
-    // Size multipliers for stamps
-    const multipliers = [1.0, 1.5, 2.0, 1.8, 1.3, 1.4]; // circle, square, triangle, ellipse, star, pentagon
+    // Size multipliers for stamps (should match draggable shape multipliers for consistency)
+    const multipliers = { circle: 1.0, square: 1.3, triangle: 1.5, ellipse: 1.4, star: 1.2, pentagon: 1.3 };
     const size = SOUND_SHAPE_STAMP_SIZE * (multipliers[shapeType] || 1.0);
     
     soundShapeBrushCtx.save();
@@ -8400,6 +8913,14 @@ function getSoundShapeAtPosition(mx, my) {
 function handleSoundShapeMouseDown(e) {
     if (!soundShapeActive) return;
     
+    // Cancel auto-play timer if user starts drawing again
+    cancelSoundShapeAutoPlayTimer();
+    
+    // Stop any ongoing playback
+    if (soundShapeIsReplaying) {
+        stopSoundShapePlayback();
+    }
+    
     ensureSoundShapeAudio();
     
     const pos = getSoundShapeMousePos(e);
@@ -8410,6 +8931,10 @@ function handleSoundShapeMouseDown(e) {
         const shape = soundShapePositions[shapeIndex];
         soundShapeDragOffsetX = pos.x - shape.x;
         soundShapeDragOffsetY = pos.y - shape.y;
+        
+        // Initialize last stamp position to current shape position
+        soundShapeLastStampX = shape.x;
+        soundShapeLastStampY = shape.y;
         
         // Hide instruction text
         hideSoundShapeInstructionText();
@@ -8429,20 +8954,29 @@ function handleSoundShapeMouseMove(e) {
     const targetX = shape.x + (newX - shape.x) * SOUND_SHAPE_EASING;
     const targetY = shape.y + (newY - shape.y) * SOUND_SHAPE_EASING;
     
-    // Calculate movement
-    const dx = targetX - shape.x;
-    const dy = targetY - shape.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Calculate distance from LAST STAMP position (not current shape position)
+    const stampDx = targetX - soundShapeLastStampX;
+    const stampDy = targetY - soundShapeLastStampY;
+    const stampDist = Math.sqrt(stampDx * stampDx + stampDy * stampDy);
     
-    if (dist > 2) {
+    // Only stamp when we've moved at least STEP_DIST from the last stamp
+    if (stampDist >= SOUND_SHAPE_STEP_DIST) {
         const containerRect = soundShapeContainer.getBoundingClientRect();
         const w = containerRect.width;
         
-        // Stamp trail on left side
-        stampSoundShapeTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
+        // Stamp single shape at current position
+        drawSoundShapeStamp(targetX, targetY, shape.shapeType);
+        drawSoundShapeStamp(w - targetX, targetY, shape.shapeType);
         
-        // Mirror stamp on right side
-        stampSoundShapeTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+        // Record for playback (with timestamp for real-time playback)
+        soundShapeRecordedPoints.push({ x: targetX, y: targetY, shape: shape.shapeType, time: performance.now() });
+        
+        // Trigger sound
+        triggerSoundShapeSound(targetX, targetY, shape.shapeType);
+        
+        // Update last stamp position
+        soundShapeLastStampX = targetX;
+        soundShapeLastStampY = targetY;
     }
     
     // Update position
@@ -8455,8 +8989,8 @@ function handleSoundShapeMouseMove(e) {
 
 function handleSoundShapeMouseUp(e) {
     if (soundShapeDraggedIndex >= 0) {
-        // Save state after drawing
-        saveSoundShapeState();
+        // Start auto-play timer (3 seconds after user stops drawing)
+        startSoundShapeAutoPlayTimer();
     }
     soundShapeDraggedIndex = -1;
 }
@@ -8465,6 +8999,14 @@ function handleSoundShapeMouseUp(e) {
 function handleSoundShapeTouchStart(e) {
     e.preventDefault();
     if (!soundShapeActive) return;
+    
+    // Cancel auto-play timer if user starts drawing again
+    cancelSoundShapeAutoPlayTimer();
+    
+    // Stop any ongoing playback
+    if (soundShapeIsReplaying) {
+        stopSoundShapePlayback();
+    }
     
     ensureSoundShapeAudio();
     
@@ -8476,6 +9018,10 @@ function handleSoundShapeTouchStart(e) {
         const shape = soundShapePositions[shapeIndex];
         soundShapeDragOffsetX = pos.x - shape.x;
         soundShapeDragOffsetY = pos.y - shape.y;
+        
+        // Initialize last stamp position to current shape position
+        soundShapeLastStampX = shape.x;
+        soundShapeLastStampY = shape.y;
         
         hideSoundShapeInstructionText();
     }
@@ -8494,16 +9040,29 @@ function handleSoundShapeTouchMove(e) {
     const targetX = shape.x + (newX - shape.x) * SOUND_SHAPE_EASING;
     const targetY = shape.y + (newY - shape.y) * SOUND_SHAPE_EASING;
     
-    const dx = targetX - shape.x;
-    const dy = targetY - shape.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Calculate distance from LAST STAMP position (not current shape position)
+    const stampDx = targetX - soundShapeLastStampX;
+    const stampDy = targetY - soundShapeLastStampY;
+    const stampDist = Math.sqrt(stampDx * stampDx + stampDy * stampDy);
     
-    if (dist > 2) {
+    // Only stamp when we've moved at least STEP_DIST from the last stamp
+    if (stampDist >= SOUND_SHAPE_STEP_DIST) {
         const containerRect = soundShapeContainer.getBoundingClientRect();
         const w = containerRect.width;
         
-        stampSoundShapeTrail(shape.x, shape.y, targetX, targetY, shape.shapeType, true);
-        stampSoundShapeTrail(w - shape.x, shape.y, w - targetX, targetY, shape.shapeType, false);
+        // Stamp single shape at current position
+        drawSoundShapeStamp(targetX, targetY, shape.shapeType);
+        drawSoundShapeStamp(w - targetX, targetY, shape.shapeType);
+        
+        // Record for playback (with timestamp for real-time playback)
+        soundShapeRecordedPoints.push({ x: targetX, y: targetY, shape: shape.shapeType, time: performance.now() });
+        
+        // Trigger sound
+        triggerSoundShapeSound(targetX, targetY, shape.shapeType);
+        
+        // Update last stamp position
+        soundShapeLastStampX = targetX;
+        soundShapeLastStampY = targetY;
     }
     
     shape.x = targetX;
@@ -8515,7 +9074,8 @@ function handleSoundShapeTouchMove(e) {
 function handleSoundShapeTouchEnd(e) {
     e.preventDefault();
     if (soundShapeDraggedIndex >= 0) {
-        saveSoundShapeState();
+        // Start auto-play timer (3 seconds after user stops drawing)
+        startSoundShapeAutoPlayTimer();
     }
     soundShapeDraggedIndex = -1;
 }
@@ -8539,7 +9099,7 @@ function midiToFreqSoundShape(midi) {
 
 function triggerSoundShapeSound(x, y, shapeType) {
     const now = performance.now();
-    if (now - soundShapeLastSoundTime < 70) return;
+    if (now - soundShapeLastSoundTime < 91) return;  // 70 * 1.3 = 91 (30% slower)
     soundShapeLastSoundTime = now;
     
     ensureSoundShapeAudio();
@@ -8553,63 +9113,63 @@ function triggerSoundShapeSound(x, y, shapeType) {
     const midiNote = Math.floor(48 + normalizedY * 36); // MIDI 48-84
     let freq = midiToFreqSoundShape(midiNote);
     
-    // Shape-specific sound parameters
+    // Shape-specific sound parameters (all timing values increased by 30%)
     let oscType = 'sine';
     let amp = 0.30;
-    let dur = 0.14;
-    let attackTime = 0.01;
-    let decayTime = 0.13;
+    let dur = 0.182;       // 0.14 * 1.3
+    let attackTime = 0.013; // 0.01 * 1.3
+    let decayTime = 0.169;  // 0.13 * 1.3
     let filterFreq = null;
     
-    if (shapeType === 0) {
+    if (shapeType === 'circle') {
         // Circle - soft sine wave
         oscType = 'sine';
         freq = freq * 0.85;
         amp = 0.50;
-        dur = 0.20;
-        attackTime = 0.02;
-        decayTime = 0.18;
-    } else if (shapeType === 1) {
+        dur = 0.26;         // 0.20 * 1.3
+        attackTime = 0.026;  // 0.02 * 1.3
+        decayTime = 0.234;   // 0.18 * 1.3
+    } else if (shapeType === 'square') {
         // Square - sharp square wave
         oscType = 'square';
         freq = freq * 1.15;
         amp = 0.45;
-        dur = 0.08;
-        attackTime = 0.005;
-        decayTime = 0.075;
-    } else if (shapeType === 2) {
+        dur = 0.104;         // 0.08 * 1.3
+        attackTime = 0.0065; // 0.005 * 1.3
+        decayTime = 0.0975;  // 0.075 * 1.3
+    } else if (shapeType === 'triangle') {
         // Triangle - triangle wave
         oscType = 'triangle';
         freq = freq * 1.25;
         amp = 0.32;
-        dur = 0.15;
-        attackTime = 0.01;
-        decayTime = 0.14;
-    } else if (shapeType === 3) {
+        dur = 0.195;        // 0.15 * 1.3
+        attackTime = 0.013; // 0.01 * 1.3
+        decayTime = 0.182;  // 0.14 * 1.3
+    } else if (shapeType === 'ellipse') {
         // Ellipse - filtered sine wave
         oscType = 'sine';
         freq = freq * 0.75;
         amp = 0.55;
-        dur = 0.25;
-        attackTime = 0.03;
-        decayTime = 0.22;
+        dur = 0.325;        // 0.25 * 1.3
+        attackTime = 0.039; // 0.03 * 1.3
+        decayTime = 0.286;  // 0.22 * 1.3
         filterFreq = freq * 0.5;
-    } else if (shapeType === 4) {
+    } else if (shapeType === 'star') {
         // Star - sawtooth wave
         oscType = 'sawtooth';
         freq = freq * 1.35;
         amp = 0.50;
-        dur = 0.06;
-        attackTime = 0.002;
-        decayTime = 0.058;
-    } else if (shapeType === 5) {
+        dur = 0.078;         // 0.06 * 1.3
+        attackTime = 0.0026; // 0.002 * 1.3
+        decayTime = 0.0754;  // 0.058 * 1.3
+    } else if (shapeType === 'pentagon') {
         // Pentagon - filtered square wave
         oscType = 'square';
         freq = freq * 0.95;
         amp = 0.48;
-        dur = 0.12;
-        attackTime = 0.008;
-        decayTime = 0.112;
+        dur = 0.156;         // 0.12 * 1.3
+        attackTime = 0.0104; // 0.008 * 1.3
+        decayTime = 0.1456;  // 0.112 * 1.3
         filterFreq = freq * 1.5;
     }
     
@@ -8627,7 +9187,7 @@ function triggerSoundShapeSound(x, y, shapeType) {
     let filter = null;
     if (filterFreq !== null) {
         filter = soundShapeAudioCtx.createBiquadFilter();
-        filter.type = shapeType === 3 ? 'lowpass' : 'highpass';
+        filter.type = shapeType === 'ellipse' ? 'lowpass' : 'highpass';
         filter.frequency.setValueAtTime(filterFreq, t0);
         filter.Q.setValueAtTime(1, t0);
         
@@ -8651,18 +9211,89 @@ function triggerSoundShapeSound(x, y, shapeType) {
     };
 }
 
-// Playback functions
+// Auto-play timer functions
+function cancelSoundShapeAutoPlayTimer() {
+    if (soundShapeAutoPlayTimer) {
+        clearTimeout(soundShapeAutoPlayTimer);
+        soundShapeAutoPlayTimer = null;
+    }
+}
+
+function startSoundShapeAutoPlayTimer() {
+    // Cancel any existing timer first
+    cancelSoundShapeAutoPlayTimer();
+    
+    // Only start timer if there are recorded points to play
+    if (soundShapeRecordedPoints.length === 0) return;
+    
+    // Start 3-second timer for auto-play
+    soundShapeAutoPlayTimer = setTimeout(() => {
+        autoPlaySoundShape();
+    }, 3000);
+}
+
+function stopSoundShapePlayback() {
+    soundShapeIsReplaying = false;
+    if (soundShapeAnimationId) {
+        clearTimeout(soundShapeAnimationId);
+        soundShapeAnimationId = null;
+    }
+}
+
+function autoPlaySoundShape() {
+    // Don't auto-play if already replaying or no points recorded
+    if (soundShapeIsReplaying || soundShapeRecordedPoints.length === 0) return;
+    
+    ensureSoundShapeAudio();
+    
+    clearSoundShapeBrushLayer();
+    soundShapeReplayIndex = 0;
+    soundShapeLastSoundTime = 0;
+    soundShapeIsReplaying = true;
+    
+    // Use the one-shot replay function (plays once, doesn't loop)
+    replaySoundShapeDrawingOnce();
+}
+
+// One-shot replay function (plays once, then stops - used for auto-play)
+function replaySoundShapeDrawingOnce() {
+    if (!soundShapeIsReplaying || !soundShapeActive) {
+        soundShapeIsReplaying = false;
+        return;
+    }
+    
+    const point = soundShapeRecordedPoints[soundShapeReplayIndex];
+    
+    if (!point) {
+        // End of playback - stop (no looping)
+        soundShapeIsReplaying = false;
+        soundShapeReplayIndex = 0;
+        return;
+    }
+    
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    
+    // Draw stamp and its mirror
+    drawSoundShapeStamp(point.x, point.y, point.shape);
+    drawSoundShapeStamp(w - point.x, point.y, point.shape);
+    
+    // Play sound
+    triggerSoundShapeSound(point.x, point.y, point.shape);
+    
+    renderSoundShapeFrame();
+    
+    soundShapeReplayIndex++;
+    
+    // Fixed moderate playback speed: 8ms between each point
+    soundShapeAnimationId = setTimeout(replaySoundShapeDrawingOnce, 8);
+}
+
+// Playback functions (for manual play button - kept for backwards compatibility)
 function handleSoundShapePlayClick() {
     if (soundShapeIsReplaying) {
         // Stop playback
-        soundShapeIsReplaying = false;
-        if (soundShapePlayBtn) {
-            soundShapePlayBtn.textContent = '[play]';
-        }
-        if (soundShapeAnimationId) {
-            cancelAnimationFrame(soundShapeAnimationId);
-            soundShapeAnimationId = null;
-        }
+        stopSoundShapePlayback();
     } else {
         // Start playback
         if (soundShapeRecordedPoints.length === 0) return;
@@ -8674,10 +9305,6 @@ function handleSoundShapePlayClick() {
         soundShapeLastSoundTime = 0;
         soundShapeIsReplaying = true;
         
-        if (soundShapePlayBtn) {
-            soundShapePlayBtn.textContent = '[stop]';
-        }
-        
         replaySoundShapeDrawing();
     }
 }
@@ -8688,34 +9315,33 @@ function replaySoundShapeDrawing() {
         return;
     }
     
-    const pointsPerFrame = 10;
+    const point = soundShapeRecordedPoints[soundShapeReplayIndex];
     
-    for (let i = 0; i < pointsPerFrame; i++) {
-        const point = soundShapeRecordedPoints[soundShapeReplayIndex];
-        
-        if (!point) {
-            // Loop: restart from beginning
-            soundShapeReplayIndex = 0;
-            clearSoundShapeBrushLayer();
-            soundShapeAnimationId = requestAnimationFrame(replaySoundShapeDrawing);
-            return;
-        }
-        
-        const containerRect = soundShapeContainer.getBoundingClientRect();
-        const w = containerRect.width;
-        
-        // Draw stamp and its mirror
-        drawSoundShapeStamp(point.x, point.y, point.shape);
-        drawSoundShapeStamp(w - point.x, point.y, point.shape);
-        
-        // Play sound
-        triggerSoundShapeSound(point.x, point.y, point.shape);
-        
-        soundShapeReplayIndex++;
+    if (!point) {
+        // Loop: restart from beginning
+        soundShapeReplayIndex = 0;
+        clearSoundShapeBrushLayer();
+        // Small delay before restarting loop
+        soundShapeAnimationId = setTimeout(replaySoundShapeDrawing, 500);
+        return;
     }
     
+    const containerRect = soundShapeContainer.getBoundingClientRect();
+    const w = containerRect.width;
+    
+    // Draw stamp and its mirror
+    drawSoundShapeStamp(point.x, point.y, point.shape);
+    drawSoundShapeStamp(w - point.x, point.y, point.shape);
+    
+    // Play sound
+    triggerSoundShapeSound(point.x, point.y, point.shape);
+    
     renderSoundShapeFrame();
-    soundShapeAnimationId = requestAnimationFrame(replaySoundShapeDrawing);
+    
+    soundShapeReplayIndex++;
+    
+    // Fixed moderate playback speed: 8ms between each point
+    soundShapeAnimationId = setTimeout(replaySoundShapeDrawing, 8);
 }
 
 // Reset canvas
@@ -8726,6 +9352,9 @@ function resetSoundShapeCanvas() {
         delete soundShapeStateStorage[pageId];
     }
     
+    // Cancel auto-play timer
+    cancelSoundShapeAutoPlayTimer();
+    
     // Clear visual
     clearSoundShapeBrushLayer();
     soundShapeRecordedPoints = [];
@@ -8734,13 +9363,8 @@ function resetSoundShapeCanvas() {
     soundShapeDraggedIndex = -1;
     
     if (soundShapeAnimationId) {
-        cancelAnimationFrame(soundShapeAnimationId);
+        clearTimeout(soundShapeAnimationId);
         soundShapeAnimationId = null;
-    }
-    
-    // Reset play button
-    if (soundShapePlayBtn) {
-        soundShapePlayBtn.textContent = '[play]';
     }
     
     // Reinitialize shape positions
@@ -8748,73 +9372,6 @@ function resetSoundShapeCanvas() {
     
     // Redraw
     renderSoundShapeFrame();
-}
-
-// Export canvas as PNG image
-function exportSoundShapeCanvas() {
-    if (!soundShapeBrushCanvas || !soundShapeContainer) return;
-    
-    const containerRect = soundShapeContainer.getBoundingClientRect();
-    const w = containerRect.width;
-    const h = containerRect.height;
-    
-    if (w <= 0 || h <= 0) return;
-    
-    // Create a temporary canvas to combine layers
-    const exportCanvas = document.createElement('canvas');
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    exportCanvas.width = Math.floor(w * dpr);
-    exportCanvas.height = Math.floor(h * dpr);
-    
-    const exportCtx = exportCanvas.getContext('2d');
-    exportCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    // Draw white background
-    exportCtx.fillStyle = SOUND_SHAPE_BG_COLOR;
-    exportCtx.fillRect(0, 0, w, h);
-    
-    // Draw the brush layer (accumulated strokes)
-    exportCtx.drawImage(soundShapeBrushCanvas, 0, 0, w, h);
-    
-    // Draw the draggable shapes on top
-    const centerX = w / 2;
-    for (let i = 0; i < soundShapePositions.length; i++) {
-        const shape = soundShapePositions[i];
-        const multipliers = [1.0, 1.3, 1.5, 1.4, 1.2, 1.3];
-        const size = SOUND_SHAPE_SIZE * (multipliers[shape.shapeType] || 1.0);
-        
-        // Draw shape on left side
-        exportCtx.save();
-        exportCtx.translate(shape.x, shape.y);
-        exportCtx.fillStyle = SOUND_SHAPE_FILL_COLOR;
-        exportCtx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
-        exportCtx.lineWidth = SOUND_SHAPE_STROKE_W;
-        drawSoundShapeByType(exportCtx, 0, 0, size, shape.shapeType);
-        exportCtx.restore();
-        
-        // Draw mirrored shape on right side
-        const mirroredX = w - shape.x;
-        if (Math.abs(shape.x - centerX) > 5) {
-            exportCtx.save();
-            exportCtx.translate(mirroredX, shape.y);
-            exportCtx.fillStyle = SOUND_SHAPE_FILL_COLOR;
-            exportCtx.strokeStyle = SOUND_SHAPE_STROKE_COLOR;
-            exportCtx.lineWidth = SOUND_SHAPE_STROKE_W;
-            drawSoundShapeByType(exportCtx, 0, 0, size, shape.shapeType);
-            exportCtx.restore();
-        }
-    }
-    
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `synesthesia-drawing-${timestamp}.png`;
-    
-    // Create download link and trigger download
-    const dataUrl = exportCanvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
 }
 
 // State persistence
@@ -8901,24 +9458,26 @@ function updateSoundShapeCanvasVisibility(pageId) {
         if (soundShapeIsReplaying) {
             soundShapeIsReplaying = false;
             if (soundShapeAnimationId) {
-                cancelAnimationFrame(soundShapeAnimationId);
+                clearTimeout(soundShapeAnimationId);
                 soundShapeAnimationId = null;
-            }
-            if (soundShapePlayBtn) {
-                soundShapePlayBtn.textContent = '[play]';
             }
         }
         
-        // Resize and restore state after a brief delay
+        // Cancel auto-play timer
+        cancelSoundShapeAutoPlayTimer();
+        
+        // Resize and start fresh (no restore - canvas always starts clean)
         setTimeout(() => {
             resizeSoundShapeCanvas();
-            restoreSoundShapeState();
             renderSoundShapeFrame();
         }, 50);
     } else {
-        // Save state before hiding
+        // Clear canvas when leaving the page (instead of saving state)
         if (soundShapeActive) {
-            saveSoundShapeState();
+            // Clear all drawing data
+            clearSoundShapeBrushLayer();
+            soundShapeRecordedPoints = [];
+            initializeSoundShapePositions();
         }
         
         soundShapeContainer.classList.add('hidden');
@@ -8928,13 +9487,13 @@ function updateSoundShapeCanvasVisibility(pageId) {
         if (soundShapeIsReplaying) {
             soundShapeIsReplaying = false;
             if (soundShapeAnimationId) {
-                cancelAnimationFrame(soundShapeAnimationId);
+                clearTimeout(soundShapeAnimationId);
                 soundShapeAnimationId = null;
             }
-            if (soundShapePlayBtn) {
-                soundShapePlayBtn.textContent = '[play]';
-            }
         }
+        
+        // Cancel auto-play timer
+        cancelSoundShapeAutoPlayTimer();
     }
 }
 
@@ -9055,41 +9614,107 @@ function updateSoundEmotionVisibility(pageId) {
 function initializeSoundEmotionSmiley() {
     soundEmotionSmiley = document.getElementById('sound-emotion-smiley');
     soundEmotionSlider = document.getElementById('sound-emotion-slider');
+    soundEmotionContainer = document.getElementById('sound-emotion-container');
     smileyFace = document.getElementById('smiley-face');
     smileyEyeLeft = document.getElementById('smiley-eye-left');
     smileyEyeRight = document.getElementById('smiley-eye-right');
     smileyMouth = document.getElementById('smiley-mouth');
     
-    if (!soundEmotionSmiley || !soundEmotionSlider) return;
+    if (!soundEmotionSmiley) return;
     
     // Remove old listeners to prevent duplicates
-    soundEmotionSlider.removeEventListener('input', handleSoundEmotionSlider);
-    soundEmotionSlider.removeEventListener('mouseup', handleSoundEmotionSliderRelease);
-    soundEmotionSlider.removeEventListener('touchend', handleSoundEmotionSliderRelease);
-    soundEmotionSlider.removeEventListener('mouseleave', handleSoundEmotionSliderRelease);
+    soundEmotionSmiley.removeEventListener('mousemove', handleSoundEmotionMouseMove);
+    soundEmotionSmiley.removeEventListener('mouseenter', handleSoundEmotionMouseEnter);
+    soundEmotionSmiley.removeEventListener('mouseleave', handleSoundEmotionMouseLeave);
     
-    // Add slider event listeners
-    soundEmotionSlider.addEventListener('input', handleSoundEmotionSlider);
-    // Stop sound when user releases slider
-    soundEmotionSlider.addEventListener('mouseup', handleSoundEmotionSliderRelease);
-    soundEmotionSlider.addEventListener('touchend', handleSoundEmotionSliderRelease);
-    soundEmotionSlider.addEventListener('mouseleave', handleSoundEmotionSliderRelease);
+    // Add mouse event listeners on the smiley SVG itself (not the container)
+    soundEmotionSmiley.addEventListener('mousemove', handleSoundEmotionMouseMove);
+    soundEmotionSmiley.addEventListener('mouseenter', handleSoundEmotionMouseEnter);
+    soundEmotionSmiley.addEventListener('mouseleave', handleSoundEmotionMouseLeave);
     
     // Initial render
     resizeSoundEmotionSmiley();
 }
 
-// Handle slider release (stop sound)
-function handleSoundEmotionSliderRelease() {
-    stopSoundEmotionTone();
+// Track if mouse is currently in mouth area
+let isInMouthArea = false;
+
+// Handle mouse entering the smiley
+function handleSoundEmotionMouseEnter(e) {
+    // Check if in mouth area and handle accordingly
+    handleSoundEmotionMouseMove(e);
 }
 
-// Handle slider input
-function handleSoundEmotionSlider(e) {
-    const value = parseInt(e.target.value, 10);
-    updateSmileyMouth(value);
-    // Start/update sound based on slider value
-    startSoundEmotionTone(value);
+// Handle mouse leaving the smiley (stop sound)
+function handleSoundEmotionMouseLeave() {
+    isInMouthArea = false;
+    stopSoundEmotionTone();
+    // Reset smiley to neutral position
+    updateSmileyMouth(0);
+}
+
+// Handle mouse movement (update smiley and sound only in mouth area)
+function handleSoundEmotionMouseMove(e) {
+    if (!soundEmotionSmiley) return;
+    
+    // Check if mouse Y is within mouth area
+    const inMouthArea = isMouseInMouthArea(e);
+    
+    if (inMouthArea) {
+        const value = calculateMouseXValue(e);
+        updateSmileyMouth(value);
+        startSoundEmotionTone(value);
+        isInMouthArea = true;
+    } else {
+        // Mouse left mouth area - stop sound and reset
+        if (isInMouthArea) {
+            stopSoundEmotionTone();
+            updateSmileyMouth(0);
+            isInMouthArea = false;
+        }
+    }
+}
+
+// Check if mouse Y position is within the mouth area
+function isMouseInMouthArea(e) {
+    if (!soundEmotionSmiley) return false;
+    
+    const smileyRect = soundEmotionSmiley.getBoundingClientRect();
+    const mouseY = e.clientY - smileyRect.top;
+    const smileyHeight = smileyRect.height;
+    const smileyWidth = smileyRect.width;
+    
+    // Calculate mouth Y position (same formula as in updateSmileyMouth)
+    // Mouth is at ellipseCy + ellipseRy * 0.25
+    const ellipseCy = smileyHeight / 2;
+    const ellipseRy = (smileyHeight / 2) - 15; // Same padding as in resizeSoundEmotionSmiley
+    const mouthY = ellipseCy + ellipseRy * 0.25;
+    
+    // Define mouth area as a horizontal strip (with some tolerance for interaction)
+    // The mouth curve can go up/down by maxCurve = ellipseRy * 0.85
+    const mouthAreaHeight = ellipseRy * 0.5; // Generous tolerance for the mouth area
+    const mouthTop = mouthY - mouthAreaHeight;
+    const mouthBottom = mouthY + mouthAreaHeight;
+    
+    return mouseY >= mouthTop && mouseY <= mouthBottom;
+}
+
+// Calculate value (-100 to 100) based on mouse X position within smiley
+// Left edge = -100 (sad), Right edge = 100 (happy)
+function calculateMouseXValue(e) {
+    if (!soundEmotionSmiley) return 0;
+    
+    const smileyRect = soundEmotionSmiley.getBoundingClientRect();
+    const mouseX = e.clientX - smileyRect.left;
+    const smileyWidth = smileyRect.width;
+    
+    // Map mouseX (0 to smileyWidth) to value (-100 to 100)
+    // Left edge = -100, Center = 0, Right edge = 100
+    const normalizedX = mouseX / smileyWidth; // 0 to 1
+    const value = (normalizedX * 200) - 100; // -100 to 100
+    
+    // Clamp value to valid range
+    return Math.max(-100, Math.min(100, Math.round(value)));
 }
 
 // Resize and position smiley elements
@@ -9109,8 +9734,8 @@ function resizeSoundEmotionSmiley() {
     // Ellipse fills the full width and height of the SVG
     const ellipseCx = width / 2;
     const ellipseCy = height / 2;
-    const ellipseRx = (width / 2) - 10; // Padding for stroke
-    const ellipseRy = (height / 2) - 10; // Padding for stroke
+    const ellipseRx = (width / 2) - 15; // Padding for stroke (stroke-width is 25px, extends 12.5px each side)
+    const ellipseRy = (height / 2) - 15; // Padding for stroke
     
     // Set ellipse attributes
     smileyFace.setAttribute('cx', ellipseCx);
@@ -9138,9 +9763,9 @@ function resizeSoundEmotionSmiley() {
     smileyEyeRight.setAttribute('rx', eyeBaseRadius);
     smileyEyeRight.setAttribute('ry', eyeBaseRadius);
     
-    // Update mouth and eyes with current slider value
-    const sliderValue = soundEmotionSlider ? parseInt(soundEmotionSlider.value, 10) : 0;
-    updateSmileyMouth(sliderValue);
+    // Initialize mouth and eyes with neutral position (0)
+    // Mouse movement will update this dynamically
+    updateSmileyMouth(0);
 }
 
 // Update mouth curve based on slider value (-100 to 100)
@@ -9228,38 +9853,8 @@ window.addEventListener('resize', () => {
 // Function to initialize SYN logo hover effect
 // Shows synesthesia text overlay when hovering over the SYN logo
 function initializeSynHoverEffect() {
-    // Initialize SYN hover overlay - now using logo-container for unified hover
-    const logoContainer = document.querySelector('.logo-container');
-    const logoElement = document.querySelector('.black-rectangle-logo');
-    const synOverlay = document.getElementById('canvas-text-box-syn-overlay');
-    const canvasTextBox = document.getElementById('canvas-text-box');
-    
-    if (logoContainer && synOverlay) {
-        // Render overlay text with line backgrounds to match main text box styling
-        // Use same width as main text box (1035px) for the SYN overlay
-        // Use black background color (#2C2C2C) for line backgrounds to match UI black
-        // alignRight=true to position text and backgrounds from right side
-        const synText = 'Designed by\nRomi Calamaro\nas part of \'WWW\'\nWeb Design Course\nBezalel\n2025-2026';
-        renderTextWithLineBackgrounds(synOverlay, synText, 1035, '#2C2C2C', true);
-        
-        // Helper function to show overlay (hide original text box directly instead of covering it)
-        const showOverlay = () => {
-            if (canvasTextBox) canvasTextBox.classList.add('syn-hovered');
-            synOverlay.classList.add('visible');
-        };
-        
-        // Helper function to hide overlay (show original text box again)
-        const hideOverlay = () => {
-            if (canvasTextBox) canvasTextBox.classList.remove('syn-hovered');
-            synOverlay.classList.remove('visible');
-        };
-        
-        // Show overlay when hovering on logo rectangle
-        if (logoElement) {
-            logoElement.addEventListener('mouseenter', showOverlay);
-            logoElement.addEventListener('mouseleave', hideOverlay);
-        }
-    }
+    // Credits text box has been removed - this function is now empty
+    // Hover behavior is handled in initializeColorKeyClickEffect for unified overlay control
 }
 
 // Function to initialize per-line text highlights
@@ -9410,59 +10005,112 @@ function initializePerLineHighlights() {
 }
 
 // Function to initialize logo hover effect - expands all scrollbar color items and pushes UI rectangles inward when hovering on logo
+// Overlay stays open when moving from logo to overlay, and logo maintains hover state while overlay is open
+// Also handles the credits text box visibility (syn-overlay)
 function initializeColorKeyClickEffect() {
     const logoElement = document.querySelector('.black-rectangle-logo');
     
     if (!logoElement) return;
     
-    // Get all color items from both columns
-    const allColorItems = document.querySelectorAll('.color-item');
+    // Get the about page overlay (now shown when hovering logo - swapped behavior)
+    const logoHoverOverlay = document.getElementById('about-page-overlay');
     
-    // Get mask containers (CSS expects logo-hovered on these, not the inner rectangles)
-    const maskIndex = document.querySelector('.ui-rect-mask-index');
-    const maskLeft = document.querySelector('.ui-rect-mask-left');
-    const maskRight = document.querySelector('.ui-rect-mask-right');
+    // Get canvas text box element
+    const canvasTextBox = document.getElementById('canvas-text-box');
     
-    // Get the logo hover overlay (darkens and blurs canvas area)
-    const logoHoverOverlay = document.getElementById('logo-hover-overlay');
+    // Get parameter rectangles for slide-out effect (same as Index and About)
+    const paramRectLeft = document.querySelector('.black-bottom-rectangle-left');
+    const paramRectRight = document.querySelector('.black-bottom-rectangle-right');
     
-    // Helper function to handle hover in - expand all items and push UI rectangles inward
-    const handleHoverIn = () => {
-        // Add legend-expanded class to ALL items (both columns) for bulk hover effect
-        allColorItems.forEach(item => {
-            item.classList.add('legend-expanded');
-        });
-        
-        // Add logo-hovered class to mask containers to push them inward (to 85px from edges)
-        // Note: maskIndex is excluded - INDEX stays in place on logo hover
-        if (maskLeft) maskLeft.classList.add('logo-hovered');
-        if (maskRight) maskRight.classList.add('logo-hovered');
+    // Flag to track if line backgrounds have been created for logo hover text box
+    let logoHoverBackgroundsCreated = false;
+    
+    // Track if overlay is currently open
+    let overlayIsOpen = false;
+    
+    // Helper function to open overlay (legend expansion moved to About hover)
+    const openOverlay = () => {
+        overlayIsOpen = true;
         
         // Show the logo hover overlay (10% black + blur on canvas area)
         if (logoHoverOverlay) logoHoverOverlay.classList.add('visible');
+        
+        // Add logo-active class to maintain hover appearance while overlay is open
+        logoElement.classList.add('logo-active');
+        
+        // Hide canvas text box during logo hover
+        if (canvasTextBox) canvasTextBox.classList.add('syn-hovered');
+        
+        // Slide out parameter rectangles (same behavior as Index and About)
+        if (paramRectLeft) paramRectLeft.classList.add('about-hovered');
+        if (paramRectRight) paramRectRight.classList.add('about-hovered');
+        
+        // Create line backgrounds for about text box on first hover (swapped to about overlay)
+        // Uses setTimeout to wait for overlay visibility for accurate measurements
+        if (!logoHoverBackgroundsCreated) {
+            setTimeout(() => {
+                initializeLineBackgroundsForTextBox('about-text-box-1');
+                logoHoverBackgroundsCreated = true;
+            }, 50);
+        }
     };
     
-    // Helper function to handle hover out - collapse all items and reset UI rectangles
-    const handleHoverOut = () => {
-        // Remove legend-expanded class from all items
-        allColorItems.forEach(item => {
-            item.classList.remove('legend-expanded');
-        });
-        
-        // Remove logo-hovered class from mask containers to reset their position (back to 50px)
-        // Note: maskIndex is excluded - INDEX stays in place on logo hover
-        if (maskLeft) maskLeft.classList.remove('logo-hovered');
-        if (maskRight) maskRight.classList.remove('logo-hovered');
+    // Helper function to close overlay (legend collapse moved to About hover)
+    const closeOverlay = () => {
+        overlayIsOpen = false;
         
         // Hide the logo hover overlay
         if (logoHoverOverlay) logoHoverOverlay.classList.remove('visible');
+        
+        // Remove logo-active class to restore normal logo appearance
+        logoElement.classList.remove('logo-active');
+        
+        // Show canvas text box again
+        if (canvasTextBox) canvasTextBox.classList.remove('syn-hovered');
+        
+        // Slide in parameter rectangles back to original position
+        if (paramRectLeft) paramRectLeft.classList.remove('about-hovered');
+        if (paramRectRight) paramRectRight.classList.remove('about-hovered');
     };
     
-    // Add event listeners to logo rectangle for hover behavior
-    if (logoElement) {
-        logoElement.addEventListener('mouseenter', handleHoverIn);
-        logoElement.addEventListener('mouseleave', handleHoverOut);
+    // Logo: open overlay on hover
+    logoElement.addEventListener('mouseenter', () => {
+        if (!overlayIsOpen) {
+            openOverlay();
+        }
+    });
+    
+    // Logo: when leaving logo, close only if NOT moving to overlay
+    logoElement.addEventListener('mouseleave', (e) => {
+        // If moving to overlay, keep open state
+        if (logoHoverOverlay && logoHoverOverlay.contains(e.relatedTarget)) {
+            return;
+        }
+        // Leaving to somewhere else while open - close
+        if (overlayIsOpen) {
+            closeOverlay();
+        }
+    });
+    
+    // Overlay: keep open when hovering over it
+    if (logoHoverOverlay) {
+        logoHoverOverlay.addEventListener('mouseenter', () => {
+            // Keep open state - logo-active class already applied
+        });
+        
+        // Overlay: when leaving overlay, close unless going to logo
+        logoHoverOverlay.addEventListener('mouseleave', (e) => {
+            // If moving to logo, keep open state
+            if (logoElement.contains(e.relatedTarget)) {
+                return;
+            }
+            // Leaving to somewhere else - close
+            if (overlayIsOpen) {
+                closeOverlay();
+            }
+        });
     }
+    
 }
 
 // Function to initialize line backgrounds for about page text boxes
@@ -9470,6 +10118,8 @@ function initializeColorKeyClickEffect() {
 function initializeAboutTextBoxLineBackgrounds() {
     // Initialize backgrounds for the about text box
     initializeLineBackgroundsForTextBox('about-text-box-1');
+    // Initialize backgrounds for the logo hover text box
+    initializeLineBackgroundsForTextBox('logo-hover-text-box');
 }
 
 // Helper function to create line backgrounds for a specific text box
@@ -9568,8 +10218,9 @@ function initializeLineBackgroundsForTextBox(textBoxId) {
     });
     
     // Create background divs for each line
-    const paddingX = 10; // Horizontal padding
-    const paddingY = 6;  // Vertical padding
+    const paddingX = 12; // Horizontal padding
+    // Use smaller vertical padding for logo-hover-text-box to match credits box (2px vs 6px)
+    const paddingY = textBoxId === 'logo-hover-text-box' ? 2 : 6;
     
     // Calculate the minimum allowed top position: the background can extend up to canvas-container's top edge
     // This is the negative of the text box's offset from canvas-container
@@ -9720,9 +10371,51 @@ function initializeIndexHoverEffect() {
 // Function to initialize ABOUT hover effect - shows white overlay on canvas when hovering on ABOUT button
 function initializeAboutHoverEffect() {
     const aboutButton = document.querySelector('.black-corner-rectangle-about');
-    const aboutPageOverlay = document.getElementById('about-page-overlay');
+    const aboutPageOverlay = document.getElementById('logo-hover-overlay');
     const paramRectLeft = document.querySelector('.black-bottom-rectangle-left');
     const paramRectRight = document.querySelector('.black-bottom-rectangle-right');
+    
+    // Get all color items from both columns (moved from Logo hover)
+    const allColorItems = document.querySelectorAll('.color-item');
+    
+    // Get mask containers for legend expansion (moved from Logo hover)
+    const maskLeft = document.querySelector('.ui-rect-mask-left');
+    const maskRight = document.querySelector('.ui-rect-mask-right');
+    
+    // Get the scroll tracks for animation
+    const rightColumnScrollTrack = aboutPageOverlay ? 
+        aboutPageOverlay.querySelector('.diagram-column-right .diagram-scroll-track') : null;
+    const leftColumnScrollTrack = aboutPageOverlay ? 
+        aboutPageOverlay.querySelector('.diagram-column-left .diagram-scroll-track') : null;
+    
+    // Animation state for infinite loop
+    let animationTimeouts = []; // Array to store all timeout IDs for cleanup
+    let rightOffset = 0; // Current right column offset (in rect units, 0 to -6)
+    let leftOffset = -6; // Current left column offset (in rect units, -6 to 0)
+    
+    // Letters array for the scrollable rectangles
+    const diagramLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
+    
+    // Get header elements for dynamic updates
+    const headerLeft = aboutPageOverlay ? aboutPageOverlay.querySelector('.diagram-header-left') : null;
+    const headerCenter = aboutPageOverlay ? aboutPageOverlay.querySelector('.diagram-header-center') : null;
+    const headerRight = aboutPageOverlay ? aboutPageOverlay.querySelector('.diagram-header-right') : null;
+    
+    // Function to update header labels based on current scroll offsets
+    const updateDiagramHeaders = () => {
+        // Calculate visible letter index for each column
+        // Formula: visibleIndex = (-offset) % 6
+        const leftVisibleIndex = ((-leftOffset) % 6 + 6) % 6; // Ensure positive modulo
+        const rightVisibleIndex = ((-rightOffset) % 6 + 6) % 6; // Ensure positive modulo
+        
+        const leftLetter = diagramLetters[leftVisibleIndex];
+        const rightLetter = diagramLetters[rightVisibleIndex];
+        
+        // Update header labels
+        if (headerLeft) headerLeft.textContent = `[${leftLetter}]`;
+        if (headerRight) headerRight.textContent = `[${rightLetter}]`;
+        if (headerCenter) headerCenter.textContent = `[sense ${leftLetter}] + [sense ${rightLetter}]`;
+    };
     
     if (!aboutButton || !aboutPageOverlay) return;
     
@@ -9732,31 +10425,201 @@ function initializeAboutHoverEffect() {
     // Flag to track if line backgrounds have been created (need to wait for visibility)
     let aboutTextBoxBackgroundsCreated = false;
     
-    // Helper to open about (show overlay, expand letters, hide param rects)
+    // Calculate rectangle height for animations
+    const getRectHeight = () => (window.innerHeight * 5 / 6 * 0.54) / 6;
+    
+    // Helper to move right column up by 1 and handle wrap-around after animation completes
+    const moveRightUp = (callback) => {
+        const rectHeight = getRectHeight();
+        rightOffset -= 1;
+        
+        // Animate to target position
+        rightColumnScrollTrack.style.transform = `translateY(${rightOffset * rectHeight}px)`;
+        
+        // Update header labels to reflect new position
+        updateDiagramHeaders();
+        
+        // Check if we completed a full rotation (reached -6, showing duplicate [a])
+        if (rightOffset <= -6) {
+            // Wait for animation to complete (500ms), then reset to 0 without transition
+            const resetTimeout = setTimeout(() => {
+                rightColumnScrollTrack.style.transition = 'none';
+                rightColumnScrollTrack.style.transform = 'translateY(0)';
+                rightColumnScrollTrack.offsetHeight;
+                rightColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
+                rightOffset = 0;
+                updateDiagramHeaders(); // Update headers after reset
+                if (callback) callback();
+            }, 600); // Slightly longer than transition to ensure it completes
+            animationTimeouts.push(resetTimeout);
+        } else {
+            if (callback) callback();
+        }
+    };
+    
+    // Helper to move left column down by 1 and handle wrap-around after animation completes
+    const moveLeftDown = (callback) => {
+        const rectHeight = getRectHeight();
+        leftOffset += 1;
+        
+        // Animate to target position
+        leftColumnScrollTrack.style.transform = `translateY(${leftOffset * rectHeight}px)`;
+        
+        // Update header labels to reflect new position
+        updateDiagramHeaders();
+        
+        // Check if we completed a full rotation (reached 0, showing first set [a])
+        if (leftOffset >= 0) {
+            // Wait for animation to complete (500ms), then reset to -6 without transition
+            const resetTimeout = setTimeout(() => {
+                leftColumnScrollTrack.style.transition = 'none';
+                leftColumnScrollTrack.style.transform = `translateY(${-6 * getRectHeight()}px)`;
+                leftColumnScrollTrack.offsetHeight;
+                leftColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
+                leftOffset = -6;
+                updateDiagramHeaders(); // Update headers after reset
+                if (callback) callback();
+            }, 600); // Slightly longer than transition to ensure it completes
+            animationTimeouts.push(resetTimeout);
+        } else {
+            if (callback) callback();
+        }
+    };
+    
+    // Recursive function to run one animation cycle (right up 2, left down 2) then repeat
+    const runAnimationCycle = () => {
+        // RIGHT COLUMN: up 1 rect
+        const t1 = setTimeout(() => {
+            moveRightUp(() => {
+                // RIGHT COLUMN: wait 2s, then up 1 more rect
+                const t2 = setTimeout(() => {
+                    moveRightUp(() => {
+                        // Wait 2s, then LEFT COLUMN: down 1 rect
+                        const t3 = setTimeout(() => {
+                            moveLeftDown(() => {
+                                // LEFT COLUMN: wait 2s, then down 1 more rect
+                                const t4 = setTimeout(() => {
+                                    moveLeftDown(() => {
+                                        // Wait 2s, then repeat the cycle
+                                        const t5 = setTimeout(() => {
+                                            runAnimationCycle();
+                                        }, 2000);
+                                        animationTimeouts.push(t5);
+                                    });
+                                }, 2000);
+                                animationTimeouts.push(t4);
+                            });
+                        }, 2000);
+                        animationTimeouts.push(t3);
+                    });
+                }, 2000);
+                animationTimeouts.push(t2);
+            });
+        }, 2000);
+        animationTimeouts.push(t1);
+    };
+    
+    // Helper to open about (show overlay, expand letters, hide param rects, expand legend)
     const openAbout = () => {
         aboutIsOpen = true;
+        
+        const rectHeight = getRectHeight();
+        
+        // Reset position tracking
+        rightOffset = 0;
+        leftOffset = -6;
+        
+        // IMPORTANT: Set left column to starting offset position BEFORE overlay becomes visible
+        // Start at -6 rects (showing the second/duplicate set starting with [a])
+        // This way when we animate toward 0, content moves DOWN and [f][e][d]... appear from top
+        if (leftColumnScrollTrack) {
+            leftColumnScrollTrack.style.transition = 'none'; // Disable transition for instant jump
+            leftColumnScrollTrack.style.transform = `translateY(-${rectHeight * 6}px)`; // Start at second set [a]
+            leftColumnScrollTrack.offsetHeight; // Force reflow
+            leftColumnScrollTrack.style.transition = 'transform 0.5s ease-out'; // Re-enable transition
+        }
+        
+        // Reset right column to initial position
+        if (rightColumnScrollTrack) {
+            rightColumnScrollTrack.style.transition = 'none';
+            rightColumnScrollTrack.style.transform = 'translateY(0)';
+            rightColumnScrollTrack.offsetHeight;
+            rightColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
+        }
+        
         aboutPageOverlay.classList.add('visible');
         aboutButton.classList.add('color-key-expanded'); // Keep letters expanded
         if (paramRectLeft) paramRectLeft.classList.add('about-hovered');
         if (paramRectRight) paramRectRight.classList.add('about-hovered');
         
+        // Legend expansion (moved from Logo hover)
+        // Add legend-expanded class to ALL items (both columns) for bulk hover effect
+        allColorItems.forEach(item => {
+            item.classList.add('legend-expanded');
+        });
+        
+        // Add logo-hovered class to mask containers to push them inward (to 85px from edges)
+        if (maskLeft) maskLeft.classList.add('logo-hovered');
+        if (maskRight) maskRight.classList.add('logo-hovered');
+        
         // Create line backgrounds on first open (when text box is visible for accurate measurements)
         // Use setTimeout to wait for CSS transition to complete (300ms transition + 50ms buffer)
+        // Now initializes logo-hover-text-box since overlays are swapped
         if (!aboutTextBoxBackgroundsCreated) {
             setTimeout(() => {
-                initializeAboutTextBoxLineBackgrounds();
+                initializeLineBackgroundsForTextBox('logo-hover-text-box');
                 aboutTextBoxBackgroundsCreated = true;
             }, 350);
         }
+        
+        // Update header labels to show initial state
+        updateDiagramHeaders();
+        
+        // Start the infinite animation loop
+        if (rightColumnScrollTrack && leftColumnScrollTrack) {
+            runAnimationCycle();
+        }
     };
     
-    // Helper to close about (hide overlay, collapse letters, show param rects)
+    // Helper to close about (hide overlay, collapse letters, show param rects, collapse legend)
     const closeAbout = () => {
         aboutIsOpen = false;
         aboutPageOverlay.classList.remove('visible');
         aboutButton.classList.remove('color-key-expanded'); // Collapse letters
         if (paramRectLeft) paramRectLeft.classList.remove('about-hovered');
         if (paramRectRight) paramRectRight.classList.remove('about-hovered');
+        
+        // Legend collapse (moved from Logo hover)
+        // Remove legend-expanded class from all items
+        allColorItems.forEach(item => {
+            item.classList.remove('legend-expanded');
+        });
+        
+        // Remove logo-hovered class from mask containers to reset their position
+        if (maskLeft) maskLeft.classList.remove('logo-hovered');
+        if (maskRight) maskRight.classList.remove('logo-hovered');
+        
+        // Clear all pending animation timeouts
+        animationTimeouts.forEach(timeout => clearTimeout(timeout));
+        animationTimeouts = [];
+        
+        // Reset position tracking
+        rightOffset = 0;
+        leftOffset = -6;
+        
+        // Reset both column scroll tracks to initial position (without transition during fade-out)
+        if (rightColumnScrollTrack) {
+            rightColumnScrollTrack.style.transition = 'none';
+            rightColumnScrollTrack.style.transform = 'translateY(0)';
+            rightColumnScrollTrack.offsetHeight; // Force reflow
+            rightColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
+        }
+        if (leftColumnScrollTrack) {
+            leftColumnScrollTrack.style.transition = 'none';
+            leftColumnScrollTrack.style.transform = 'translateY(0)';
+            leftColumnScrollTrack.offsetHeight; // Force reflow
+            leftColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
+        }
     };
     
     // ABOUT button: open if closed, close if open
@@ -10041,6 +10904,12 @@ function initializeGradientIntro() {
     const container = document.getElementById('gradient-intro-container');
     if (!container) return;
     
+    // Disable logo hover effect during demo/intro
+    const logoElement = document.querySelector('.black-rectangle-logo');
+    if (logoElement) {
+        logoElement.classList.add('logo-hover-disabled');
+    }
+    
     // Add entering phase class to container
     container.classList.add('intro-entering');
     
@@ -10054,8 +10923,17 @@ function initializeGradientIntro() {
         container.appendChild(rect);
     }
     
+    // Create intro explanation text element (two-line explanation above instruction)
+    // Positioned at bottom of gradient rectangle index 1 (2nd from top)
+    const introTextLine1 = document.createElement('div');
+    introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
+    introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
+    introTextLine1.id = 'gradient-intro-text-line1';
+    // No inline opacity - CSS handles visibility via intro-line transform (slide-up from mask)
+    container.appendChild(introTextLine1);
+    
     // Create instructional text element (centered on screen)
-    // Positioned at bottom of gradient rectangle index 3 (4th from top)
+    // Positioned at bottom of gradient rectangle index 2 (3rd from top)
     const introTextLine2 = document.createElement('div');
     introTextLine2.className = 'gradient-intro-text gradient-intro-text-line2';
     introTextLine2.innerHTML = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
@@ -10176,9 +11054,26 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         rect.style.height = `${itemHeight}px`;
     });
     
-    // Position instructional text line at bottom of gradient rectangle
+    // Position instructional text lines at bottom of gradient rectangles
     // Text fades in during entry animation (synced with gradient shrink)
-    const LINE_HEIGHT = 40; // Height of each intro-line element (matches CSS and parameter rectangles)
+    const LINE_HEIGHT = 38; // Height of single-line intro-line element (matches CSS index rectangle height)
+    const LINE1_HEIGHT = 38; // Height for explanation text (matches index rectangle height)
+    
+    // Line 1: bottom-aligned to gradient rectangle index 1 (2nd from top), centered on X axis
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) {
+        const rectIndex1 = 1; // 2nd gradient from top (0-indexed)
+        // Bottom-aligned: top = bottom edge of rectangle - line height
+        const line1Top = (rectIndex1 + 1) * itemHeight - LINE1_HEIGHT;
+        
+        introTextLine1.style.left = `${leftEdge}px`; // Centered on X axis
+        introTextLine1.style.width = `${width}px`;
+        introTextLine1.style.top = `${line1Top}px`;
+        introTextLine1.style.height = `${LINE1_HEIGHT}px`;
+        // CSS handles display, alignItems, justifyContent for slide-up mask effect
+        introTextLine1.style.visibility = 'visible';
+        // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
+    }
     
     // Line 2: bottom-aligned to gradient rectangle index 2 (3rd from top), centered on X axis
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
@@ -10196,10 +11091,10 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
         // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
     }
     
-    // START button: positioned in gradient rectangle index 3 (4th from top) - same as line 2 but centered
+    // START button: positioned in gradient rectangle index 2 (3rd from top)
     const introTextStart = document.getElementById('gradient-intro-text-start');
     if (introTextStart) {
-        const rectIndexStart = 3; // 4th gradient from top (0-indexed)
+        const rectIndexStart = 2; // 3rd gradient from top (0-indexed)
         // Bottom-aligned: top = bottom edge of rectangle - line height (same as intro lines)
         const startTop = (rectIndexStart + 1) * itemHeight - LINE_HEIGHT;
         
@@ -10397,7 +11292,14 @@ function triggerIntroTransition() {
     document.body.classList.remove('triangles-revealed');
     document.body.classList.remove('scroll-hint-active');
     
-    // Hide intro text elements immediately (intro line and START button)
+    // Hide intro text elements immediately (intro lines and START button)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) {
+        introTextLine1.style.display = 'none';
+        introTextLine1.style.visibility = 'hidden';
+        introTextLine1.style.opacity = '0';
+        introTextLine1.style.pointerEvents = 'none';
+    }
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
     if (introTextLine2) {
         introTextLine2.style.display = 'none';
@@ -10715,6 +11617,243 @@ function stopScrollHintAnimation() {
     if (rightColumn) rightColumn.style.scrollSnapType = '';
 }
 
+// ==================
+// MAIN SCREEN IDLE SCROLL HINT
+// Triggers scroll hint animation when user is idle for 10 seconds on main screen
+// ==================
+
+// Function to start the idle timer for main screen
+function startMainScreenIdleTimer() {
+    // Only start timer if intro is completed (we're on the main screen)
+    if (!introCompleted) return;
+    
+    // Clear any existing timer first
+    stopMainScreenIdleTimer();
+    
+    // Use shorter delay for first hint after main screen opens, then 10 seconds for subsequent hints
+    const delay = isFirstMainScreenHint ? FIRST_HINT_DELAY : IDLE_HINT_DELAY;
+    
+    // Start timer with appropriate delay
+    mainScreenIdleTimer = setTimeout(() => {
+        // When timer fires, trigger the scroll hint if not already active
+        if (introCompleted && !mainScreenHintActive) {
+            // First hint repeats twice, subsequent hints run once
+            const repeatCount = isFirstMainScreenHint ? 2 : 1;
+            // Mark that first hint has been triggered (subsequent hints use 10 second delay)
+            isFirstMainScreenHint = false;
+            triggerMainScreenScrollHint(repeatCount);
+        }
+    }, delay);
+}
+
+// Function to stop the idle timer
+function stopMainScreenIdleTimer() {
+    if (mainScreenIdleTimer !== null) {
+        clearTimeout(mainScreenIdleTimer);
+        mainScreenIdleTimer = null;
+    }
+}
+
+// Function to reset the idle timer (called when user scrolls)
+function resetMainScreenIdleTimer() {
+    // Only reset if intro is completed
+    if (!introCompleted) return;
+    
+    // If hint animation is running, stop it
+    if (mainScreenHintActive) {
+        stopMainScreenScrollHint();
+    }
+    
+    // Restart the timer
+    startMainScreenIdleTimer();
+}
+
+// Function to stop the main screen scroll hint animation
+function stopMainScreenScrollHint() {
+    mainScreenHintActive = false;
+    isProgrammaticScroll = false;
+    
+    // Remove class from body to hide triangles
+    document.body.classList.remove('scroll-hint-active');
+    
+    // Re-enable scroll-snap on columns after animation stops
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    if (leftColumn) leftColumn.style.scrollSnapType = '';
+    if (rightColumn) rightColumn.style.scrollSnapType = '';
+}
+
+// Function to trigger scroll hint animation on main screen (after idle)
+// repeatCount: how many times to repeat the full hint sequence (default 1)
+function triggerMainScreenScrollHint(repeatCount = 1) {
+    // Safety checks: only run on main screen and not already running
+    if (!introCompleted || mainScreenHintActive) return;
+    
+    mainScreenHintActive = true;
+    
+    const leftColumn = document.querySelector('.left-column');
+    const rightColumn = document.querySelector('.right-column');
+    
+    if (!leftColumn || !rightColumn) {
+        mainScreenHintActive = false;
+        startMainScreenIdleTimer(); // Restart timer to try again later
+        return;
+    }
+    
+    // Disable scroll-snap during animation for smooth programmatic scrolling
+    leftColumn.style.scrollSnapType = 'none';
+    rightColumn.style.scrollSnapType = 'none';
+    
+    // Animation parameters (same as intro scroll hint)
+    const nudgeDistance = 32; // pixels to move
+    const bounceDuration = 400; // ms per single direction
+    const pauseBetweenBounces = 200; // ms pause between bounces within a set
+    const pauseBetweenSequences = 1500; // ms pause between full sequences (1.5 seconds)
+    const bouncesPerSet = 2; // Number of bounces per sequence
+    
+    // Track bounce count and sequence count
+    let bounceCount = 0;
+    let sequenceCount = 0;
+    const totalSequences = repeatCount;
+    
+    // Mark as programmatic scroll to prevent triggering user interaction detection
+    isProgrammaticScroll = true;
+    
+    // Easing function for smooth animation
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    // Animate a single column's scroll position
+    function animateScroll(column, startPos, endPos, duration, callback) {
+        const startTime = performance.now();
+        
+        function animate(currentTime) {
+            // Check if animation should stop
+            if (!mainScreenHintActive) {
+                isProgrammaticScroll = false;
+                return;
+            }
+            
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeInOutCubic(progress);
+            
+            const currentPos = startPos + (endPos - startPos) * easedProgress;
+            column.scrollTop = currentPos;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                callback();
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
+    
+    // Perform one bounce cycle (out and back) for both columns
+    function performBounce() {
+        // Check if animation should stop
+        if (!mainScreenHintActive) {
+            isProgrammaticScroll = false;
+            document.body.classList.remove('scroll-hint-active');
+            return;
+        }
+        
+        // Show triangles when bounce starts
+        document.body.classList.add('scroll-hint-active');
+        
+        // Get current scroll positions
+        const leftOriginalScroll = leftColumn.scrollTop;
+        const rightOriginalScroll = rightColumn.scrollTop;
+        
+        // Calculate target positions: right nudges DOWN, left nudges UP
+        const rightTargetScroll = rightOriginalScroll + nudgeDistance;
+        const leftTargetScroll = Math.max(0, leftOriginalScroll - nudgeDistance);
+        
+        // Phase 1: Move columns to nudge position
+        let completedPhase1 = 0;
+        
+        function onPhase1Complete() {
+            completedPhase1++;
+            if (completedPhase1 === 2) {
+                // Check if animation should stop
+                if (!mainScreenHintActive) {
+                    isProgrammaticScroll = false;
+                    return;
+                }
+                
+                // Phase 2: Return columns to original position
+                let completedPhase2 = 0;
+                
+                function onPhase2Complete() {
+                    completedPhase2++;
+                    if (completedPhase2 === 2) {
+                        // Hide triangles when bounce ends
+                        document.body.classList.remove('scroll-hint-active');
+                        
+                        // Check if animation should stop
+                        if (!mainScreenHintActive) {
+                            isProgrammaticScroll = false;
+                            return;
+                        }
+                        
+                        // Increment bounce count
+                        bounceCount++;
+                        
+                        // Check if we've completed all bounces in the current sequence
+                        if (bounceCount >= bouncesPerSet) {
+                            // Sequence complete - increment sequence count
+                            sequenceCount++;
+                            
+                            // Check if we've completed all sequences
+                            if (sequenceCount >= totalSequences) {
+                                // All sequences complete - stop and restart idle timer
+                                mainScreenHintActive = false;
+                                isProgrammaticScroll = false;
+                                
+                                // Re-enable scroll-snap
+                                leftColumn.style.scrollSnapType = '';
+                                rightColumn.style.scrollSnapType = '';
+                                
+                                // Restart idle timer for next hint
+                                startMainScreenIdleTimer();
+                            } else {
+                                // More sequences to run - pause then start next sequence
+                                bounceCount = 0; // Reset bounce count for next sequence
+                                setTimeout(() => {
+                                    if (mainScreenHintActive) {
+                                        performBounce();
+                                    }
+                                }, pauseBetweenSequences);
+                            }
+                        } else {
+                            // Short pause before next bounce within same sequence
+                            setTimeout(() => {
+                                if (mainScreenHintActive) {
+                                    performBounce();
+                                }
+                            }, pauseBetweenBounces);
+                        }
+                    }
+                }
+                
+                // Return both columns to original position
+                animateScroll(rightColumn, rightTargetScroll, rightOriginalScroll, bounceDuration, onPhase2Complete);
+                animateScroll(leftColumn, leftTargetScroll, leftOriginalScroll, bounceDuration, onPhase2Complete);
+            }
+        }
+        
+        // Move both columns to nudge position
+        animateScroll(rightColumn, rightOriginalScroll, rightTargetScroll, bounceDuration, onPhase1Complete);
+        animateScroll(leftColumn, leftOriginalScroll, leftTargetScroll, bounceDuration, onPhase1Complete);
+    }
+    
+    // Start the first bounce immediately
+    performBounce();
+}
+
 // Function to update gradient bar heights based on progress
 function updateGradientBarHeights(progress) {
     // CRITICAL: Early return if intro is completed - prevent height updates
@@ -10791,82 +11930,181 @@ function updateGradientBarHeights(progress) {
     });
 }
 
+// Momentum-based scrolling state
+let centerScrollVelocity = 0;
+let centerScrollLastTime = 0;
+let centerScrollMomentumFrame = null;
+let centerScrollInputTimeout = null;
+let centerScrollMomentumActive = false;
+
 // Function to scroll both wheels from center area scroll
-// Used during post-demo phase (after demo ends, before START is clicked)
-// Scrolls right wheel down, left wheel up (same direction as demo)
+// MOMENTUM-BASED: Scrolling moves columns, then snaps to nearest tile
 function scrollWheelsFromCenter(deltaY) {
     const leftColumn = document.querySelector('.left-column');
     const rightColumn = document.querySelector('.right-column');
     
     if (!leftColumn || !rightColumn) return;
     
-    // Calculate scroll boundaries (same as in initializeColumn)
+    // Calculate tile dimensions
     const itemHeight = window.innerHeight / 6;
     const singleSetHeight = 6 * itemHeight;
     const topBoundary = singleSetHeight * 0.5;
     const bottomBoundary = singleSetHeight * 1.5;
     
     // CRITICAL: Stop scroll hint animation when user scrolls from center
-    // This resets isProgrammaticScroll = false, allowing START button to appear
     if (scrollHintAnimationActive) {
         stopScrollHintAnimation();
     }
     
-    // CRITICAL: Disable scroll-snap to allow smooth programmatic scrolling
-    // Without this, scroll-snap overrides our scrollTop changes immediately
-    leftColumn.style.scrollSnapType = 'none';
-    rightColumn.style.scrollSnapType = 'none';
+    // Reset idle timer on user scroll (for main screen hint)
+    resetMainScreenIdleTimer();
     
     // CRITICAL: Mark this as user interaction so START button can appear
-    // Center scrolling is a valid user interaction that should trigger START
     if (!userInteracted && !isInitializing) {
         userInteracted = true;
     }
     
-    // Scroll multiplier to adjust sensitivity
-    const scrollMultiplier = 1.5;
+    // If momentum animation is running, cancel it (user is scrolling again)
+    if (centerScrollMomentumFrame) {
+        cancelAnimationFrame(centerScrollMomentumFrame);
+        centerScrollMomentumFrame = null;
+        centerScrollMomentumActive = false;
+    }
     
-    // CRITICAL FIX: Mark as programmatic scroll to prevent individual boundary logic from firing
-    // We will handle boundary logic ourselves in a synchronized way below
+    // Disable CSS scroll-snap during active scrolling
+    leftColumn.style.scrollSnapType = 'none';
+    rightColumn.style.scrollSnapType = 'none';
+    
+    // Track velocity based on recent deltas
+    const now = performance.now();
+    const timeDelta = centerScrollLastTime ? (now - centerScrollLastTime) : 16;
+    centerScrollLastTime = now;
+    
+    // Update velocity with smoother blending
+    const newVelocity = deltaY / Math.max(timeDelta, 8) * 16;
+    centerScrollVelocity = centerScrollVelocity * 0.7 + newVelocity * 0.3;
+    
+    // Apply scroll delta directly
+    const scrollMultiplier = 1.5;
     isProgrammaticScroll = true;
     
-    // Right wheel scrolls down (same direction as deltaY)
-    // Left wheel scrolls up (opposite direction)
     rightColumn.scrollTop += deltaY * scrollMultiplier;
     leftColumn.scrollTop -= deltaY * scrollMultiplier;
     
-    // SYNCHRONIZED INFINITE SCROLL: Check boundaries for BOTH columns together
-    // When one column needs to recenter, the other must also recenter to stay in sync
+    // Handle infinite scroll boundaries
+    handleCenterScrollBoundaries(leftColumn, rightColumn, itemHeight, singleSetHeight, topBoundary, bottomBoundary);
+    
+    isProgrammaticScroll = false;
+    
+    // Reset input timeout - when this fires, user stopped scrolling
+    if (centerScrollInputTimeout) {
+        clearTimeout(centerScrollInputTimeout);
+    }
+    
+    centerScrollInputTimeout = setTimeout(() => {
+        // Only start momentum if not already running
+        if (!centerScrollMomentumActive) {
+            startCenterScrollMomentum(leftColumn, rightColumn, itemHeight, singleSetHeight, topBoundary, bottomBoundary);
+        }
+    }, 60);
+}
+
+// Handle infinite scroll boundaries for center scroll
+function handleCenterScrollBoundaries(leftColumn, rightColumn, itemHeight, singleSetHeight, topBoundary, bottomBoundary) {
     const leftScrollTop = leftColumn.scrollTop;
     const rightScrollTop = rightColumn.scrollTop;
     
-    // Helper function to snap to tile
-    const snapToTile = (scrollTop) => {
-        const tileIndex = Math.round(scrollTop / itemHeight);
-        return tileIndex * itemHeight;
-    };
+    const snapToTile = (scrollTop) => Math.round(scrollTop / itemHeight) * itemHeight;
     
-    // Check if either column needs recentering
-    const leftNeedsJumpForward = leftScrollTop < topBoundary;  // scrolled too far up
-    const leftNeedsJumpBackward = leftScrollTop > bottomBoundary;  // scrolled too far down
-    const rightNeedsJumpForward = rightScrollTop < topBoundary;  // scrolled too far up
-    const rightNeedsJumpBackward = rightScrollTop > bottomBoundary;  // scrolled too far down
+    const leftNeedsJumpForward = leftScrollTop < topBoundary;
+    const leftNeedsJumpBackward = leftScrollTop > bottomBoundary;
+    const rightNeedsJumpForward = rightScrollTop < topBoundary;
+    const rightNeedsJumpBackward = rightScrollTop > bottomBoundary;
     
-    // If any column needs recentering, recenter BOTH columns together
     if (leftNeedsJumpForward || rightNeedsJumpBackward) {
-        // Left went too far up OR right went too far down
-        // Jump left forward (add singleSetHeight), jump right backward (subtract singleSetHeight)
         leftColumn.scrollTop = snapToTile(leftScrollTop + singleSetHeight);
         rightColumn.scrollTop = snapToTile(rightScrollTop - singleSetHeight);
     } else if (leftNeedsJumpBackward || rightNeedsJumpForward) {
-        // Left went too far down OR right went too far up
-        // Jump left backward (subtract singleSetHeight), jump right forward (add singleSetHeight)
         leftColumn.scrollTop = snapToTile(leftScrollTop - singleSetHeight);
         rightColumn.scrollTop = snapToTile(rightScrollTop + singleSetHeight);
     }
+}
+
+// Momentum animation - snaps to nearest tile with smooth animation
+function startCenterScrollMomentum(leftColumn, rightColumn, itemHeight, singleSetHeight, topBoundary, bottomBoundary) {
+    // Mark momentum as active to prevent duplicate starts
+    centerScrollMomentumActive = true;
     
-    // Reset programmatic flag after scroll is applied
-    isProgrammaticScroll = false;
+    const snapToTile = (scrollTop) => Math.round(scrollTop / itemHeight) * itemHeight;
+    
+    // Current positions
+    const leftStart = leftColumn.scrollTop;
+    const rightStart = rightColumn.scrollTop;
+    
+    // Snap to nearest tile
+    const leftTarget = snapToTile(leftStart);
+    const rightTarget = snapToTile(rightStart);
+    
+    // Calculate distance to snap
+    const leftDistance = Math.abs(leftTarget - leftStart);
+    const rightDistance = Math.abs(rightTarget - rightStart);
+    const maxDistance = Math.max(leftDistance, rightDistance);
+    
+    // If already at target (within 1px), just finish
+    if (maxDistance < 1) {
+        centerScrollMomentumActive = false;
+        centerScrollVelocity = 0;
+        leftColumn.style.removeProperty('scroll-snap-type');
+        rightColumn.style.removeProperty('scroll-snap-type');
+        updateSelectedIndices();
+        return;
+    }
+    
+    // Short animation duration for snap
+    const duration = 120;
+    const startTime = performance.now();
+    
+    function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Ease-out cubic for smooth snap
+        const eased = 1 - Math.pow(1 - progress, 3);
+        
+        // Interpolate positions
+        const leftCurrent = leftStart + (leftTarget - leftStart) * eased;
+        const rightCurrent = rightStart + (rightTarget - rightStart) * eased;
+        
+        isProgrammaticScroll = true;
+        leftColumn.scrollTop = leftCurrent;
+        rightColumn.scrollTop = rightCurrent;
+        isProgrammaticScroll = false;
+        
+        if (progress < 1) {
+            centerScrollMomentumFrame = requestAnimationFrame(animate);
+        } else {
+            // Animation complete - ensure exact tile position
+            isProgrammaticScroll = true;
+            leftColumn.scrollTop = leftTarget;
+            rightColumn.scrollTop = rightTarget;
+            
+            // Re-enable CSS scroll-snap
+            leftColumn.style.removeProperty('scroll-snap-type');
+            rightColumn.style.removeProperty('scroll-snap-type');
+            
+            isProgrammaticScroll = false;
+            centerScrollMomentumFrame = null;
+            centerScrollMomentumActive = false;
+            centerScrollVelocity = 0;
+            
+            // Handle boundaries after animation
+            handleCenterScrollBoundaries(leftColumn, rightColumn, itemHeight, singleSetHeight, topBoundary, bottomBoundary);
+            
+            updateSelectedIndices();
+        }
+    }
+    
+    centerScrollMomentumFrame = requestAnimationFrame(animate);
 }
 
 // Function to initialize center scroll trigger for intro
@@ -10973,15 +12211,38 @@ function initializeCenterScrollTrigger() {
             const uiLayer = document.querySelector('.ui-layer');
             if (introProgress >= 0.7 && uiLayer && !uiLayer.classList.contains('words-revealed')) {
                 uiLayer.classList.add('words-revealed');
+                
+                // Logo re-enters together with parameter rectangles (same timing)
+                const logoContainer = document.querySelector('.logo-container');
+                if (logoContainer) {
+                    logoContainer.classList.remove('logo-exiting');
+                    logoContainer.classList.add('logo-reentering');
+                    // After animation completes, switch to logo-visible for stable state
+                    setTimeout(() => {
+                        logoContainer.classList.remove('logo-reentering');
+                        logoContainer.classList.add('logo-visible');
+                    }, 400); // Match the re-entrance animation duration
+                }
             }
             
             // When progress reaches 1 for the first time, lock it
             if (introProgress >= 1 && !introCompleted) {
                 introCompleted = true;
+                // Add body class for CSS to detect intro completion
+                document.body.classList.add('intro-completed');
                 // Update UI visibility - UI remains visible after intro is done
                 updateUIVisibility();
                 
-                // Note: UI rectangles are already revealed at 70% progress (see above)
+                // Re-enable logo hover effect now that intro is complete
+                const logoElement = document.querySelector('.black-rectangle-logo');
+                if (logoElement) {
+                    logoElement.classList.remove('logo-hover-disabled');
+                }
+                
+                // Start idle timer for main screen scroll hint
+                startMainScreenIdleTimer();
+                
+                // Note: UI rectangles and logo are already revealed at 70% progress (see above)
                 
                 // Hide canvas cover to reveal canvas content
                 updateCanvasCoverVisibility();
@@ -11081,6 +12342,8 @@ function reverseIntroTransition() {
     const wasIntroCompleted = introCompleted;
     const wasHorizontalExpansionStarted = horizontalExpansionStarted;
     introCompleted = false;
+    // Remove body class so labels stay visible during scroll in intro
+    document.body.classList.remove('intro-completed');
     horizontalExpansionStarted = false; // Allow reversing horizontal expansion
     
     // Ensure we're in closing phase (rectangles at scrollbar edges)
@@ -11111,7 +12374,17 @@ function reverseIntroTransition() {
     // Update colors for closing phase
     updateGradientIntro();
     
-    // Get or create intro text line element
+    // Get or create intro explanation text element (line 1)
+    let introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (!introTextLine1) {
+        introTextLine1 = document.createElement('div');
+        introTextLine1.className = 'gradient-intro-text gradient-intro-text-line1';
+        introTextLine1.innerHTML = '<span class="intro-line">' + INTRO_LINE_1_TEXT + '</span>';
+        introTextLine1.id = 'gradient-intro-text-line1';
+        gradientContainer.appendChild(introTextLine1);
+    }
+    
+    // Get or create intro text line element (line 2)
     let introTextLine2 = document.getElementById('gradient-intro-text-line2');
     if (!introTextLine2) {
         introTextLine2 = document.createElement('div');
@@ -11141,6 +12414,9 @@ function reverseIntroTransition() {
     }
     
     // Hide all text and arrow during reverse animation (CSS will also hide them in intro-closing phase)
+    introTextLine1.style.display = 'none';
+    introTextLine1.style.visibility = 'hidden';
+    introTextLine1.style.opacity = '0';
     introTextLine2.style.display = 'none';
     introTextLine2.style.visibility = 'hidden';
     introTextLine2.style.opacity = '0';
@@ -11296,13 +12572,21 @@ function skipDemo() {
     const uiLayer = document.querySelector('.ui-layer');
     if (logoContainer) {
         // Remove any animation classes and set to visible state
-        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering');
+        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering', 'logo-exiting', 'logo-reentering');
         logoContainer.classList.add('logo-visible');
     }
     if (uiLayer) {
         // Keep logo-animating so logo stays visible (rest of UI still hidden)
         uiLayer.classList.add('logo-animating');
+        // NOTE: words-revealed is NOT added here - parameter rectangles only appear after collapse animation
     }
+    
+    // Show labels on all scrollbar color items when demo is skipped (same as normal demo end)
+    // Use intro-labels-visible to keep width at 50px while showing labels
+    const allColorItems = document.querySelectorAll('.color-item');
+    allColorItems.forEach(item => {
+        item.classList.add('intro-labels-visible');
+    });
     
     // Mark user interaction
     userInteracted = true;
@@ -11346,6 +12630,20 @@ function setupStartButton() {
 // Helper function that actually displays the START button element
 // Called after the instruction lines have finished their exit animation
 function showStartButtonElement() {
+    // Hide line2 (scroll instruction) when START appears - trigger slide-out animation
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (introTextLine2) {
+        const line2Inner = introTextLine2.querySelector('.intro-line');
+        if (line2Inner) {
+            line2Inner.classList.add('intro-line-exiting');
+        }
+        // Hide container after animation completes
+        setTimeout(() => {
+            introTextLine2.style.display = 'none';
+            introTextLine2.style.visibility = 'hidden';
+        }, 800);
+    }
+    
     // Get the START button container (new structure with mask)
     let introTextStart = document.getElementById('gradient-intro-text-start');
     if (!introTextStart) {
@@ -11462,7 +12760,22 @@ function forwardIntroTransition() {
         uiLayerForExit.classList.remove('words-revealed');
     }
     
+    // Hide labels on all scrollbar color items when START is clicked
+    // This removes the intro-labels-visible class that was added after demo ended
+    const allColorItems = document.querySelectorAll('.color-item');
+    allColorItems.forEach(item => {
+        item.classList.remove('intro-labels-visible');
+    });
+    
     // Trigger slide-out animation for instruction text (runs simultaneously with START slide-out)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    const line1Inner = introTextLine1?.querySelector('.intro-line');
+    if (line1Inner) {
+        // Disable pointer events immediately
+        line1Inner.style.pointerEvents = 'none';
+        // Trigger slide-out animation
+        line1Inner.classList.add('intro-line-exiting');
+    }
     const introTextLine2 = document.getElementById('gradient-intro-text-line2');
     const line2Inner = introTextLine2?.querySelector('.intro-line');
     if (line2Inner) {
@@ -11487,6 +12800,12 @@ function forwardIntroTransition() {
             introTextStart.style.visibility = 'hidden';
             introTextStart.style.opacity = '0';
             introTextStart.style.pointerEvents = 'none';
+        }
+        if (introTextLine1) {
+            introTextLine1.style.display = 'none';
+            introTextLine1.style.visibility = 'hidden';
+            introTextLine1.style.opacity = '0';
+            introTextLine1.style.pointerEvents = 'none';
         }
         if (introTextLine2) {
             introTextLine2.style.display = 'none';
@@ -11644,6 +12963,18 @@ function forwardIntroTransition() {
             uiLayer.classList.remove('words-exiting'); // Remove slide-out state
             uiLayer.classList.remove('logo-animating'); // Remove logo-animating so masks stay at 50px
             uiLayer.classList.add('words-revealed'); // Trigger slide-in for WORD + INDEX
+            
+            // Logo re-enters together with parameter rectangles (same timing)
+            const logoContainer = document.querySelector('.logo-container');
+            if (logoContainer) {
+                logoContainer.classList.remove('logo-exiting');
+                logoContainer.classList.add('logo-reentering');
+                // After animation completes, switch to logo-visible for stable state
+                setTimeout(() => {
+                    logoContainer.classList.remove('logo-reentering');
+                    logoContainer.classList.add('logo-visible');
+                }, 400); // Match the re-entrance animation duration
+            }
         }
         
         // Continue animation until progress reaches 1
@@ -11656,11 +12987,22 @@ function forwardIntroTransition() {
             
             // Mark intro as completed
             introCompleted = true;
+            // Add body class for CSS to detect intro completion
+            document.body.classList.add('intro-completed');
             
             // Update UI visibility for final state
             updateUIVisibility();
             
-            // Note: UI rectangles are already revealed at 70% progress (see above)
+            // Re-enable logo hover effect now that intro is complete
+            const logoElement = document.querySelector('.black-rectangle-logo');
+            if (logoElement) {
+                logoElement.classList.remove('logo-hover-disabled');
+            }
+            
+            // Start idle timer for main screen scroll hint
+            startMainScreenIdleTimer();
+            
+            // Note: UI rectangles and logo are already revealed at 70% progress (see above)
             
             // Ensure we're in closing phase (should already be set)
             if (introPhase !== 'closing') {
@@ -11746,6 +13088,8 @@ function goToStartCheckpoint() {
     // Temporarily allow updates (bypass introCompleted check during animation)
     const wasIntroCompleted = introCompleted;
     introCompleted = false;
+    // Remove body class so labels stay visible during scroll in intro
+    document.body.classList.remove('intro-completed');
     
     // Ensure we're in closing phase initially (rectangles at scrollbar edges)
     introPhase = 'closing';
@@ -11838,6 +13182,8 @@ function goToStartCheckpoint() {
                 // Set INTRO state variables (not START checkpoint)
                 // This allows START to appear after user scrolls, like the original intro
                 introCompleted = false; // Keep false so scrolling works
+                // Remove body class so labels stay visible during scroll in intro
+                document.body.classList.remove('intro-completed');
                 horizontalExpansionStarted = false; // Reset so it can start again when scrolling
                 hasExpandedToScrollbars = true; // Scrollbars are visible at intro
                 introReady = true; // Enable center scroll trigger
@@ -11852,7 +13198,17 @@ function goToStartCheckpoint() {
                 // Reset startClickTransitionActive to ensure clean state
                 startClickTransitionActive = false;
                 
-                // Show instruction text line (not START button)
+                // Show instruction text lines (not START button)
+                const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+                if (introTextLine1) {
+                    introTextLine1.style.display = 'flex';
+                    introTextLine1.style.visibility = 'visible';
+                    // Reset slide-out state if present
+                    const line1Inner = introTextLine1.querySelector('.intro-line');
+                    if (line1Inner) {
+                        line1Inner.classList.remove('intro-line-exiting');
+                    }
+                }
                 const introTextLine2 = document.getElementById('gradient-intro-text-line2');
                 if (introTextLine2) {
                     introTextLine2.style.display = 'flex';
@@ -11926,6 +13282,8 @@ function restartIntro() {
     introTriggered = false;
     introProgress = 0;
     introCompleted = false;
+    // Remove body class so labels stay visible during scroll in intro
+    document.body.classList.remove('intro-completed');
     horizontalExpansionStarted = false;
     hasExpandedToScrollbars = false;
     startClickTransitionActive = false; // Reset to ensure clean state
@@ -11945,9 +13303,21 @@ function restartIntro() {
     scrollHintAnimationTriggered = false;
     scrollHintAnimationActive = false;
     
+    // Reset main screen idle timer state
+    stopMainScreenIdleTimer();
+    mainScreenHintActive = false;
+    isFirstMainScreenHint = true; // Reset so first hint uses 3-second delay after restart
+    
     // Reset triangle animation state (hide triangles for next intro)
     document.body.classList.remove('triangles-revealed');
     document.body.classList.remove('scroll-hint-active');
+    
+    // Collapse all scrollbar color items for clean restart
+    const allColorItems = document.querySelectorAll('.color-item');
+    allColorItems.forEach(item => {
+        item.classList.remove('legend-expanded');
+        item.classList.remove('intro-labels-visible');
+    });
     
     // Get gradient container and clean up existing DOM elements
     const gradientContainer = document.getElementById('gradient-intro-container');
@@ -11956,7 +13326,11 @@ function restartIntro() {
         const rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
         rectangles.forEach(rect => rect.remove());
         
-        // Remove intro text element if it exists
+        // Remove intro text elements if they exist
+        const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+        if (introTextLine1) {
+            introTextLine1.remove();
+        }
         const introTextLine2 = document.getElementById('gradient-intro-text-line2');
         if (introTextLine2) {
             introTextLine2.remove();
@@ -12004,7 +13378,7 @@ function restartIntro() {
     const logoContainer = document.querySelector('.logo-container');
     const uiLayer = document.querySelector('.ui-layer');
     if (logoContainer) {
-        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering', 'logo-visible');
+        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering', 'logo-visible', 'logo-exiting', 'logo-reentering');
     }
     if (uiLayer) {
         uiLayer.classList.remove('logo-animating');
@@ -12023,6 +13397,266 @@ function restartIntro() {
     
 }
 
+// Function to jump to demo start with shutter-close animation
+// Called when clicking the logo - runs shutter animation then starts the demo
+function jumpToDemoStart() {
+    // Slide out parameter rectangles (WORD boxes) with animation
+    // They will slide back in when demo ends and intro text appears
+    const uiLayer = document.querySelector('.ui-layer');
+    if (uiLayer) {
+        uiLayer.classList.add('words-exiting');
+        uiLayer.classList.remove('words-revealed');
+    }
+    
+    // Collapse all scrollbar color items when restarting demo
+    // They will expand again when demo ends
+    const allColorItems = document.querySelectorAll('.color-item');
+    allColorItems.forEach(item => {
+        item.classList.remove('legend-expanded');
+        item.classList.remove('intro-labels-visible');
+    });
+    
+    // Disable logo hover effect during the transition and demo
+    const logoElementForHover = document.querySelector('.black-rectangle-logo');
+    if (logoElementForHover) {
+        logoElementForHover.classList.add('logo-hover-disabled');
+    }
+    
+    // Get gradient container
+    const gradientContainer = document.getElementById('gradient-intro-container');
+    if (!gradientContainer) {
+        console.error('Gradient container not found');
+        return;
+    }
+    
+    // Show and prepare container
+    gradientContainer.style.display = '';
+    gradientContainer.style.visibility = 'visible';
+    gradientContainer.style.opacity = '1';
+    gradientContainer.style.pointerEvents = 'auto';
+    
+    // Remove collapsed class if present, set to closing phase for animation
+    gradientContainer.classList.remove('intro-collapsed', 'intro-entering', 'intro-active', 'demo-active');
+    gradientContainer.classList.add('intro-closing');
+    
+    // Get or create gradient rectangles
+    let rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
+    const itemHeight = window.innerHeight / 6;
+    
+    // Remove any existing text elements (will be recreated after demo)
+    const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+    if (introTextLine1) introTextLine1.remove();
+    const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+    if (introTextLine2) introTextLine2.remove();
+    const introText = document.getElementById('gradient-intro-text');
+    if (introText) introText.remove();
+    const introTextStart = document.getElementById('gradient-intro-text-start');
+    if (introTextStart) introTextStart.remove();
+    const arrowElement = document.getElementById('gradient-intro-arrow');
+    if (arrowElement) arrowElement.remove();
+    
+    // If rectangles don't exist, create them
+    if (rectangles.length === 0) {
+        for (let i = 0; i < 6; i++) {
+            const rect = document.createElement('div');
+            rect.className = 'gradient-intro-rectangle';
+            rect.style.top = `${i * itemHeight}px`;
+            rect.setAttribute('data-bar-index', i);
+            gradientContainer.appendChild(rect);
+        }
+        rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
+    }
+    
+    // Temporarily bypass introCompleted check
+    const wasIntroCompleted = introCompleted;
+    introCompleted = false;
+    // Remove body class so labels stay visible during scroll in intro
+    document.body.classList.remove('intro-completed');
+    horizontalExpansionStarted = false;
+    
+    // Set up initial state: rectangles at scrollbar edges with 0 height (collapsed state)
+    const { leftInnerX, rightInnerX } = getClosedScrollbarInnerEdges();
+    const containerRect = gradientContainer.getBoundingClientRect();
+    const containerLocalLeft = leftInnerX - containerRect.left;
+    const targetWidth = rightInnerX - leftInnerX;
+    
+    // Position rectangles at scrollbar edges with 0 height
+    rectangles.forEach((bar) => {
+        bar.style.left = containerLocalLeft + 'px';
+        bar.style.width = targetWidth + 'px';
+        bar.style.height = '0px'; // Start collapsed
+    });
+    
+    // Update colors
+    updateGradientIntro();
+    
+    // Animation parameters - shutter close (bars expand in height)
+    const animationDuration = 800; // 800ms for shutter animation
+    const startTime = performance.now();
+    
+    // Easing function (easeOutCubic for smooth deceleration)
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+    
+    // Animation loop - expand bar heights (shutter close effect)
+    function animateShutterClose(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        const easedProgress = easeOutCubic(progress);
+        
+        // Expand bar heights from 0 to full height
+        rectangles.forEach((bar) => {
+            const currentHeight = easedProgress * itemHeight;
+            bar.style.height = currentHeight + 'px';
+        });
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateShutterClose);
+        } else {
+            // Shutter animation complete - now expand to full-bleed
+            onShutterCloseComplete();
+        }
+    }
+    
+    // Called when shutter-close animation is complete
+    function onShutterCloseComplete() {
+        // Transition to entering phase (full-bleed)
+        gradientContainer.classList.remove('intro-closing');
+        gradientContainer.classList.add('intro-entering');
+        
+        // Expand rectangles to full width (full-bleed)
+        rectangles.forEach((bar) => {
+            bar.style.left = '0px';
+            bar.style.width = '100%';
+            bar.style.height = itemHeight + 'px';
+        });
+        
+        // Short delay for the horizontal expansion to complete visually
+        setTimeout(() => {
+            // Now do the full state reset and start demo
+            completeJumpToDemoStart();
+        }, 300); // 300ms for horizontal expansion
+    }
+    
+    // Start the shutter animation
+    requestAnimationFrame(animateShutterClose);
+}
+
+// Helper function to complete the jump to demo start after animation
+function completeJumpToDemoStart() {
+    // Reset all intro-related state variables to initial values
+    introPhase = 'entering';
+    introReady = false;
+    introTriggered = false;
+    introProgress = 0;
+    introCompleted = false;
+    // Remove body class so labels stay visible during scroll in intro
+    document.body.classList.remove('intro-completed');
+    horizontalExpansionStarted = false;
+    hasExpandedToScrollbars = false;
+    startClickTransitionActive = false;
+    
+    // Reset intro text and user interaction state
+    introTextChanged = false;
+    initialInstructionTextShown = false;
+    leftColumnScrolled = false;
+    rightColumnScrolled = false;
+    userInteracted = false;
+    hasScrolledScrollbar = false;
+    isDemoActive = false;
+    demoJustEnded = false;
+    uniqueColorsSeen.clear();
+    hasUserInteracted = false;
+    
+    // Reset scroll hint animation state
+    scrollHintAnimationTriggered = false;
+    scrollHintAnimationActive = false;
+    
+    // Reset main screen idle timer state
+    stopMainScreenIdleTimer();
+    mainScreenHintActive = false;
+    isFirstMainScreenHint = true;
+    
+    // Reset triangle animation state
+    document.body.classList.remove('triangles-revealed');
+    document.body.classList.remove('scroll-hint-active');
+    
+    // Collapse all scrollbar color items for clean restart
+    const allColorItems = document.querySelectorAll('.color-item');
+    allColorItems.forEach(item => {
+        item.classList.remove('legend-expanded');
+        item.classList.remove('intro-labels-visible');
+    });
+    
+    // Clean up gradient container DOM
+    const gradientContainer = document.getElementById('gradient-intro-container');
+    if (gradientContainer) {
+        // Remove all existing gradient rectangles (will be recreated by initializeGradientIntro)
+        const rectangles = gradientContainer.querySelectorAll('.gradient-intro-rectangle');
+        rectangles.forEach(rect => rect.remove());
+        
+        // Remove text elements
+        const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+        if (introTextLine1) introTextLine1.remove();
+        
+        const introTextLine2 = document.getElementById('gradient-intro-text-line2');
+        if (introTextLine2) introTextLine2.remove();
+        
+        const introText = document.getElementById('gradient-intro-text');
+        if (introText) introText.remove();
+        
+        const introTextStart = document.getElementById('gradient-intro-text-start');
+        if (introTextStart) introTextStart.remove();
+        
+        const arrowElement = document.getElementById('gradient-intro-arrow');
+        if (arrowElement) arrowElement.remove();
+        
+        // Reset container classes and styles
+        gradientContainer.classList.remove('intro-active', 'intro-closing', 'intro-collapsed', 'demo-active');
+        gradientContainer.classList.add('intro-entering');
+        gradientContainer.style.display = '';
+        gradientContainer.style.visibility = '';
+        gradientContainer.style.opacity = '';
+        gradientContainer.style.pointerEvents = 'auto';
+    }
+    
+    // Hide main gradient header
+    const mainHeader = document.getElementById('main-gradient-header');
+    if (mainHeader) {
+        mainHeader.classList.remove('visible');
+    }
+    
+    // Reset UI visibility (hidden during entering phase)
+    updateUIVisibility();
+    
+    // Reset canvas cover visibility (visible during intro)
+    updateCanvasCoverVisibility();
+    
+    // Reset logo animation state
+    const logoContainer = document.querySelector('.logo-container');
+    const uiLayerForLogo = document.querySelector('.ui-layer');
+    if (logoContainer) {
+        logoContainer.classList.remove('logo-intro-hidden', 'logo-entering', 'logo-visible', 'logo-exiting', 'logo-reentering');
+    }
+    if (uiLayerForLogo) {
+        uiLayerForLogo.classList.remove('logo-animating');
+        // Clean up words-exiting class so it doesn't interfere with the new intro
+        // Note: words-revealed stays removed - it will be added when demo ends
+        uiLayerForLogo.classList.remove('words-exiting');
+    }
+    
+    // Ensure logo remains clickable after restart
+    const logoElement = document.querySelector('.black-rectangle-logo');
+    if (logoElement) {
+        logoElement.style.pointerEvents = 'auto';
+        logoElement.style.cursor = 'pointer';
+    }
+    
+    // Re-initialize the gradient intro (creates new rectangles and starts the demo)
+    initializeGradientIntro();
+}
+
 // Function to initialize logo click handler
 function initializeLogoClickHandler() {
     const logoElement = document.querySelector('.black-rectangle-logo');
@@ -12032,18 +13666,19 @@ function initializeLogoClickHandler() {
         return;
     }
     
-    // Click handler function for both logo rectangles
+    // Click handler function for logo - jumps to demo start
     const handleLogoClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // If intro is completed, go to START checkpoint (no intro restart)
-        if (introCompleted) {
-            goToStartCheckpoint();
-        } else {
-            // If intro is not completed, just restart (shouldn't happen normally)
-            restartIntro();
+        // Only allow click when intro is completed (user is on main screen)
+        // Prevents clicking during demo or intro phases
+        if (!introCompleted) {
+            return;
         }
+        
+        // Jump to demo start state with shutter animation
+        jumpToDemoStart();
     };
     
     // Set up logo rectangle
@@ -12262,18 +13897,40 @@ function scrollBothColumnsProgrammatically(duration) {
             }
         }
         
-        // Add words-revealed class to show word rectangles with intro lines
-        const uiLayer = document.querySelector('.ui-layer');
-        if (uiLayer && !uiLayer.classList.contains('words-revealed')) {
-            uiLayer.classList.add('words-revealed');
+        // NOTE: words-revealed is NOT added here - parameter rectangles only appear after collapse animation
+        // Logo exits after demo ends (will re-enter with parameter rectangles during collapse)
+        const logoContainer = document.querySelector('.logo-container');
+        if (logoContainer && !logoContainer.classList.contains('logo-exiting')) {
+            logoContainer.classList.add('logo-exiting');
+            logoContainer.classList.remove('logo-visible');
         }
+        
+        // Show labels on all scrollbar color items when demo ends
+        // Use intro-labels-visible to keep width at 50px while showing labels
+        const allColorItems = document.querySelectorAll('.color-item');
+        allColorItems.forEach(item => {
+            item.classList.add('intro-labels-visible');
+        });
         
         // Note: Triangles are now controlled by hover and scroll-hint-active class
         // They will appear during scroll hint animation and on hover
         
-        // Show instruction text line (only if not already changed to START)
+        // Show instruction text lines (only if not already changed to START)
         if (!introTextChanged) {
-            // Show instruction line element
+            // Show instruction line 1 element (explanation)
+            const introTextLine1 = document.getElementById('gradient-intro-text-line1');
+            
+            if (introTextLine1) {
+                // Remove any inline styles that might override CSS
+                introTextLine1.style.cursor = '';
+                introTextLine1.style.pointerEvents = '';
+                // Ensure container is visible - CSS handles the slide-up animation via inner .intro-line
+                introTextLine1.style.display = 'flex';
+                introTextLine1.style.visibility = 'visible';
+                // Don't set opacity inline - let CSS handle it via intro-active class
+            }
+            
+            // Show instruction line 2 element (scroll instruction)
             const introTextLine2 = document.getElementById('gradient-intro-text-line2');
             
             if (introTextLine2) {

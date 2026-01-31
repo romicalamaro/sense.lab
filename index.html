@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sense Lab</title>
+    <title>SENSE.LAB</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -103,7 +103,7 @@
         <div class="logo-clip-mask">
             <div class="logo-container">
                 <div class="black-rectangle-logo">
-                    <div class="logo-text"><span class="logo-word"><span class="logo-letter">S</span><span class="logo-letter">e</span><span class="logo-letter">n</span><span class="logo-letter">s</span><span class="logo-letter">e</span><span class="logo-space"> </span><span class="logo-letter">L</span><span class="logo-letter">a</span><span class="logo-letter">b</span></span></div>
+                    <div class="logo-text"><span class="logo-word"><span class="logo-letter">S</span><span class="logo-letter">E</span><span class="logo-letter">N</span><span class="logo-letter">S</span><span class="logo-letter">E</span><span class="logo-dot">.</span><span class="logo-letter">L</span><span class="logo-letter">A</span><span class="logo-letter">B</span></span></div>
                 </div>
             </div>
         </div>
@@ -141,68 +141,129 @@
                 </div>
             </div>
         </div>
-        <!-- Shape + Shape canvas container (ellipses interaction) -->
+        <!-- Shape + Color canvas container (mixed shapes interaction) -->
         <div id="shape-shape-container" class="shape-shape-container hidden">
-            <!-- Ellipses for Shape + Shape interaction (SVG for consistent stroke width) -->
+            <!-- Mixed shapes for Shape + Color interaction: ellipse, triangle, rectangle pattern -->
             <div id="shape-shape-ellipses" class="shape-shape-ellipses">
-                <div class="shape-ellipse-wrapper" data-index="0">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 0: Ellipse -->
+                <div class="shape-wrapper shape-wrapper-ellipse" data-index="0" data-shape="ellipse">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-path shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="1">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 1: Rhombus (diamond) -->
+                <div class="shape-wrapper shape-wrapper-rhombus" data-index="1" data-shape="rhombus">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="50,0 100,50 50,100 0,50" class="shape-path shape-rhombus"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="2">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 2: Rectangle -->
+                <div class="shape-wrapper shape-wrapper-rectangle" data-index="2" data-shape="rectangle">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <rect x="0" y="0" width="100" height="100" class="shape-path shape-rectangle"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="3">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 3: Ellipse -->
+                <div class="shape-wrapper shape-wrapper-ellipse" data-index="3" data-shape="ellipse">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-path shape-ellipse"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="4">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 4: Rhombus (diamond) -->
+                <div class="shape-wrapper shape-wrapper-rhombus" data-index="4" data-shape="rhombus">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="50,0 100,50 50,100 0,50" class="shape-path shape-rhombus"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="5">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 5: Rectangle -->
+                <div class="shape-wrapper shape-wrapper-rectangle" data-index="5" data-shape="rectangle">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <rect x="0" y="0" width="100" height="100" class="shape-path shape-rectangle"/>
                     </svg>
                 </div>
-                <div class="shape-ellipse-wrapper" data-index="6">
-                    <svg class="shape-ellipse-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-ellipse"/>
+                <!-- Shape 6: Ellipse -->
+                <div class="shape-wrapper shape-wrapper-ellipse" data-index="6" data-shape="ellipse">
+                    <svg class="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <ellipse cx="50" cy="50" rx="50" ry="50" class="shape-path shape-ellipse"/>
                     </svg>
                 </div>
             </div>
+        </div>
+        <!-- Container for concentric rings with star on Shape + Shape page -->
+        <div class="shape-shape-circle-container" id="shape-shape-circle-container">
+            <svg class="concentric-rings-svg" id="shape-shape-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
+                <defs>
+                    <!-- Clip paths for each ring (annular regions) -->
+                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <clipPath id="shape-ring-clip-0">
+                        <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <clipPath id="shape-ring-clip-1">
+                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <clipPath id="shape-ring-clip-2">
+                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <clipPath id="shape-ring-clip-3">
+                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <clipPath id="shape-ring-clip-4">
+                        <circle cx="0" cy="0" r="60"/>
+                    </clipPath>
+                </defs>
+                
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <g class="ring-group shape-ring-group" data-ring="0">
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <polygon class="ring-star" clip-path="url(#shape-ring-clip-0)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
+                </g>
+                
+                <!-- Ring 1: circle r=240 -->
+                <g class="ring-group shape-ring-group" data-ring="1">
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <polygon class="ring-star" clip-path="url(#shape-ring-clip-1)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
+                </g>
+                
+                <!-- Ring 2 (middle): circle r=180 -->
+                <g class="ring-group shape-ring-group" data-ring="2">
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <polygon class="ring-star" clip-path="url(#shape-ring-clip-2)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
+                </g>
+                
+                <!-- Ring 3: circle r=120 -->
+                <g class="ring-group shape-ring-group" data-ring="3">
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <polygon class="ring-star" clip-path="url(#shape-ring-clip-3)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
+                </g>
+                
+                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <g class="ring-group shape-ring-group" data-ring="4">
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <polygon class="ring-star" clip-path="url(#shape-ring-clip-4)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
+                </g>
+            </svg>
         </div>
         <!-- Sound & Shape canvas container -->
         <div id="sound-shape-container" class="sound-shape-container hidden">
             <canvas id="sound-shape-draw-surface"></canvas>
             <canvas id="sound-shape-brush-layer"></canvas>
-            <button id="sound-shape-play-btn" class="sound-shape-btn">[play]</button>
-            <button id="sound-shape-reset-btn" class="sound-shape-btn">[reset]</button>
-            <button id="sound-shape-export-btn" class="sound-shape-btn">[export]</button>
         </div>
         <div class="canvas-text-box" id="canvas-text-box"></div>
         <div class="canvas-text-box-syn-backing" id="canvas-text-box-syn-backing"></div>
-        <div class="canvas-text-box-syn-overlay" id="canvas-text-box-syn-overlay"></div>
         <div class="canvas-text-box-letter-sound" id="canvas-text-box-letter-sound">
-            <p>Written language is experienced as form rather than symbol. For some synesthetes, letters are not abstract signs but spatial entities with weight, direction, and geometry. Language becomes something shaped and seen before it is understood.</p>
+            <p>LANGUAGE BECOMES
+SOMETHING SHAPED
+AND SEEN
+BEFORE MEANING
+EMERGES.</p>
         </div>
         <!-- Letter + Color text box -->
         <div class="canvas-text-box-letter-color" id="canvas-text-box-letter-color">
             <p>For some synesthetes, color is an inseparable part of language. Letters do not appear as neutral marks, but arrive with their own chromatic presence. A word is already tinted before it is read, and its color remains stable, familiar, and personal.</p>
-        </div>
-        <!-- Number + Color text box -->
-        <div class="canvas-text-box-number-color" id="canvas-text-box-number-color">
-            <p>[1+2+3]×[4+5−1]+6^2−[3×2]+[5+1]×[4−2]+[6+3]÷[1+2]+4^2−[5−1]×3+[2+6]×[1+4]−[3+3]+5^2÷[1+4]+[6−2]×[3+1]</p>
         </div>
         <div class="canvas-instruction-text" id="canvas-instruction-text">
             [choose a shape and drag to create a sound]
@@ -354,9 +415,9 @@
                 <g class="ring-group emotion-ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-0)">
-                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                        <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -225 112 Q 0 337 225 112" fill="none" stroke="#2C2C2C" stroke-width="38" stroke-linecap="round"/>
                     </g>
                 </g>
                 
@@ -364,9 +425,9 @@
                 <g class="ring-group emotion-ring-group" data-ring="1">
                     <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-1)">
-                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                        <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -225 112 Q 0 337 225 112" fill="none" stroke="#2C2C2C" stroke-width="38" stroke-linecap="round"/>
                     </g>
                 </g>
                 
@@ -374,9 +435,9 @@
                 <g class="ring-group emotion-ring-group" data-ring="2">
                     <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-2)">
-                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                        <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -225 112 Q 0 337 225 112" fill="none" stroke="#2C2C2C" stroke-width="38" stroke-linecap="round"/>
                     </g>
                 </g>
                 
@@ -384,9 +445,9 @@
                 <g class="ring-group emotion-ring-group" data-ring="3">
                     <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-3)">
-                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                        <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -225 112 Q 0 337 225 112" fill="none" stroke="#2C2C2C" stroke-width="38" stroke-linecap="round"/>
                     </g>
                 </g>
                 
@@ -394,9 +455,9 @@
                 <g class="ring-group emotion-ring-group" data-ring="4">
                     <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-4)">
-                        <circle class="smiley-eye" cx="-120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <circle class="smiley-eye" cx="120" cy="-60" r="45" fill="#2C2C2C"/>
-                        <path class="smiley-mouth" d="M -180 90 Q 0 270 180 90" fill="none" stroke="#2C2C2C" stroke-width="30" stroke-linecap="round"/>
+                        <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
+                        <path class="smiley-mouth" d="M -225 112 Q 0 337 225 112" fill="none" stroke="#2C2C2C" stroke-width="38" stroke-linecap="round"/>
                     </g>
                 </g>
             </svg>
@@ -522,25 +583,111 @@
             <div class="letter-number-item" data-index="33" data-type="number">8</div>
             <div class="letter-number-item" data-index="34" data-type="number">9</div>
         </div>
-        <!-- Container for concentric gradient rings on Color + Color page -->
+        <!-- Container for concentric color wheel rings on Color + Color page -->
         <div class="color-color-circle-container" id="color-color-circle-container">
-            <!-- Ring 0 (outermost): 600px diameter -->
-            <div class="color-color-ring" data-ring="0"></div>
-            <!-- Ring 1: 480px diameter -->
-            <div class="color-color-ring" data-ring="1"></div>
-            <!-- Ring 2 (middle): 360px diameter -->
-            <div class="color-color-ring" data-ring="2"></div>
-            <!-- Ring 3: 240px diameter -->
-            <div class="color-color-ring" data-ring="3"></div>
-            <!-- Ring 4 (innermost): 120px diameter -->
-            <div class="color-color-ring" data-ring="4"></div>
-        </div>
-        <!-- Container for sound wave visualization on Sound + Sound page -->
-        <div class="sound-sound-wave-container" id="sound-sound-wave-container">
-            <svg class="sound-wave-svg" id="sound-wave-svg" width="600" height="100" viewBox="0 0 600 100">
-                <path id="sound-wave-path" class="sound-wave-path"></path>
+            <!-- Ring 0 (outermost): 600px diameter, R=300 - using arcs for circular pie slices -->
+            <svg class="color-color-ring" data-ring="0" viewBox="-310 -310 620 620">
+                <path class="color-segment" data-segment="0" data-color="#EF4538" d="M 0,0 L 0,-300 A 300,300 0 0,1 259.81,-150 Z"/>
+                <path class="color-segment" data-segment="1" data-color="#891951" d="M 0,0 L 259.81,-150 A 300,300 0 0,1 259.81,150 Z"/>
+                <path class="color-segment" data-segment="2" data-color="#FAB01B" d="M 0,0 L 259.81,150 A 300,300 0 0,1 0,300 Z"/>
+                <path class="color-segment" data-segment="3" data-color="#007A6F" d="M 0,0 L 0,300 A 300,300 0 0,1 -259.81,150 Z"/>
+                <path class="color-segment" data-segment="4" data-color="#EB4781" d="M 0,0 L -259.81,150 A 300,300 0 0,1 -259.81,-150 Z"/>
+                <path class="color-segment" data-segment="5" data-color="#293990" d="M 0,0 L -259.81,-150 A 300,300 0 0,1 0,-300 Z"/>
             </svg>
-            <button class="sound-wave-mic-btn" id="sound-wave-mic-btn">[enable microphone]</button>
+            <!-- Ring 1: 480px diameter, R=240 -->
+            <svg class="color-color-ring" data-ring="1" viewBox="-250 -250 500 500">
+                <path class="color-segment" data-segment="0" data-color="#EF4538" d="M 0,0 L 0,-240 A 240,240 0 0,1 207.85,-120 Z"/>
+                <path class="color-segment" data-segment="1" data-color="#891951" d="M 0,0 L 207.85,-120 A 240,240 0 0,1 207.85,120 Z"/>
+                <path class="color-segment" data-segment="2" data-color="#FAB01B" d="M 0,0 L 207.85,120 A 240,240 0 0,1 0,240 Z"/>
+                <path class="color-segment" data-segment="3" data-color="#007A6F" d="M 0,0 L 0,240 A 240,240 0 0,1 -207.85,120 Z"/>
+                <path class="color-segment" data-segment="4" data-color="#EB4781" d="M 0,0 L -207.85,120 A 240,240 0 0,1 -207.85,-120 Z"/>
+                <path class="color-segment" data-segment="5" data-color="#293990" d="M 0,0 L -207.85,-120 A 240,240 0 0,1 0,-240 Z"/>
+            </svg>
+            <!-- Ring 2 (middle): 360px diameter, R=180 -->
+            <svg class="color-color-ring" data-ring="2" viewBox="-190 -190 380 380">
+                <path class="color-segment" data-segment="0" data-color="#EF4538" d="M 0,0 L 0,-180 A 180,180 0 0,1 155.88,-90 Z"/>
+                <path class="color-segment" data-segment="1" data-color="#891951" d="M 0,0 L 155.88,-90 A 180,180 0 0,1 155.88,90 Z"/>
+                <path class="color-segment" data-segment="2" data-color="#FAB01B" d="M 0,0 L 155.88,90 A 180,180 0 0,1 0,180 Z"/>
+                <path class="color-segment" data-segment="3" data-color="#007A6F" d="M 0,0 L 0,180 A 180,180 0 0,1 -155.88,90 Z"/>
+                <path class="color-segment" data-segment="4" data-color="#EB4781" d="M 0,0 L -155.88,90 A 180,180 0 0,1 -155.88,-90 Z"/>
+                <path class="color-segment" data-segment="5" data-color="#293990" d="M 0,0 L -155.88,-90 A 180,180 0 0,1 0,-180 Z"/>
+            </svg>
+            <!-- Ring 3: 240px diameter, R=120 -->
+            <svg class="color-color-ring" data-ring="3" viewBox="-130 -130 260 260">
+                <path class="color-segment" data-segment="0" data-color="#EF4538" d="M 0,0 L 0,-120 A 120,120 0 0,1 103.92,-60 Z"/>
+                <path class="color-segment" data-segment="1" data-color="#891951" d="M 0,0 L 103.92,-60 A 120,120 0 0,1 103.92,60 Z"/>
+                <path class="color-segment" data-segment="2" data-color="#FAB01B" d="M 0,0 L 103.92,60 A 120,120 0 0,1 0,120 Z"/>
+                <path class="color-segment" data-segment="3" data-color="#007A6F" d="M 0,0 L 0,120 A 120,120 0 0,1 -103.92,60 Z"/>
+                <path class="color-segment" data-segment="4" data-color="#EB4781" d="M 0,0 L -103.92,60 A 120,120 0 0,1 -103.92,-60 Z"/>
+                <path class="color-segment" data-segment="5" data-color="#293990" d="M 0,0 L -103.92,-60 A 120,120 0 0,1 0,-120 Z"/>
+            </svg>
+            <!-- Ring 4 (innermost): 120px diameter, R=60 -->
+            <svg class="color-color-ring" data-ring="4" viewBox="-70 -70 140 140">
+                <path class="color-segment" data-segment="0" data-color="#EF4538" d="M 0,0 L 0,-60 A 60,60 0 0,1 51.96,-30 Z"/>
+                <path class="color-segment" data-segment="1" data-color="#891951" d="M 0,0 L 51.96,-30 A 60,60 0 0,1 51.96,30 Z"/>
+                <path class="color-segment" data-segment="2" data-color="#FAB01B" d="M 0,0 L 51.96,30 A 60,60 0 0,1 0,60 Z"/>
+                <path class="color-segment" data-segment="3" data-color="#007A6F" d="M 0,0 L 0,60 A 60,60 0 0,1 -51.96,30 Z"/>
+                <path class="color-segment" data-segment="4" data-color="#EB4781" d="M 0,0 L -51.96,30 A 60,60 0 0,1 -51.96,-30 Z"/>
+                <path class="color-segment" data-segment="5" data-color="#293990" d="M 0,0 L -51.96,-30 A 60,60 0 0,1 0,-60 Z"/>
+            </svg>
+        </div>
+        <!-- Container for concentric rings with sound wave on Sound + Sound page -->
+        <div class="sound-sound-circle-container" id="sound-sound-circle-container">
+            <svg class="concentric-rings-svg" id="sound-sound-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
+                <defs>
+                    <!-- Clip paths for each ring (annular regions) -->
+                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <clipPath id="sound-ring-clip-0">
+                        <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <clipPath id="sound-ring-clip-1">
+                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <clipPath id="sound-ring-clip-2">
+                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <clipPath id="sound-ring-clip-3">
+                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                    </clipPath>
+                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <clipPath id="sound-ring-clip-4">
+                        <circle cx="0" cy="0" r="60"/>
+                    </clipPath>
+                </defs>
+                
+                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <g class="ring-group sound-ring-group" data-ring="0">
+                    <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-0)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                </g>
+                
+                <!-- Ring 1: circle r=240 -->
+                <g class="ring-group sound-ring-group" data-ring="1">
+                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-1)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                </g>
+                
+                <!-- Ring 2 (middle): circle r=180 -->
+                <g class="ring-group sound-ring-group" data-ring="2">
+                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-2)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                </g>
+                
+                <!-- Ring 3: circle r=120 -->
+                <g class="ring-group sound-ring-group" data-ring="3">
+                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-3)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                </g>
+                
+                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <g class="ring-group sound-ring-group" data-ring="4">
+                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-4)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                </g>
+            </svg>
         </div>
         <!-- SVG for lines from center to each digit (Number + Emotion) -->
         <svg class="number-emotion-lines-svg hidden" id="number-emotion-lines-svg">
@@ -648,6 +795,72 @@
             <div class="letter-emotion-divider letter-emotion-divider-v" data-index="2"></div>
             <div class="letter-emotion-divider letter-emotion-divider-v" data-index="3"></div>
         </div>
+        <!-- Container for Number + Color draggable grid -->
+        <div class="number-color-grid-container hidden" id="number-color-grid-container">
+            <!-- Row 0: 0 1 2 3 4 -->
+            <div class="number-color-cell" data-row="0" data-col="0">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">0</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="0" data-col="1">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">1</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="0" data-col="2">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">2</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="0" data-col="3">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">3</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="0" data-col="4">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">4</text>
+                </svg>
+            </div>
+            <!-- Row 1: 5 6 7 8 9 -->
+            <div class="number-color-cell" data-row="1" data-col="0">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">5</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="1" data-col="1">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">6</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="1" data-col="2">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">7</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="1" data-col="3">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">8</text>
+                </svg>
+            </div>
+            <div class="number-color-cell" data-row="1" data-col="4">
+                <svg class="number-color-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <text x="50" y="75" text-anchor="middle" class="number-color-digit">9</text>
+                </svg>
+            </div>
+            <!-- Horizontal dividers (5 segments, one per column) -->
+            <div class="number-color-divider number-color-divider-h" data-col="0"></div>
+            <div class="number-color-divider number-color-divider-h" data-col="1"></div>
+            <div class="number-color-divider number-color-divider-h" data-col="2"></div>
+            <div class="number-color-divider number-color-divider-h" data-col="3"></div>
+            <div class="number-color-divider number-color-divider-h" data-col="4"></div>
+            <!-- Vertical dividers (4 lines between 5 columns) -->
+            <div class="number-color-divider number-color-divider-v" data-index="0"></div>
+            <div class="number-color-divider number-color-divider-v" data-index="1"></div>
+            <div class="number-color-divider number-color-divider-v" data-index="2"></div>
+            <div class="number-color-divider number-color-divider-v" data-index="3"></div>
+        </div>
         <!-- Container for Sound + Emotion smiley interaction -->
         <div id="sound-emotion-container" class="sound-emotion-container hidden">
             <svg id="sound-emotion-smiley" class="sound-emotion-smiley" preserveAspectRatio="none">
@@ -669,11 +882,38 @@
         </div>
         <!-- Container for Sound + Number draggable grid interaction -->
         <div id="sound-number-container" class="sound-number-grid-container hidden">
-            <!-- Center cell with digit 1 (row 1, col 1) -->
-            <div class="sound-number-cell" data-row="1" data-col="1">
+            <!-- Row 0 (top row): 3 outer cells -->
+            <div class="sound-number-cell sound-number-cell-outer" data-row="0" data-col="0">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <div class="sound-number-cell sound-number-cell-outer" data-row="0" data-col="1">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <div class="sound-number-cell sound-number-cell-outer" data-row="0" data-col="2">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <!-- Row 1 (middle row): left cell, center digit cell, right cell -->
+            <div class="sound-number-cell sound-number-cell-outer" data-row="1" data-col="0">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <!-- Center cell with digit (row 1, col 1) -->
+            <div class="sound-number-cell sound-number-cell-center" data-row="1" data-col="1">
                 <svg class="sound-number-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <text x="50" y="82" text-anchor="middle" class="sound-number-digit">1</text>
                 </svg>
+            </div>
+            <div class="sound-number-cell sound-number-cell-outer" data-row="1" data-col="2">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <!-- Row 2 (bottom row): 3 outer cells -->
+            <div class="sound-number-cell sound-number-cell-outer" data-row="2" data-col="0">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <div class="sound-number-cell sound-number-cell-outer" data-row="2" data-col="1">
+                <span class="sound-number-pitch-label">25 hz</span>
+            </div>
+            <div class="sound-number-cell sound-number-cell-outer" data-row="2" data-col="2">
+                <span class="sound-number-pitch-label">25 hz</span>
             </div>
             <!-- 2 Horizontal dividers (between rows) -->
             <div class="sound-number-divider sound-number-divider-h" data-index="0"></div>
@@ -767,7 +1007,83 @@
             <div class="emotion-color-divider emotion-color-divider-v" data-index="1"></div>
         </div>
         <!-- Logo hover overlay: darkens and blurs canvas when hovering on SYN logo -->
-        <div class="logo-hover-overlay" id="logo-hover-overlay"></div>
+        <div class="logo-hover-overlay" id="logo-hover-overlay">
+            <!-- Diagram explaining site structure: full layout with scrollable columns and center area -->
+            <div class="logo-hover-diagram" id="logo-hover-diagram">
+                <!-- Left scrollable column - positioned absolutely to span full diagram height -->
+                <div class="diagram-scrollable-column diagram-column-left">
+                    <div class="diagram-scroll-track">
+                        <!-- First set: 6 rectangles with letters [a]-[f] -->
+                        <div class="diagram-scrollable-rect">[a]</div>
+                        <div class="diagram-scrollable-rect">[b]</div>
+                        <div class="diagram-scrollable-rect">[c]</div>
+                        <div class="diagram-scrollable-rect">[d]</div>
+                        <div class="diagram-scrollable-rect">[e]</div>
+                        <div class="diagram-scrollable-rect">[f]</div>
+                        <!-- Duplicate set for seamless looping -->
+                        <div class="diagram-scrollable-rect">[a]</div>
+                        <div class="diagram-scrollable-rect">[b]</div>
+                        <div class="diagram-scrollable-rect">[c]</div>
+                        <div class="diagram-scrollable-rect">[d]</div>
+                        <div class="diagram-scrollable-rect">[e]</div>
+                        <div class="diagram-scrollable-rect">[f]</div>
+                    </div>
+                </div>
+                <!-- Right scrollable column - positioned absolutely to span full diagram height -->
+                <div class="diagram-scrollable-column diagram-column-right">
+                    <div class="diagram-scroll-track">
+                        <!-- First set: 6 rectangles with letters [a]-[f] -->
+                        <div class="diagram-scrollable-rect">[a]</div>
+                        <div class="diagram-scrollable-rect">[b]</div>
+                        <div class="diagram-scrollable-rect">[c]</div>
+                        <div class="diagram-scrollable-rect">[d]</div>
+                        <div class="diagram-scrollable-rect">[e]</div>
+                        <div class="diagram-scrollable-rect">[f]</div>
+                        <!-- Duplicate set for seamless looping -->
+                        <div class="diagram-scrollable-rect">[a]</div>
+                        <div class="diagram-scrollable-rect">[b]</div>
+                        <div class="diagram-scrollable-rect">[c]</div>
+                        <div class="diagram-scrollable-rect">[d]</div>
+                        <div class="diagram-scrollable-rect">[e]</div>
+                        <div class="diagram-scrollable-rect">[f]</div>
+                    </div>
+                </div>
+                <!-- Header row with center label only (side labels now in scroll tracks) -->
+                <div class="diagram-header-row">
+                    <div class="diagram-header-cell diagram-header-left">[x]</div>
+                    <div class="diagram-header-cell diagram-header-center">[sense x & y blends]</div>
+                    <div class="diagram-header-cell diagram-header-right">[y]</div>
+                </div>
+                <!-- Main content area with center and arrows -->
+                <div class="diagram-main-area">
+                    <!-- Left arrow label -->
+                    <span class="diagram-arrow-label diagram-arrow-label-left">[sense wheels]</span>
+                    <!-- Left arrow pointing outward from left column -->
+                    <svg class="diagram-arrow diagram-arrow-left" viewBox="0 0 298 12" preserveAspectRatio="xMidYMid meet">
+                        <!-- Arrow line (290px long) -->
+                        <line x1="297" y1="6" x2="7" y2="6" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round"/>
+                        <!-- Arrowhead -->
+                        <polyline points="12,1 7,6 12,11" fill="none" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <!-- Center experience area -->
+                    <div class="diagram-center-area">
+                        <span class="diagram-center-label">[Every combination of two senses creates a distinct synesthetic experience]</span>
+                    </div>
+                    <!-- Right arrow label -->
+                    <span class="diagram-arrow-label diagram-arrow-label-right">[sense wheels]</span>
+                    <!-- Right arrow pointing outward from right column -->
+                    <svg class="diagram-arrow diagram-arrow-right" viewBox="0 0 298 12" preserveAspectRatio="xMidYMid meet">
+                        <!-- Arrow line (290px long) -->
+                        <line x1="1" y1="6" x2="291" y2="6" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round"/>
+                        <!-- Arrowhead -->
+                        <polyline points="286,1 291,6 286,11" fill="none" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="logo-hover-text-box" id="logo-hover-text-box">
+                <p>This website translates synesthesia into a system of interactive, sensory-based experiences. Each color represents a specific sense, and each experience is built through the combination of two senses at a time. By scrolling, selecting, and combining colors, users explore different sensory pairings and encounter varied forms of synesthetic interaction, revealing how perception shifts through connection and overlap.</p>
+            </div>
+        </div>
         <!-- Index page overlay: white background shown on INDEX hover -->
         <div class="index-page-overlay" id="index-page-overlay">
             <!-- Shutter animation container - 5 horizontal strips that slide up to reveal content -->
@@ -801,7 +1117,7 @@
             <!-- Shape combinations -->
             <div class="index-item" data-left="0" data-right="1"><span class="index-item-name">[Shape + Sound]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + shape.png" alt=""></div>
             <div class="index-line"></div>
-            <div class="index-item" data-left="0" data-right="4"><span class="index-item-name">[Shape + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + shape.png" alt=""></div>
+            <div class="index-item" data-left="0" data-right="4"><span class="index-item-name">[Shape + Emotion]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + shape .png" alt=""></div>
             <div class="index-line"></div>
             <div class="index-item" data-left="0" data-right="5"><span class="index-item-name">[Shape + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/shape + color.png" alt=""></div>
             <div class="index-line"></div>
@@ -811,7 +1127,7 @@
             <div class="index-item" data-left="1" data-right="5"><span class="index-item-name">[Sound + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/sound + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Color combinations -->
-            <div class="index-item" data-left="4" data-right="5"><span class="index-item-name">[Emotion + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/color + emotion.png" alt=""></div>
+            <div class="index-item" data-left="4" data-right="5"><span class="index-item-name">[Emotion + Color]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/emotion + color.png" alt=""></div>
             <div class="index-line"></div>
             <!-- Same-sense combinations -->
             <div class="index-item" data-left="2" data-right="2"><span class="index-item-name">[Letter + Letter]</span><span class="index-item-quote"></span><img class="index-item-thumbnail" src="screen shots/letter + letter.png" alt=""></div>
@@ -831,11 +1147,11 @@
         <div class="about-page-overlay" id="about-page-overlay">
             <!-- About text box: synesthesia explanation -->
             <div class="about-text-box about-text-box-1" id="about-text-box-1">
-                <p>This website explores synesthesia as a way of understanding how the world is perceived when senses intertwine. Instead of relying on theory, the project translates synesthesia into interactive, sensory-based experiences. All texts and quotations throughout the site are drawn from real testimonies of syntesthetes, reflecting their personal and subjective experiences of letter, number, sound, color, shape, and emotion. Synesthesia is not a metaphor or an imaginative association, but a consistent and involuntary way of perceiving the world.</p>
+                <p>Synesthesia is a perceptual phenomenon in which one sense automatically triggers another. Sounds may appear as colors, letters may take on shapes, and numbers may feel spatial or textured. These cross-sensory connections are consistent and involuntary, shaping how synesthetes experience the world.<br>This project explores synesthesia by focusing on the relationships between pairs of senses, translating these internal experiences into visual and interactive forms.</p>
             </div>
             <!-- About page footer -->
             <footer class="about-footer">
-                <span class="copyright-symbol">©</span> 2026 | by Romi Calamaro | Made with Cursor
+                <span class="copyright-symbol">©</span> 2026 | Designed by Romi Calamaro | Made with Cursor
             </footer>
         </div>
     </div>
