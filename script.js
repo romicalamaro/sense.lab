@@ -7,7 +7,7 @@ const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
 // Two intro text lines - line 1 is the explanation, line 2 is the instruction
-const INTRO_LINE_1_TEXT = '[synesthesia is an experience where senses blend together]';
+const INTRO_LINE_1_TEXT = '[synesthesia is an experience where two senses blend together]';
 const INTRO_LINE_2_TEXT = '[scroll the side wheels to blend the senses]';
 // Legacy constant for backward compatibility (used in some checks)
 const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
