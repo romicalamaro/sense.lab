@@ -2135,9 +2135,11 @@ h1 {
     opacity: 1;
 }
 
-/* Number + Number rings: black color (#2C2C2C) for circles and digit */
+/* Number + Number rings: white stroke to blend with background and cover seams */
 #number-number-rings-svg .ring-circle {
-    stroke: #2C2C2C;
+    stroke: #ffffff !important;
+    stroke-width: 3px !important;
+    /* stroke: #2C2C2C; */ /* Original visible ring outline */
 }
 
 #number-number-rings-svg .ring-letter {
@@ -2166,9 +2168,11 @@ h1 {
     opacity: 1;
 }
 
-/* Emotion + Emotion rings: black color (#2C2C2C) for circles and smiley */
+/* Emotion + Emotion rings: white stroke to blend with background and cover seams */
 #emotion-emotion-rings-svg .ring-circle {
-    stroke: #2C2C2C;
+    stroke: #ffffff !important;
+    stroke-width: 3px !important;
+    /* stroke: #2C2C2C; */ /* Original visible ring outline */
 }
 
 #emotion-emotion-rings-svg .smiley-eye {
@@ -2179,9 +2183,11 @@ h1 {
     stroke: #2C2C2C;
 }
 
-/* Letter + Letter rings: black color (#2C2C2C) for circles and letter */
+/* Letter + Letter rings: white stroke to blend with background and cover seams */
 #concentric-rings-svg .ring-circle {
-    stroke: #2C2C2C;
+    stroke: #ffffff !important;
+    stroke-width: 3px !important;
+    /* stroke: #2C2C2C; */ /* Original visible ring outline */
 }
 
 #concentric-rings-svg .ring-letter {
@@ -2210,9 +2216,11 @@ h1 {
     opacity: 1;
 }
 
-/* Shape + Shape rings: black color (#2C2C2C) for circles and star */
+/* Shape + Shape rings: white stroke to blend with background and cover seams */
 #shape-shape-rings-svg .ring-circle {
-    stroke: #2C2C2C;
+    stroke: #ffffff !important;
+    stroke-width: 3px !important;
+    /* stroke: #2C2C2C; */ /* Original visible ring outline */
 }
 
 #shape-shape-rings-svg .ring-star {
@@ -2900,14 +2908,16 @@ h1 {
     opacity: 1;
 }
 
-/* Sound + Sound rings: black color (#2C2C2C) for circles and wave */
+/* Sound + Sound rings: white stroke to blend with background and cover seams */
 #sound-sound-rings-svg .ring-circle {
-    stroke: #2C2C2C;
+    stroke: #ffffff !important;
+    stroke-width: 6px !important;
+    /* stroke: #2C2C2C; */ /* Original visible ring outline */
 }
 
 #sound-sound-rings-svg .ring-wave {
     stroke: #2C2C2C;
-    stroke-width: 5px;
+    stroke-width: 10px;
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -3050,11 +3060,11 @@ h1 {
     margin-left: -60px;
 }
 
-/* Triangular color segments - start white with black borders */
+/* Triangular color segments - start white with white borders (invisible) */
 .color-segment {
     fill: white;
-    stroke: #2C2C2C;
-    stroke-width: 2;
+    stroke: #ffffff;
+    stroke-width: 3;
     stroke-linejoin: round;
     transition: fill 0.3s ease-out;
 }
@@ -3066,6 +3076,11 @@ h1 {
 .color-segment.revealed[data-segment="3"] { fill: #007A6F; } /* Teal/Green (bottom) */
 .color-segment.revealed[data-segment="4"] { fill: #EB4781; } /* Pink (bottom-left) */
 .color-segment.revealed[data-segment="5"] { fill: #293990; } /* Blue (top-left) */
+
+/* When mouse is outside canvas, revealed segments show as black (same as non-revealed) */
+.color-color-circle-container.mouse-outside-canvas .color-segment.revealed {
+    fill: #2C2C2C;
+}
 
 /* ==================
    NUMBER + EMOTION DIGITS
@@ -3350,7 +3365,7 @@ h1 {
     left: 50%;
     transform: translateX(-50%);
     /* Position in upper portion of overlay - moved up since tagline is now inside */
-    top: 90px;
+    top: 120px;
     /* Diagram size - scaled down version of canvas proportions */
     /* Canvas is (100vw - 100px) wide and (5/6 * 100vh) tall */
     /* Using ~54% scale for a comfortable fit */
@@ -3452,13 +3467,38 @@ h1 {
     z-index: 6; /* Above center header */
 }
 
+/* Cover sub-pixel sliver at top and bottom of scrollable columns */
+.diagram-scrollable-column::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: white;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.diagram-scrollable-column::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: white;
+    z-index: 10;
+    pointer-events: none;
+}
+
 /* Scroll track container - holds duplicated rectangles for seamless loop */
 .diagram-scroll-track {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 200%; /* Double the column height for 10 rectangles (2 sets of 5) */
+    height: 200%; /* Double the column height for 12 rectangles (2 sets of 6) */
     display: flex;
     flex-direction: column;
 }
@@ -3539,12 +3579,12 @@ h1 {
     left: 100%; /* Position so left edge touches diagram's right edge (outer edge of right column) */
 }
 
-/* Arrow labels - text above each arrow */
+/* Arrow labels - text below each arrow */
 .diagram-arrow-label {
     position: absolute;
-    /* Center vertically same as arrow, then offset up by 20px + half arrow height */
+    /* Center vertically same as arrow, then offset down by 20px + half arrow height */
     top: 50%;
-    transform: translate(-50%, calc(-50% - 20px));
+    transform: translate(-50%, calc(-50% + 20px));
     /* Typography matching diagram style */
     font-family: 'JetBrains Mono NL', monospace;
     font-size: 15px;
@@ -3561,6 +3601,31 @@ h1 {
 
 /* Right arrow label - centered horizontally on right arrow */
 .diagram-arrow-label-right {
+    left: calc(100% + 149px); /* Center of the right arrow */
+}
+
+/* Scroll labels - text above each arrow (same spacing as arrow labels below) */
+.diagram-scroll-label {
+    position: absolute;
+    /* Center vertically same as arrow, then offset up by 20px + half arrow height */
+    top: 50%;
+    transform: translate(-50%, calc(-50% - 20px));
+    /* Typography matching diagram style */
+    font-family: 'JetBrains Mono NL', monospace;
+    font-size: 15px;
+    font-weight: normal;
+    color: #2C2C2C;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+/* Left scroll label - centered horizontally on left arrow */
+.diagram-scroll-label-left {
+    left: -149px; /* Center of the left arrow */
+}
+
+/* Right scroll label - centered horizontally on right arrow */
+.diagram-scroll-label-right {
     left: calc(100% + 149px); /* Center of the right arrow */
 }
 
@@ -3610,6 +3675,14 @@ h1 {
     z-index: 10; /* Above overlay background */
     pointer-events: none; /* Don't interfere with interactions */
     overflow: visible; /* Ensure text is visible */
+    /* "Pushed" animation: start 35px to the left (matching left column expansion from 50px to 85px) */
+    transform: translateX(-35px);
+    transition: transform 0.2s ease; /* Same timing as color-item expansion */
+}
+
+/* When overlay is visible, text is "pushed" into final position by left column expansion */
+.logo-hover-overlay.visible .logo-hover-text-box {
+    transform: translateX(0);
 }
 
 /* Paragraph styling for logo hover text box */

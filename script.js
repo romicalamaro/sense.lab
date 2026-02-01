@@ -1199,32 +1199,32 @@ const LETTER_SHAPES = {
 // Mapping object: uppercase letter (A-Z) → color hex code
 // These are placeholder colors - can be customized later
 const LETTER_COLORS = {
-    'A': '#E53935',  // Red
-    'B': '#1E88E5',  // Blue
-    'C': '#FDD835',  // Yellow
-    'D': '#43A047',  // Green
-    'E': '#8E24AA',  // Purple
-    'F': '#FB8C00',  // Orange
-    'G': '#00ACC1',  // Cyan
-    'H': '#D81B60',  // Pink
-    'I': '#5E35B1',  // Deep Purple
-    'J': '#039BE5',  // Light Blue
-    'K': '#7CB342',  // Light Green
-    'L': '#FFB300',  // Amber
-    'M': '#3949AB',  // Indigo
-    'N': '#00897B',  // Teal
-    'O': '#F4511E',  // Deep Orange
-    'P': '#C0CA33',  // Lime
-    'Q': '#6D4C41',  // Brown
-    'R': '#EC407A',  // Pink Light
-    'S': '#AB47BC',  // Purple Light
-    'T': '#26A69A',  // Teal Light
-    'U': '#42A5F5',  // Blue Light
-    'V': '#66BB6A',  // Green Light
-    'W': '#FFCA28',  // Yellow Light
-    'X': '#EF5350',  // Red Light
-    'Y': '#7E57C2',  // Deep Purple Light
-    'Z': '#78909C'   // Blue Grey
+    'A': '#EF4538',  // Red (palette)
+    'B': '#293990',  // Blue (palette)
+    'C': '#FAB01B',  // Yellow (palette)
+    'D': '#007A6F',  // Green (palette)
+    'E': '#891951',  // Purple (palette)
+    'F': '#EF4538',  // Red (palette) - was Orange
+    'G': '#007A6F',  // Green (palette) - was Cyan
+    'H': '#EB4781',  // Pink (palette)
+    'I': '#293990',  // Blue (palette) - was Deep Purple
+    'J': '#293990',  // Blue (palette) - was Light Blue
+    'K': '#007A6F',  // Green (palette) - was Light Green
+    'L': '#FAB01B',  // Yellow (palette) - was Amber
+    'M': '#293990',  // Blue (palette) - was Indigo
+    'N': '#007A6F',  // Green (palette) - was Teal
+    'O': '#EF4538',  // Red (palette) - was Deep Orange
+    'P': '#FAB01B',  // Yellow (palette) - was Lime
+    'Q': '#891951',  // Purple (palette) - was Brown
+    'R': '#EB4781',  // Pink (palette) - was Pink Light
+    'S': '#891951',  // Purple (palette) - was Purple Light
+    'T': '#007A6F',  // Green (palette) - was Teal Light
+    'U': '#293990',  // Blue (palette) - was Blue Light
+    'V': '#007A6F',  // Green (palette) - was Green Light
+    'W': '#FAB01B',  // Yellow (palette) - was Yellow Light
+    'X': '#EF4538',  // Red (palette) - was Red Light
+    'Y': '#891951',  // Purple (palette) - was Deep Purple Light
+    'Z': '#293990'   // Blue (palette) - was Blue Grey
 };
 
 // ==================
@@ -2596,6 +2596,8 @@ const LETTER_NUMBER_ROTATION_SPEED = 0.0005; // Radians per frame (slow rotation
 const LETTER_NUMBER_REPULSION_RADIUS = 200; // Distance at which repulsion starts (increased for larger items)
 const LETTER_NUMBER_MAX_DISPLACEMENT = 450; // Maximum displacement in pixels (increased for more movement)
 const LETTER_NUMBER_RETURN_SPEED = 0.0008; // How fast elements return to original position (very slow)
+const LETTER_NUMBER_OUTER_EXTENSION = 400; // How far beyond element to detect mouse for pushing inward
+const LETTER_NUMBER_ANGULAR_TOLERANCE = 0.25; // Radians (~15 degrees) - how close mouse angle must be to element's radial line
 
 let letterNumberRotationOffset = 0; // Current rotation angle
 let letterNumberAnimationId = null; // requestAnimationFrame ID
@@ -2621,10 +2623,9 @@ function initializeLetterNumberCircle() {
         }
     }
     
-    // Set up mouse move listener on canvas-container (larger area for better tracking)
-    if (!letterNumberInitialized && canvasContainer) {
-        canvasContainer.addEventListener('mousemove', handleLetterNumberMouseMove);
-        canvasContainer.addEventListener('mouseleave', handleLetterNumberMouseLeave);
+    // Set up mouse move listener on document (full page tracking for extended zone)
+    if (!letterNumberInitialized) {
+        document.addEventListener('mousemove', handleLetterNumberMouseMove);
         letterNumberInitialized = true;
     }
     
@@ -2759,12 +2760,19 @@ function updateLetterNumberLine(index, itemX, itemY, centerX, centerY) {
 // Calculate and apply repulsion from mouse
 // Smart push: mouse outside circle pushes inward, mouse inside circle pushes outward
 // Uses RADIAL displacement (single number) that rotates with the element
+// Extended zone: allows pushing from outside the element along its radial direction
 function applyLetterNumberRepulsion() {
     const container = document.getElementById('letter-number-circle-container');
     if (!container) return;
     
     const centerX = 350;
     const centerY = 350;
+    
+    // Boundary constraints (same as in updateLetterNumberPositions)
+    const minY = 50;
+    const maxY = 630;
+    const minX = -350;
+    const maxX = 1050;
     
     for (let i = 0; i < LETTER_NUMBER_TOTAL_ITEMS; i++) {
         // Calculate current base position on circle
@@ -2777,34 +2785,72 @@ function applyLetterNumberRepulsion() {
         const dirX = Math.cos(angle);
         const dirY = Math.sin(angle);
         
-        // Current position with radial displacement
-        const currentX = baseX + dirX * radialDisp;
-        const currentY = baseY + dirY * radialDisp;
+        // Current position with radial displacement (before clamping)
+        let currentX = baseX + dirX * radialDisp;
+        let currentY = baseY + dirY * radialDisp;
+        
+        // Apply same boundary clamping as visual positioning to get actual element position
+        const clampedX = Math.max(minX, Math.min(maxX, currentX));
+        const clampedY = Math.max(minY, Math.min(maxY, currentY));
         
         // Calculate distance from mouse (mouse position is relative to center)
         const mouseAbsX = centerX + letterNumberMousePosition.x;
         const mouseAbsY = centerY + letterNumberMousePosition.y;
         
-        const dx = currentX - mouseAbsX;
-        const dy = currentY - mouseAbsY;
+        const dx = clampedX - mouseAbsX;
+        const dy = clampedY - mouseAbsY;
         const distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
         
-        // Apply repulsion if within range
-        if (distanceFromMouse < LETTER_NUMBER_REPULSION_RADIUS && distanceFromMouse > 0) {
-            // Calculate repulsion force (stronger when closer)
-            const force = (LETTER_NUMBER_REPULSION_RADIUS - distanceFromMouse) / LETTER_NUMBER_REPULSION_RADIUS;
-            const repulsionStrength = force * 3; // Multiplier for responsiveness
+        // Calculate distances from center - use ACTUAL clamped position, not theoretical
+        const mouseDistFromCenter = Math.sqrt(
+            letterNumberMousePosition.x * letterNumberMousePosition.x +
+            letterNumberMousePosition.y * letterNumberMousePosition.y
+        );
+        // Actual element distance from center (after clamping)
+        const actualElementDistFromCenter = Math.sqrt(
+            (clampedX - centerX) * (clampedX - centerX) +
+            (clampedY - centerY) * (clampedY - centerY)
+        );
+        
+        // Calculate angle from center to mouse
+        const mouseAngle = Math.atan2(letterNumberMousePosition.y, letterNumberMousePosition.x);
+        
+        // Calculate angular difference (normalized to -PI to PI range)
+        let angleDiff = mouseAngle - angle;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        const absAngleDiff = Math.abs(angleDiff);
+        
+        // Check if mouse is in the EXTENDED ZONE (beyond the element, on the same radial line)
+        // This allows pushing inward from outside the visible element
+        // Uses actual element position (clamped) instead of theoretical position
+        const isInExtendedZone = (
+            absAngleDiff < LETTER_NUMBER_ANGULAR_TOLERANCE && // Mouse is on same radial line
+            mouseDistFromCenter > actualElementDistFromCenter && // Mouse is beyond element (further from center)
+            mouseDistFromCenter < actualElementDistFromCenter + LETTER_NUMBER_OUTER_EXTENSION // Within extension range
+        );
+        
+        // Check if mouse is in the normal repulsion zone (close to element)
+        const isInNormalZone = distanceFromMouse < LETTER_NUMBER_REPULSION_RADIUS && distanceFromMouse > 0;
+        
+        // Apply repulsion if in either zone
+        if (isInNormalZone || isInExtendedZone) {
+            let repulsionStrength;
             
-            // Calculate distances from center to determine push direction
-            const mouseDistFromCenter = Math.sqrt(
-                letterNumberMousePosition.x * letterNumberMousePosition.x +
-                letterNumberMousePosition.y * letterNumberMousePosition.y
-            );
-            const elementDistFromCenter = LETTER_NUMBER_RADIUS + radialDisp;
+            if (isInExtendedZone && !isInNormalZone) {
+                // Extended zone: calculate force based on distance beyond element
+                const distBeyondElement = mouseDistFromCenter - actualElementDistFromCenter;
+                const force = 1 - (distBeyondElement / LETTER_NUMBER_OUTER_EXTENSION);
+                repulsionStrength = force * 3; // Same multiplier for consistency
+            } else {
+                // Normal zone: calculate force based on proximity to element
+                const force = (LETTER_NUMBER_REPULSION_RADIUS - distanceFromMouse) / LETTER_NUMBER_REPULSION_RADIUS;
+                repulsionStrength = force * 3; // Multiplier for responsiveness
+            }
             
             let pushAmount;
             
-            if (mouseDistFromCenter > elementDistFromCenter) {
+            if (mouseDistFromCenter > actualElementDistFromCenter) {
                 // Mouse is OUTSIDE (farther from center) - push element INWARD (decrease radial displacement)
                 pushAmount = -repulsionStrength;
             } else {
@@ -3025,10 +3071,24 @@ function initializeColorColorRings() {
     if (colorColorRingsInitialized) return;
     
     const container = document.getElementById('color-color-circle-container');
-    if (!container) return;
+    const canvasContainer = document.getElementById('canvas-container');
+    if (!container || !canvasContainer) return;
     
     // Add mouse move listener to document - rings follow mouse position
     document.addEventListener('mousemove', handleColorColorRingMouseMove);
+    
+    // Track when mouse enters/leaves the canvas area
+    // When outside canvas, segments should be black; when inside, show actual colors
+    canvasContainer.addEventListener('mouseenter', () => {
+        container.classList.remove('mouse-outside-canvas');
+    });
+    
+    canvasContainer.addEventListener('mouseleave', () => {
+        container.classList.add('mouse-outside-canvas');
+    });
+    
+    // Start with mouse-outside-canvas class (assume mouse starts outside)
+    container.classList.add('mouse-outside-canvas');
     
     colorColorRingsInitialized = true;
 }
@@ -10426,15 +10486,24 @@ function initializeAboutHoverEffect() {
     let aboutTextBoxBackgroundsCreated = false;
     
     // Calculate rectangle height for animations
-    const getRectHeight = () => (window.innerHeight * 5 / 6 * 0.54) / 6;
+    // Read actual rendered height from DOM to avoid sub-pixel misalignment between CSS flexbox and JS calculations
+    const getRectHeight = () => {
+        const rect = document.querySelector('.diagram-scrollable-rect');
+        if (rect) {
+            // Use actual rendered height (rounded to avoid sub-pixel accumulation)
+            return Math.round(rect.getBoundingClientRect().height);
+        }
+        // Fallback to calculated value if DOM element not available
+        return Math.round((window.innerHeight * 5 / 6 * 0.54) / 6);
+    };
     
     // Helper to move right column up by 1 and handle wrap-around after animation completes
     const moveRightUp = (callback) => {
         const rectHeight = getRectHeight();
         rightOffset -= 1;
         
-        // Animate to target position
-        rightColumnScrollTrack.style.transform = `translateY(${rightOffset * rectHeight}px)`;
+        // Animate to target position (rounded to avoid sub-pixel gaps)
+        rightColumnScrollTrack.style.transform = `translateY(${Math.round(rightOffset * rectHeight)}px)`;
         
         // Update header labels to reflect new position
         updateDiagramHeaders();
@@ -10462,8 +10531,8 @@ function initializeAboutHoverEffect() {
         const rectHeight = getRectHeight();
         leftOffset += 1;
         
-        // Animate to target position
-        leftColumnScrollTrack.style.transform = `translateY(${leftOffset * rectHeight}px)`;
+        // Animate to target position (rounded to avoid sub-pixel gaps)
+        leftColumnScrollTrack.style.transform = `translateY(${Math.round(leftOffset * rectHeight)}px)`;
         
         // Update header labels to reflect new position
         updateDiagramHeaders();
@@ -10473,7 +10542,7 @@ function initializeAboutHoverEffect() {
             // Wait for animation to complete (500ms), then reset to -6 without transition
             const resetTimeout = setTimeout(() => {
                 leftColumnScrollTrack.style.transition = 'none';
-                leftColumnScrollTrack.style.transform = `translateY(${-6 * getRectHeight()}px)`;
+                leftColumnScrollTrack.style.transform = `translateY(${Math.round(-6 * getRectHeight())}px)`;
                 leftColumnScrollTrack.offsetHeight;
                 leftColumnScrollTrack.style.transition = 'transform 0.5s ease-out';
                 leftOffset = -6;
@@ -10534,7 +10603,7 @@ function initializeAboutHoverEffect() {
         // This way when we animate toward 0, content moves DOWN and [f][e][d]... appear from top
         if (leftColumnScrollTrack) {
             leftColumnScrollTrack.style.transition = 'none'; // Disable transition for instant jump
-            leftColumnScrollTrack.style.transform = `translateY(-${rectHeight * 6}px)`; // Start at second set [a]
+            leftColumnScrollTrack.style.transform = `translateY(-${Math.round(rectHeight * 6)}px)`; // Start at second set [a]
             leftColumnScrollTrack.offsetHeight; // Force reflow
             leftColumnScrollTrack.style.transition = 'transform 0.5s ease-out'; // Re-enable transition
         }

@@ -193,56 +193,56 @@
         <div class="shape-shape-circle-container" id="shape-shape-circle-container">
             <svg class="concentric-rings-svg" id="shape-shape-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
                 <defs>
-                    <!-- Clip paths for each ring (annular regions) -->
-                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <!-- Clip paths for each ring (annular regions) - with 3px overlap -->
+                    <!-- Ring 0: outer r=300, inner r=240 (outermost - no overlap needed) -->
                     <clipPath id="shape-ring-clip-0">
                         <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <!-- Ring 1: outer r=243 (was 240), inner r=180 - overlaps ring 0 by 3px -->
                     <clipPath id="shape-ring-clip-1">
-                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                        <path d="M 243,0 A 243,243 0 1,1 -243,0 A 243,243 0 1,1 243,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <!-- Ring 2: outer r=183 (was 180), inner r=120 - overlaps ring 1 by 3px -->
                     <clipPath id="shape-ring-clip-2">
-                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                        <path d="M 183,0 A 183,183 0 1,1 -183,0 A 183,183 0 1,1 183,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <!-- Ring 3: outer r=123 (was 120), inner r=60 - overlaps ring 2 by 3px -->
                     <clipPath id="shape-ring-clip-3">
-                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                        <path d="M 123,0 A 123,123 0 1,1 -123,0 A 123,123 0 1,1 123,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <!-- Ring 4: solid circle r=63 (was 60) - overlaps ring 3 by 3px -->
                     <clipPath id="shape-ring-clip-4">
-                        <circle cx="0" cy="0" r="60"/>
+                        <circle cx="0" cy="0" r="63"/>
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill -->
                 <g class="ring-group shape-ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <polygon class="ring-star" clip-path="url(#shape-ring-clip-0)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
                 </g>
                 
-                <!-- Ring 1: circle r=240 -->
+                <!-- Ring 1: circle r=243 (overlaps ring 0) -->
                 <g class="ring-group shape-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="243" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <polygon class="ring-star" clip-path="url(#shape-ring-clip-1)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
                 </g>
                 
-                <!-- Ring 2 (middle): circle r=180 -->
+                <!-- Ring 2 (middle): circle r=183 (overlaps ring 1) -->
                 <g class="ring-group shape-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="183" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <polygon class="ring-star" clip-path="url(#shape-ring-clip-2)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
                 </g>
                 
-                <!-- Ring 3: circle r=120 -->
+                <!-- Ring 3: circle r=123 (overlaps ring 2) -->
                 <g class="ring-group shape-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="123" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <polygon class="ring-star" clip-path="url(#shape-ring-clip-3)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
                 </g>
                 
-                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <!-- Ring 4 (innermost): solid circle r=63 (overlaps ring 3) -->
                 <g class="ring-group shape-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="63" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <polygon class="ring-star" clip-path="url(#shape-ring-clip-4)" points="0,-280 62,-86 266,-87 101,33 165,227 0,106 -165,227 -101,33 -266,-87 -62,-86" fill="#2C2C2C"/>
                 </g>
             </svg>
@@ -273,55 +273,55 @@ EMERGES.</p>
             <svg class="concentric-rings-svg" id="concentric-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
                 <defs>
                     <!-- Clip paths for each ring (annular regions) -->
-                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <!-- Ring 0: outer r=300, inner r=240 (outermost - no overlap needed) -->
                     <clipPath id="ring-clip-0">
                         <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <!-- Ring 1: outer r=243 (was 240), inner r=180 - overlaps ring 0 by 3px -->
                     <clipPath id="ring-clip-1">
-                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                        <path d="M 243,0 A 243,243 0 1,1 -243,0 A 243,243 0 1,1 243,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <!-- Ring 2: outer r=183 (was 180), inner r=120 - overlaps ring 1 by 3px -->
                     <clipPath id="ring-clip-2">
-                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                        <path d="M 183,0 A 183,183 0 1,1 -183,0 A 183,183 0 1,1 183,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <!-- Ring 3: outer r=123 (was 120), inner r=60 - overlaps ring 2 by 3px -->
                     <clipPath id="ring-clip-3">
-                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                        <path d="M 123,0 A 123,123 0 1,1 -123,0 A 123,123 0 1,1 123,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <!-- Ring 4: solid circle r=63 (was 60) - overlaps ring 3 by 3px -->
                     <clipPath id="ring-clip-4">
-                        <circle cx="0" cy="0" r="60"/>
+                        <circle cx="0" cy="0" r="63"/>
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill -->
                 <g class="ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <text class="ring-letter" clip-path="url(#ring-clip-0)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
-                <!-- Ring 1: circle r=240 -->
+                <!-- Ring 1: circle r=243 (overlaps ring 0) -->
                 <g class="ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="243" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <text class="ring-letter" clip-path="url(#ring-clip-1)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
-                <!-- Ring 2 (middle): circle r=180 -->
+                <!-- Ring 2 (middle): circle r=183 (overlaps ring 1) -->
                 <g class="ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="183" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <text class="ring-letter" clip-path="url(#ring-clip-2)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
-                <!-- Ring 3: circle r=120 -->
+                <!-- Ring 3: circle r=123 (overlaps ring 2) -->
                 <g class="ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="123" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <text class="ring-letter" clip-path="url(#ring-clip-3)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
                 
-                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <!-- Ring 4 (innermost): solid circle r=63 (overlaps ring 3) -->
                 <g class="ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="63" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <text class="ring-letter" clip-path="url(#ring-clip-4)" x="0" y="180" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="600" font-weight="bold" fill="#2C2C2C">A</text>
                 </g>
             </svg>
@@ -330,57 +330,57 @@ EMERGES.</p>
         <div class="number-number-circle-container" id="number-number-circle-container">
             <svg class="concentric-rings-svg" id="number-number-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
                 <defs>
-                    <!-- Clip paths for each ring (annular regions) - same as letter version -->
-                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <!-- Clip paths for each ring (annular regions) - with 3px overlap -->
+                    <!-- Ring 0: outer r=300, inner r=240 (outermost - no overlap needed) -->
                     <clipPath id="number-ring-clip-0">
                         <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <!-- Ring 1: outer r=243 (was 240), inner r=180 - overlaps ring 0 by 3px -->
                     <clipPath id="number-ring-clip-1">
-                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                        <path d="M 243,0 A 243,243 0 1,1 -243,0 A 243,243 0 1,1 243,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <!-- Ring 2: outer r=183 (was 180), inner r=120 - overlaps ring 1 by 3px -->
                     <clipPath id="number-ring-clip-2">
-                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                        <path d="M 183,0 A 183,183 0 1,1 -183,0 A 183,183 0 1,1 183,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <!-- Ring 3: outer r=123 (was 120), inner r=60 - overlaps ring 2 by 3px -->
                     <clipPath id="number-ring-clip-3">
-                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                        <path d="M 123,0 A 123,123 0 1,1 -123,0 A 123,123 0 1,1 123,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <!-- Ring 4: solid circle r=63 (was 60) - overlaps ring 3 by 3px -->
                     <clipPath id="number-ring-clip-4">
-                        <circle cx="0" cy="0" r="60"/>
+                        <circle cx="0" cy="0" r="63"/>
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill -->
                 <g class="ring-group number-ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-0)" x="0" y="255" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="677" font-weight="bold" fill="#2C2C2C">1</text>
                 </g>
                 
-                <!-- Ring 1: circle r=240 -->
+                <!-- Ring 1: circle r=243 (overlaps ring 0) -->
                 <g class="ring-group number-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="243" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-1)" x="0" y="255" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="677" font-weight="bold" fill="#2C2C2C">1</text>
                 </g>
                 
-                <!-- Ring 2 (middle): circle r=180 -->
+                <!-- Ring 2 (middle): circle r=183 (overlaps ring 1) -->
                 <g class="ring-group number-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="183" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-2)" x="0" y="255" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="677" font-weight="bold" fill="#2C2C2C">1</text>
                 </g>
                 
-                <!-- Ring 3: circle r=120 -->
+                <!-- Ring 3: circle r=123 (overlaps ring 2) -->
                 <g class="ring-group number-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="123" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-3)" x="0" y="255" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="677" font-weight="bold" fill="#2C2C2C">1</text>
                 </g>
                 
-                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <!-- Ring 4 (innermost): solid circle r=63 (overlaps ring 3) -->
                 <g class="ring-group number-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="245" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="670" font-weight="bold" fill="#2C2C2C">5</text>
+                    <circle class="ring-circle" cx="0" cy="0" r="63" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <text class="ring-letter" clip-path="url(#number-ring-clip-4)" x="0" y="255" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="677" font-weight="bold" fill="#2C2C2C">1</text>
                 </g>
             </svg>
         </div>
@@ -388,30 +388,30 @@ EMERGES.</p>
         <div class="emotion-emotion-circle-container" id="emotion-emotion-circle-container">
             <svg class="concentric-rings-svg" id="emotion-emotion-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
                 <defs>
-                    <!-- Clip paths for each ring (annular regions) - same as number version -->
-                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <!-- Clip paths for each ring (annular regions) - with 3px overlap -->
+                    <!-- Ring 0: outer r=300, inner r=240 (outermost - no overlap needed) -->
                     <clipPath id="emotion-ring-clip-0">
                         <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <!-- Ring 1: outer r=243 (was 240), inner r=180 - overlaps ring 0 by 3px -->
                     <clipPath id="emotion-ring-clip-1">
-                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                        <path d="M 243,0 A 243,243 0 1,1 -243,0 A 243,243 0 1,1 243,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <!-- Ring 2: outer r=183 (was 180), inner r=120 - overlaps ring 1 by 3px -->
                     <clipPath id="emotion-ring-clip-2">
-                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                        <path d="M 183,0 A 183,183 0 1,1 -183,0 A 183,183 0 1,1 183,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <!-- Ring 3: outer r=123 (was 120), inner r=60 - overlaps ring 2 by 3px -->
                     <clipPath id="emotion-ring-clip-3">
-                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                        <path d="M 123,0 A 123,123 0 1,1 -123,0 A 123,123 0 1,1 123,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <!-- Ring 4: solid circle r=63 (was 60) - overlaps ring 3 by 3px -->
                     <clipPath id="emotion-ring-clip-4">
-                        <circle cx="0" cy="0" r="60"/>
+                        <circle cx="0" cy="0" r="63"/>
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill -->
                 <g class="ring-group emotion-ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-0)">
@@ -421,9 +421,9 @@ EMERGES.</p>
                     </g>
                 </g>
                 
-                <!-- Ring 1: circle r=240 -->
+                <!-- Ring 1: circle r=243 (overlaps ring 0) -->
                 <g class="ring-group emotion-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="243" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-1)">
                         <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
                         <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
@@ -431,9 +431,9 @@ EMERGES.</p>
                     </g>
                 </g>
                 
-                <!-- Ring 2 (middle): circle r=180 -->
+                <!-- Ring 2 (middle): circle r=183 (overlaps ring 1) -->
                 <g class="ring-group emotion-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="183" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-2)">
                         <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
                         <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
@@ -441,9 +441,9 @@ EMERGES.</p>
                     </g>
                 </g>
                 
-                <!-- Ring 3: circle r=120 -->
+                <!-- Ring 3: circle r=123 (overlaps ring 2) -->
                 <g class="ring-group emotion-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="123" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-3)">
                         <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
                         <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
@@ -451,9 +451,9 @@ EMERGES.</p>
                     </g>
                 </g>
                 
-                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <!-- Ring 4 (innermost): solid circle r=63 (overlaps ring 3) -->
                 <g class="ring-group emotion-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="63" fill="white" stroke="#2C2C2C" stroke-width="2"/>
                     <g class="smiley-face" clip-path="url(#emotion-ring-clip-4)">
                         <circle class="smiley-eye" cx="-150" cy="-75" r="56" fill="#2C2C2C"/>
                         <circle class="smiley-eye" cx="150" cy="-75" r="56" fill="#2C2C2C"/>
@@ -635,57 +635,57 @@ EMERGES.</p>
         <div class="sound-sound-circle-container" id="sound-sound-circle-container">
             <svg class="concentric-rings-svg" id="sound-sound-rings-svg" viewBox="-310 -310 620 620" width="620" height="620">
                 <defs>
-                    <!-- Clip paths for each ring (annular regions) -->
-                    <!-- Ring 0: outer r=300, inner r=240 -->
+                    <!-- Clip paths for each ring (annular regions) - with 3px overlap -->
+                    <!-- Ring 0: outer r=300, inner r=240 (outermost - no overlap needed) -->
                     <clipPath id="sound-ring-clip-0">
                         <path d="M 300,0 A 300,300 0 1,1 -300,0 A 300,300 0 1,1 300,0 Z M 240,0 A 240,240 0 1,0 -240,0 A 240,240 0 1,0 240,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 1: outer r=240, inner r=180 -->
+                    <!-- Ring 1: outer r=243 (was 240), inner r=180 - overlaps ring 0 by 3px -->
                     <clipPath id="sound-ring-clip-1">
-                        <path d="M 240,0 A 240,240 0 1,1 -240,0 A 240,240 0 1,1 240,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
+                        <path d="M 243,0 A 243,243 0 1,1 -243,0 A 243,243 0 1,1 243,0 Z M 180,0 A 180,180 0 1,0 -180,0 A 180,180 0 1,0 180,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 2: outer r=180, inner r=120 -->
+                    <!-- Ring 2: outer r=183 (was 180), inner r=120 - overlaps ring 1 by 3px -->
                     <clipPath id="sound-ring-clip-2">
-                        <path d="M 180,0 A 180,180 0 1,1 -180,0 A 180,180 0 1,1 180,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
+                        <path d="M 183,0 A 183,183 0 1,1 -183,0 A 183,183 0 1,1 183,0 Z M 120,0 A 120,120 0 1,0 -120,0 A 120,120 0 1,0 120,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 3: outer r=120, inner r=60 -->
+                    <!-- Ring 3: outer r=123 (was 120), inner r=60 - overlaps ring 2 by 3px -->
                     <clipPath id="sound-ring-clip-3">
-                        <path d="M 120,0 A 120,120 0 1,1 -120,0 A 120,120 0 1,1 120,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
+                        <path d="M 123,0 A 123,123 0 1,1 -123,0 A 123,123 0 1,1 123,0 Z M 60,0 A 60,60 0 1,0 -60,0 A 60,60 0 1,0 60,0 Z" fill-rule="evenodd"/>
                     </clipPath>
-                    <!-- Ring 4: solid circle r=60 (innermost) -->
+                    <!-- Ring 4: solid circle r=63 (was 60) - overlaps ring 3 by 3px -->
                     <clipPath id="sound-ring-clip-4">
-                        <circle cx="0" cy="0" r="60"/>
+                        <circle cx="0" cy="0" r="63"/>
                     </clipPath>
                 </defs>
                 
-                <!-- Ring 0 (outermost): full circle r=300 with white fill and black stroke -->
+                <!-- Ring 0 (outermost): full circle r=300 with white fill -->
                 <g class="ring-group sound-ring-group" data-ring="0">
                     <circle class="ring-circle" cx="0" cy="0" r="300" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-0)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-0)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="10"/>
                 </g>
                 
-                <!-- Ring 1: circle r=240 -->
+                <!-- Ring 1: circle r=243 (overlaps ring 0) -->
                 <g class="ring-group sound-ring-group" data-ring="1">
-                    <circle class="ring-circle" cx="0" cy="0" r="240" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-1)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="243" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-1)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="10"/>
                 </g>
                 
-                <!-- Ring 2 (middle): circle r=180 -->
+                <!-- Ring 2 (middle): circle r=183 (overlaps ring 1) -->
                 <g class="ring-group sound-ring-group" data-ring="2">
-                    <circle class="ring-circle" cx="0" cy="0" r="180" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-2)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="183" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-2)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="10"/>
                 </g>
                 
-                <!-- Ring 3: circle r=120 -->
+                <!-- Ring 3: circle r=123 (overlaps ring 2) -->
                 <g class="ring-group sound-ring-group" data-ring="3">
-                    <circle class="ring-circle" cx="0" cy="0" r="120" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-3)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="123" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-3)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="10"/>
                 </g>
                 
-                <!-- Ring 4 (innermost): solid circle r=60 -->
+                <!-- Ring 4 (innermost): solid circle r=63 (overlaps ring 3) -->
                 <g class="ring-group sound-ring-group" data-ring="4">
-                    <circle class="ring-circle" cx="0" cy="0" r="60" fill="white" stroke="#2C2C2C" stroke-width="2"/>
-                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-4)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="5"/>
+                    <circle class="ring-circle" cx="0" cy="0" r="63" fill="white" stroke="#2C2C2C" stroke-width="2"/>
+                    <path class="ring-wave sound-wave-path" clip-path="url(#sound-ring-clip-4)" d="M -300 0 L 300 0" fill="none" stroke="#2C2C2C" stroke-width="10"/>
                 </g>
             </svg>
         </div>
@@ -1065,9 +1065,11 @@ EMERGES.</p>
                         <!-- Arrowhead -->
                         <polyline points="12,1 7,6 12,11" fill="none" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
+                    <!-- Left scroll label (below arrow) -->
+                    <span class="diagram-scroll-label diagram-scroll-label-left">[scroll]</span>
                     <!-- Center experience area -->
                     <div class="diagram-center-area">
-                        <span class="diagram-center-label">[Every combination of two senses creates a distinct synesthetic experience]</span>
+                        <span class="diagram-center-label">[Every combination of two senses<br>creates a distinct synesthetic experience]</span>
                     </div>
                     <!-- Right arrow label -->
                     <span class="diagram-arrow-label diagram-arrow-label-right">[sense wheels]</span>
@@ -1078,6 +1080,8 @@ EMERGES.</p>
                         <!-- Arrowhead -->
                         <polyline points="286,1 291,6 286,11" fill="none" stroke="#2C2C2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
+                    <!-- Right scroll label (below arrow) -->
+                    <span class="diagram-scroll-label diagram-scroll-label-right">[scroll]</span>
                 </div>
             </div>
             <div class="logo-hover-text-box" id="logo-hover-text-box">
