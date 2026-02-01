@@ -481,6 +481,16 @@ body.intro-completed .color-item.affects-gradient.opposite-hovered .label {
     pointer-events: none !important;
 }
 
+/* OVERRIDE: Keep exiting elements visible during closing phase for slide-out animation */
+/* These rules are more specific to override the hiding rules above */
+.gradient-intro-container.intro-closing .gradient-intro-text-line1:has(.intro-line-exiting),
+.gradient-intro-container.intro-closing .gradient-intro-text-start:has(.start-exiting) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+}
+
 /* Hide arrow when intro is entering, closing, or collapsed */
 .gradient-intro-container.intro-entering .gradient-intro-arrow,
 .gradient-intro-container.intro-closing .gradient-intro-arrow,
@@ -550,23 +560,25 @@ body.intro-completed .color-item.affects-gradient.opposite-hovered .label {
 .gradient-intro-text-line1 .intro-line {
     background-color: white;
     color: #2C2C2C;
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 29px;
     font-weight: bold;
+    letter-spacing: 0;
 }
 
 /* Container height for intro explanation line */
 .gradient-intro-text-line1 {
-    height: 38px !important; /* Single line, matching index rectangle height */
+    height: 55px !important; /* Single line, adjusted for 29px Helvetica font */
 }
 
 /* Custom styling for instruction line "scroll the bars on the sides of the screen to combine senses" */
 .gradient-intro-text-line2 .intro-line {
     background-color: white;
     color: #2C2C2C;
-    font-family: 'JetBrains Mono NL', monospace;
-    font-size: 15px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 29px;
     font-weight: bold;
+    letter-spacing: 0;
 }
 
 /* Special styling for "scroll" word in intro - no longer used, kept for backward compatibility */
@@ -609,30 +621,32 @@ body.intro-completed .color-item.affects-gradient.opposite-hovered .label {
     display: inline-flex; /* Use flexbox for centering */
     align-items: center; /* Center text vertically */
     justify-content: center; /* Center text horizontally */
-    /* Start below the visible area - pushed down by 38px (line height) */
-    transform: translateY(38px);
-    /* Faster slide-up animation (0.8s) */
-    transition: transform 0.8s cubic-bezier(0.2, 0.0, 0.0, 1);
+    height: 55px; /* Adjusted for 29px Helvetica font */
+    /* Start below the visible area - pushed down by 55px (line height) */
+    transform: translateY(55px);
+    /* Slide-up animation with responsive easing - starts fast, decelerates smoothly */
+    /* Using ease-out-expo style curve for immediate visual feedback */
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Hide inner content during entering phase */
 .gradient-intro-container.intro-entering .gradient-intro-text-line1 .intro-line,
 .gradient-intro-container.intro-entering .gradient-intro-text-line2 .intro-line {
-    transform: translateY(40px); /* Keep hidden below mask */
+    transform: translateY(57px); /* Keep hidden below mask */
 }
 
 /* Synchronized slide-up animation for both intro-line elements when active */
 .gradient-intro-container.intro-active .gradient-intro-text-line1 .intro-line,
 .gradient-intro-container.intro-active .gradient-intro-text-line2 .intro-line {
     transform: translateY(0); /* Slide up into view */
-    transition-delay: 0.1s; /* Both lines appear together */
+    /* No delay - animation starts immediately for responsive feel */
 }
 
 /* Slide-out animation: inner intro-line slides down and out of mask when exiting */
 /* This overrides the intro-active state to animate lines out before showing START */
 .gradient-intro-text-line1 .intro-line.intro-line-exiting,
 .gradient-intro-text-line2 .intro-line.intro-line-exiting {
-    transform: translateY(40px) !important; /* Slide down out of view */
+    transform: translateY(57px) !important; /* Slide down out of view - must exceed container height (55px) */
     transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important; /* Slower, smooth ease-out slide */
     transition-delay: 0s !important; /* No delay for exit animation */
 }
@@ -827,14 +841,18 @@ body.intro-completed .color-item.affects-gradient.opposite-hovered .label {
 }
 
 /* Intro text mask containers need same height as parameter rectangles */
-.gradient-intro-text-line2,
 .gradient-intro-text-start {
     height: 38px !important; /* Same height as index rectangle */
 }
 
+/* Line 2 container height (adjusted for 29px Helvetica font) */
+.gradient-intro-text-line2 {
+    height: 55px !important; /* Adjusted for 29px Helvetica font */
+}
+
 /* Line 1 container height (single line) */
 .gradient-intro-text-line1 {
-    height: 38px !important; /* Single line, matching index rectangle height */
+    height: 55px !important; /* Single line, adjusted for 29px Helvetica font */
 }
 
 /* INDEX mask - positioned at gradient bottom edge, 50px right of logo */

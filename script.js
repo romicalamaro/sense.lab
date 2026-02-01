@@ -7,8 +7,8 @@ const colorWords = ['shape', 'sound', 'letter', 'number', 'emotion', 'color'];
 
 // Initial instruction text content (shown after demo ends, before user scrolls)
 // Two intro text lines - line 1 is the explanation, line 2 is the instruction
-const INTRO_LINE_1_TEXT = '[synesthesia is an experience where two senses blend together]';
-const INTRO_LINE_2_TEXT = '[scroll the side wheels to blend the senses]';
+const INTRO_LINE_1_TEXT = 'Synesthesia is an experience where two senses blend together';
+const INTRO_LINE_2_TEXT = 'Scroll the side wheels to blend the senses';
 // Legacy constant for backward compatibility (used in some checks)
 const INITIAL_INSTRUCTION_TEXT = '<span class="intro-line">' + INTRO_LINE_2_TEXT + '</span>';
 
@@ -11125,20 +11125,20 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     
     // Position instructional text lines at bottom of gradient rectangles
     // Text fades in during entry animation (synced with gradient shrink)
-    const LINE_HEIGHT = 38; // Height of single-line intro-line element (matches CSS index rectangle height)
-    const LINE1_HEIGHT = 38; // Height for explanation text (matches index rectangle height)
+    const START_BUTTON_HEIGHT = 38; // Height for START button (matches CSS index rectangle height)
+    const INTRO_LINE_HEIGHT = 55; // Height for intro explanation text (adjusted for 29px Helvetica font)
     
     // Line 1: bottom-aligned to gradient rectangle index 1 (2nd from top), centered on X axis
     const introTextLine1 = document.getElementById('gradient-intro-text-line1');
     if (introTextLine1) {
         const rectIndex1 = 1; // 2nd gradient from top (0-indexed)
         // Bottom-aligned: top = bottom edge of rectangle - line height
-        const line1Top = (rectIndex1 + 1) * itemHeight - LINE1_HEIGHT;
+        const line1Top = (rectIndex1 + 1) * itemHeight - INTRO_LINE_HEIGHT;
         
         introTextLine1.style.left = `${leftEdge}px`; // Centered on X axis
         introTextLine1.style.width = `${width}px`;
         introTextLine1.style.top = `${line1Top}px`;
-        introTextLine1.style.height = `${LINE1_HEIGHT}px`;
+        introTextLine1.style.height = `${INTRO_LINE_HEIGHT}px`;
         // CSS handles display, alignItems, justifyContent for slide-up mask effect
         introTextLine1.style.visibility = 'visible';
         // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
@@ -11149,12 +11149,12 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     if (introTextLine2) {
         const rectIndex2 = 2; // 3rd gradient from top (0-indexed)
         // Bottom-aligned: top = bottom edge of rectangle - line height
-        const line2Top = (rectIndex2 + 1) * itemHeight - LINE_HEIGHT;
+        const line2Top = (rectIndex2 + 1) * itemHeight - INTRO_LINE_HEIGHT;
         
         introTextLine2.style.left = `${leftEdge}px`; // Centered on X axis
         introTextLine2.style.width = `${width}px`;
         introTextLine2.style.top = `${line2Top}px`;
-        introTextLine2.style.height = `${LINE_HEIGHT}px`;
+        introTextLine2.style.height = `${INTRO_LINE_HEIGHT}px`;
         // CSS handles display, alignItems, justifyContent for slide-up mask effect
         introTextLine2.style.visibility = 'visible';
         // DO NOT set opacity or alignItems inline - CSS handles the slide-up animation
@@ -11165,12 +11165,12 @@ function updateGradientIntroFromColors(baseLeftColor, baseRightColor) {
     if (introTextStart) {
         const rectIndexStart = 2; // 3rd gradient from top (0-indexed)
         // Bottom-aligned: top = bottom edge of rectangle - line height (same as intro lines)
-        const startTop = (rectIndexStart + 1) * itemHeight - LINE_HEIGHT;
+        const startTop = (rectIndexStart + 1) * itemHeight - START_BUTTON_HEIGHT;
         
         introTextStart.style.left = `${leftEdge}px`;
         introTextStart.style.width = `${width}px`;
         introTextStart.style.top = `${startTop}px`;
-        introTextStart.style.height = `${LINE_HEIGHT}px`;
+        introTextStart.style.height = `${START_BUTTON_HEIGHT}px`;
         // CSS handles display, alignItems, justifyContent for slide-up mask effect
         // Visibility handled by showStartButtonElement() - don't override here
     }
